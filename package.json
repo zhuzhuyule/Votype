@@ -1,7 +1,7 @@
 {
   "name": "votype",
   "private": true,
-  "version": "0.6.8",
+  "version": "0.9.8",
   "type": "module",
   "license": "MIT",
   "scripts": {
@@ -13,6 +13,8 @@
     "format:check": "prettier --check . && cd src-tauri && cargo fmt -- --check",
     "format:frontend": "prettier --write .",
     "format:backend": "cd src-tauri && cargo fmt",
+    "i18n:check": "bun scripts/i18n-check.mjs",
+    "i18n:baseline": "bun scripts/i18n-check.mjs --write-baseline",
     "prepare": "husky"
   },
   "lint-staged": {
@@ -63,5 +65,6 @@
     "prettier": "^3.6.2",
     "typescript": "~5.6.3",
     "vite": "^6.4.1"
-  }
+  },
+  "packageManager": "pnpm@9.15.0+sha512.76e2379760a4328ec4415815bcd6628dee727af3779aaa4c914e3944156c4299921a89f976381ee107d41f12cfa4b66681ca9c718f0668fa0831ed4c6d8ba56c"
 }

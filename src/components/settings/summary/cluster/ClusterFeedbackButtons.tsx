@@ -7,6 +7,7 @@ import {
   TextArea,
 } from "@radix-ui/themes";
 import { IconThumbDown, IconThumbUp } from "@tabler/icons-react";
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { useClusterFeedback } from "../hooks/useClusterFeedback";
 
@@ -17,6 +18,7 @@ interface ClusterFeedbackButtonsProps {
 export function ClusterFeedbackButtons({
   clusterId,
 }: ClusterFeedbackButtonsProps) {
+  const { t } = useTranslation();
   const { add } = useClusterFeedback(clusterId);
   const [openThumb, setOpenThumb] = useState<"up" | "down" | null>(null);
   const [note, setNote] = useState("");
@@ -46,7 +48,7 @@ export function ClusterFeedbackButtons({
             variant="ghost"
             size="1"
             onClick={() => setOpenThumb("up")}
-            aria-label="赞同"
+            aria-label={t("settings.summary.feedbackButtons.upAria")}
           >
             <IconThumbUp size={14} />
           </IconButton>
@@ -56,7 +58,7 @@ export function ClusterFeedbackButtons({
             variant="ghost"
             size="1"
             onClick={() => setOpenThumb("down")}
-            aria-label="反对"
+            aria-label={t("settings.summary.feedbackButtons.downAria")}
           >
             <IconThumbDown size={14} />
           </IconButton>
@@ -65,22 +67,30 @@ export function ClusterFeedbackButtons({
       <Popover.Content>
         <Flex direction="column" gap="2" style={{ minWidth: 240 }}>
           <Text size="2">
-            {openThumb === "down" ? "反馈：哪里不对？" : "可选备注"}
+            {t(
+              openThumb === "down"
+                ? "settings.summary.feedbackButtons.notePromptDown"
+                : "settings.summary.feedbackButtons.notePromptOptional",
+            )}
           </Text>
           <TextArea
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder={
-              openThumb === "down" ? "例：Slack 消息应该单独成簇..." : "可选"
-            }
+            placeholder={t(
+              openThumb === "down"
+                ? "settings.summary.feedbackButtons.placeholderDown"
+                : "settings.summary.feedbackButtons.notePromptOptional",
+            )}
             rows={3}
           />
           <Flex gap="2" justify="end">
             <Button variant="soft" onClick={cancel} size="1">
-              取消
+              {t("common.cancel")}
             </Button>
             <Button onClick={submit} size="1">
-              {note.trim() ? "提交" : "提交（无备注）"}
+              {t("settings.summary.feedbackButtons.submit")}
+              {!note.trim() &&
+                t("settings.summary.feedbackButtons.submitNoNote")}
             </Button>
           </Flex>
         </Flex>

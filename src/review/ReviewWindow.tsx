@@ -1244,10 +1244,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
           setTranslatedText(null);
           setTranslatedSourceText(null);
           setTranslationError(
-            t(
-              "transcription.review.translationFailedFallback",
-              "翻译失败，插入时将回退原文",
-            ),
+            t("transcription.review.translationFailedFallback"),
           );
           setTranslationStatus("error");
           return;
@@ -1263,10 +1260,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
         setTranslatedText(null);
         setTranslatedSourceText(null);
         setTranslationError(
-          t(
-            "transcription.review.translationFailedFallback",
-            "翻译失败，插入时将回退原文",
-          ),
+          t("transcription.review.translationFailedFallback"),
         );
         setTranslationStatus("error");
       } finally {
@@ -2142,10 +2136,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
 
         {pendingClose && (
           <div className="review-pending-close-toast">
-            {t(
-              "transcription.review.pressEscAgain",
-              "内容已修改，再次按 ESC 关闭",
-            )}
+            {t("transcription.review.pressEscAgain")}
           </div>
         )}
 
@@ -2221,18 +2212,15 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
                   </span>
                   <span className="review-translation-title-mode">
                     {translationEnabled
-                      ? t("transcription.review.translationModeAuto", "AUTO")
-                      : t(
-                          "transcription.review.translationModeManual",
-                          "MANUAL",
-                        )}
+                      ? t("transcription.review.translationModeAuto")
+                      : t("transcription.review.translationModeManual")}
                   </span>
                 </span>
                 <button
                   type="button"
                   className="review-btn-primary review-translation-insert-btn"
                   onClick={handleInsertEnglish}
-                  title={t("transcription.review.insert", "插入")}
+                  title={t("transcription.review.insert")}
                   data-mod-armed={
                     pressedModifier === "meta" ? "true" : undefined
                   }
@@ -2244,7 +2232,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
                       strokeWidth={2.0}
                     />
                   )}
-                  {t("transcription.review.insert", "插入")}
+                  {t("transcription.review.insert")}
                   <span
                     className="review-shortcut-hint"
                     data-mod-armed={
@@ -2258,7 +2246,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
               <div className="review-translation-float-content">
                 {translatedText ||
                   translationError ||
-                  t("transcription.review.translationUpdating", "翻译中...")}
+                  t("transcription.review.translationUpdating")}
               </div>
             </div>
           </div>

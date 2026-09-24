@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Box, Flex, Text } from "@radix-ui/themes";
 import type { Summary } from "../summaryTypes";
 
@@ -6,11 +7,12 @@ interface RecapSectionProps {
 }
 
 export function RecapSection({ summary }: RecapSectionProps) {
+  const { t } = useTranslation();
   const recap = summary?.stats?.daily_overview;
   if (!recap) {
     return (
       <Text size="2" color="gray">
-        尚无 Recap
+        {t("settings.summary.recap.empty")}
       </Text>
     );
   }

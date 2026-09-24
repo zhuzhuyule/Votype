@@ -1,12 +1,4 @@
 {
-  "tray": {
-    "settings": "...الإعدادات",
-    "checkUpdates": "...التحقق من وجود تحديثات",
-    "copyLastTranscript": "نسخ آخر نص تم تفريغه",
-    "unloadModel": "تفريغ النموذج",
-    "quit": "إنهاء",
-    "cancel": "إلغاء"
-  },
   "sidebar": {
     "general": "عام",
     "advanced": "متقدم",
@@ -14,15 +6,23 @@
     "history": "السجل",
     "debug": "تصحيح الأخطاء",
     "about": "حول",
-    "models": "النماذج"
+    "models": "النماذج",
+    "appProfiles": "ملفات التطبيقات التعريفية",
+    "dashboard": "لوحة التحكم",
+    "expertMode": "الوضع المتقدم",
+    "expertModeHint": "إظهار خيارات الإعدادات المتقدمة",
+    "prompts": "المطالبات",
+    "shortcuts": "الاختصارات",
+    "summary": "الملخص",
+    "vocabulary": "المفردات",
+    "asrModels": "نماذج ASR",
+    "dailyVocabulary": "المفردات اليومية"
   },
   "onboarding": {
     "subtitle": "للبدء، اختر نموذج التفريغ الصوتي",
     "recommended": "موصى به",
     "download": "تنزيل",
     "downloading": "...جاري التنزيل",
-    "customModelDescription": "غير مدعوم رسميًا",
-    "downloadFailed": "فشل التنزيل. يرجى المحاولة مرة أخرى.",
     "modelCard": {
       "accuracy": "الدقة",
       "speed": "السرعة"
@@ -52,38 +52,67 @@
         "name": "Parakeet V3",
         "description": ".سريع ودقيق"
       },
-      "moonshine-base": {
-        "name": "Moonshine Base",
-        "description": ".سريع جداً، الإنجليزية فقط. يتعامل جيداً مع اللهجات"
-      }
+      "description": "اختر نموذجاً للبدء. النماذج الموصى بها مناسبة لمعظم حالات الاستخدام.",
+      "showMore": "المزيد من النماذج",
+      "title": "اختر نموذجاً"
     },
     "errors": {
       "loadModels": "فشل تحميل النماذج المتاحة",
       "downloadModel": "فشل تنزيل النموذج: {{error}}"
     },
-    "permissions": {
-      "title": "الأذونات المطلوبة",
-      "description": ".يحتاج Handy إلى بعض الأذونات ليعمل بشكل صحيح",
-      "microphone": {
-        "title": "الوصول إلى الميكروفون",
-        "description": ".مطلوب لسماع صوتك من أجل التفريغ الصوتي"
-      },
-      "accessibility": {
-        "title": "إمكانية الوصول",
-        "description": ".مطلوب لكتابة النص المفرغ في تطبيقاتك"
-      },
+    "accessibility": {
+      "description": "يمكّن هذا الإذن اللصق التلقائي للنص",
+      "feature1": "لصق النص المفرّغ تلقائياً في التطبيق الحالي",
+      "feature2": "الحصول على موضع المؤشر لوضع التراكب",
+      "feature3": "محاكاة اختصارات لوحة المفاتيح للصق",
       "grant": "منح الإذن",
-      "granted": "تم المنح",
-      "waiting": "...في الانتظار",
-      "allGranted": "كل شيء جاهز!",
-      "errors": {
-        "checkFailed": "فشل التحقق من الأذونات. يرجير المحاولة مرة أخرى.",
-        "requestFailed": "فشل طلب الإذن. يرجى المحاولة مرة أخرى."
-      }
+      "granted": "تم منح إذن إمكانية الوصول ✓",
+      "noteImpact": "بدون الإذن، تُنسخ النتائج إلى الحافظة فقط.",
+      "reason1": "لصق النص المفرّغ تلقائياً في التطبيقات النشطة",
+      "reason2": "الحصول على موضع المؤشر لتحديد موضع التراكب",
+      "reason3": "توفير تجربة أكثر سلاسة",
+      "simpleDesc": "لصق نتائج التفريغ تلقائياً، دون الحاجة إلى Cmd+V",
+      "skip": "تخطٍّ هذه الخطوة",
+      "step1": "افتح إعدادات النظام ← الخصوصية والأمان ← إمكانية الوصول",
+      "step2": "أزل التطبيق إذا كان مدرجاً بالفعل",
+      "step3": "انقر على + لإضافة الإذن وتمكينه",
+      "stepsTitle": "تواجه مشكلة؟",
+      "title": "إذن إمكانية الوصول",
+      "whyTitle": "لماذا هذا مطلوب؟",
+      "without1": "لا يزال التطبيق يعمل بشكل طبيعي",
+      "without2": "يُنسخ النص المفرّغ إلى الحافظة",
+      "without3": "ستحتاج إلى اللصق يدوياً (Cmd+V)",
+      "withoutTitle": "بدون هذا الإذن:"
+    },
+    "microphone": {
+      "denied": "إذن الميكروفون مطلوب لتسجيل الصوت. يرجى منح الإذن من إعدادات النظام.",
+      "description": "يحتاج Votype إلى الوصول إلى الميكروفون لتسجيل الصوت",
+      "devModeHint": "وضع المطور: فحص الإذن غير متاح",
+      "error": "فشل طلب الإذن. يرجى المحاولة مرة أخرى أو المنح يدوياً من إعدادات النظام.",
+      "grant": "منح الوصول إلى الميكروفون",
+      "granted": "تم منح الوصول إلى الميكروفون ✓",
+      "grantFirst": "يرجى منح إذن الميكروفون للمتابعة",
+      "reason1": "تسجيل صوتك للتفريغ",
+      "reason2": "تتم كل المعالجة محلياً",
+      "reason3": "لا تغادر بيانات صوتك جهازك أبداً",
+      "shortDesc": "لتسجيل الصوت بغرض التفريغ",
+      "skipDev": "تخطٍّ (وضع المطور)",
+      "title": "الميكروفون",
+      "whyTitle": "لماذا هذا مطلوب؟"
+    },
+    "welcome": {
+      "continue": "متابعة",
+      "description": "طريقة إدخال صوتي تدعم الأوضاع المحلية أو عبر الإنترنت أو المختلطة.",
+      "feature1": "تحويل الكلام إلى نص، دون اتصال بالإنترنت تماماً",
+      "feature2": "الخصوصية أولاً، لا تغادر بياناتك جهازك أبداً",
+      "feature3": "تشغيل بمفتاح اختصار، اضغط وتحدث",
+      "permissionsTitle": "إعداد الأذونات",
+      "skipDev": "تخطٍّ (وضع المطور)",
+      "start": "ابدأ الآن",
+      "title": "مرحباً"
     }
   },
   "modelSelector": {
-    "custom": "مخصص",
     "active": "نشط",
     "noModelsAvailable": "لا توجد نماذج متاحة",
     "extracting": "...جاري استخراج {{modelName}}",
@@ -98,24 +127,44 @@
     "modelUnloaded": "تم إلغاء تحميل النموذج",
     "noModelDownloadRequired": "لا يوجد نموذج - التنزيل مطلوب",
     "deleteModel": "حذف {{modelName}}",
-    "switching": "جارٍ التبديل...",
-    "downloadSpeed": "{{speed}} ميجابايت/ث",
-    "cancel": "إلغاء",
-    "cancelDownload": "إلغاء التنزيل",
-    "capabilities": {
-      "languageSelection": "يدعم اختيار اللغة",
-      "singleLanguage": "يدعم هذه اللغة فقط",
-      "multiLanguage": "متعدد اللغات",
-      "languageOnly": "{{language}} فقط",
-      "translation": "يدعم الترجمة",
-      "translate": "ترجمة"
+    "addModelFromUrl": "إضافة من URL",
+    "addModelFromUrlPrompt": "الصق رابط تنزيل النموذج (مثل .tar.bz2):",
+    "availableModels": "النماذج المتاحة",
+    "chooseModel": "اختر نموذجاً",
+    "clickToEnableOnlineAsr": "انقر لتمكين ASR عبر الإنترنت",
+    "download": "تنزيل",
+    "downloadModels": "تنزيل النماذج",
+    "downloadPrompt": "نزّل نموذجاً أدناه للبدء في التفريغ.",
+    "downloadSize": "حجم التنزيل",
+    "local": "محلي",
+    "online": "عبر الإنترنت",
+    "onlineAsr": "ASR عبر الإنترنت",
+    "onlineAsrActive": "ASR عبر الإنترنت مُفعّل",
+    "onlineAsrModels": "نماذج ASR عبر الإنترنت",
+    "realtimeModel": {
+      "empty": "لا توجد نماذج محلية مؤهلة. نزّل نموذج Sherpa (وأضفه إلى المفضلة) أولاً.",
+      "enabled": "مُمكّن",
+      "off": "إيقاف",
+      "offHint": "لا حاجة لعرض التسميات التوضيحية المباشرة للنماذج المحلية (يوفر الذاكرة)",
+      "open": "اختر نموذج التفريغ الفوري",
+      "selected": "فوري: {{modelName}}",
+      "title": "نموذج التفريغ الفوري"
+    },
+    "realtimeModelLabel": "النموذج الفوري",
+    "searchPlaceholder": "ابحث عن النماذج…",
+    "userAddedModel": "نموذج أضافه المستخدم",
+    "welcome": "مرحباً بك في Votype",
+    "asrFallback": {
+      "add": "+ احتياطي",
+      "label": "احتياطي",
+      "remove": "إزالة الاحتياطي"
     }
   },
   "settings": {
     "general": {
       "title": "عام",
       "shortcut": {
-        "title": "اختصارات Handy",
+        "title": "اختصارات Votype",
         "description": "إعداد اختصارات لوحة المفاتيح لبدء تسجيل التفريغ الصوتي",
         "loading": "...جاري تحميل الاختصارات",
         "none": "لا توجد اختصارات مجهزة",
@@ -129,6 +178,18 @@
           "cancel": {
             "name": "اختصار الإلغاء",
             "description": ".اختصار لوحة المفاتيح لإلغاء التسجيل الحالي"
+          },
+          "invoke_skill": {
+            "description": "يبدأ التسجيل في وضع المهارة مع توجيه ذكي للنية.",
+            "name": "استدعاء المهارة"
+          },
+          "open_settings": {
+            "description": "يفتح نافذة الإعدادات.",
+            "name": "فتح الإعدادات"
+          },
+          "paste_first_entry": {
+            "description": "يلصق أول إدخال في السجل إلى النافذة النشطة.",
+            "name": "لصق أول إدخال"
           }
         },
         "errors": {
@@ -143,11 +204,39 @@
         "descriptionUnsupported": ".يكتشف نموذج Parakeet اللغة تلقائياً. لا يلزم الاختيار اليدوي",
         "searchPlaceholder": "البحث عن اللغات...",
         "noResults": "لم يتم العثور على لغات",
-        "auto": "تلقائي"
+        "auto": "تلقائي",
+        "descriptionNoModel": "اختر نموذجاً محلياً لإعداد اللغة.",
+        "descriptionSenseVoice": "يطبّق SenseVoice اللغة عند تحميل النموذج. أعد تحديد النموذج بعد تغيير اللغة.",
+        "descriptionUnknownModel": "النموذج الحالي غير معروف؛ اختيار اللغة معطّل.",
+        "descriptionUnsupportedEngine": "ينطبق اختيار اللغة على نماذج Whisper أو SenseVoice فقط."
       },
-      "pushToTalk": {
-        "label": "اضغط للتحدث",
-        "description": "استمر في الضغط للتسجيل، واترك للتوقف"
+      "audioInputAutoEnhance": {
+        "description": "يرفع تلقائياً الإدخال الصوتي الهادئ ويحد من التشويه أثناء التسجيل. قد يغيّر صوت التشغيل.",
+        "label": "تحسين الميكروفون التلقائي"
+      },
+      "groups": {
+        "recording": "التسجيل",
+        "transcription": "لغة التفريغ"
+      },
+      "activationMode": {
+        "label": "وضع التنشيط",
+        "tooltip": {
+          "summary": "اختر كيفية تشغيل اختصار التسجيل"
+        },
+        "descriptions": {
+          "toggle": "اضغط للبدء، واضغط مرة أخرى للإيقاف",
+          "hold": "استمر بالضغط للتسجيل، واترك للإيقاف",
+          "hold_or_toggle": "ضغطة سريعة تبدّل، والضغط 300ms+ يوقف عند الإفلات"
+        },
+        "options": {
+          "toggle": "تبديل",
+          "hold": "استمرار",
+          "holdOrToggle": "تلقائي"
+        }
+      },
+      "holdThreshold": {
+        "label": "عتبة الاستمرار",
+        "description": "الوضع التلقائي فقط: المدة (بالمللي ثانية) التي يجب فيها الاستمرار في الضغط على الاختصار قبل أن يُحسب استمراراً بدلاً من نقرة. اخفضها إذا كانت الضغطات القصيرة تترك التسجيل قيد التشغيل؛ وارفعها إذا عُوملت النقرات المتعمدة كاستمرار."
       }
     },
     "sound": {
@@ -176,15 +265,12 @@
     "advanced": {
       "title": "متقدم",
       "groups": {
-        "app": "التطبيق",
-        "output": "الإخراج",
-        "transcription": "التفريغ الصوتي",
-        "history": "السجل",
-        "experimental": "تجريبي"
-      },
-      "experimentalToggle": {
-        "label": "الميزات التجريبية",
-        "description": ".تمكين الميزات التجريبية التي لا تزال قيد التطوير"
+        "dataManagement": "إدارة البيانات",
+        "debug": "خيارات التصحيح",
+        "inputOutput": "الإدخال والإخراج",
+        "network": "الشبكة",
+        "startup": "بدء التشغيل والسلوك",
+        "transcriptionOptimization": "تحسين التفريغ"
       },
       "startHidden": {
         "label": "بدء مخفي",
@@ -192,11 +278,7 @@
       },
       "autostart": {
         "label": "التشغيل عند بدء التشغيل",
-        "description": ".بدء تشغيل Handy تلقائياً عند تسجيل الدخول إلى جهاز الكمبيوتر الخاص بك"
-      },
-      "showTrayIcon": {
-        "label": "إظهار أيقونة شريط النظام",
-        "description": ".عرض أيقونة Handy في شريط النظام"
+        "description": ".بدء تشغيل Votype تلقائياً عند تسجيل الدخول إلى جهاز الكمبيوتر الخاص بك"
       },
       "overlay": {
         "title": "موقع التراكب",
@@ -204,7 +286,8 @@
         "options": {
           "none": "بلا",
           "bottom": "أسفل",
-          "top": "أعلى"
+          "top": "أعلى",
+          "follow": "تابع المؤشر"
         }
       },
       "pasteMethod": {
@@ -240,7 +323,10 @@
       "translateToEnglish": {
         "label": "الترجمة إلى الإنجليزية",
         "description": ".ترجمة الكلام من اللغات الأخرى تلقائياً إلى الإنجليزية أثناء التفريغ",
-        "descriptionUnsupported": ".الترجمة غير مدعومة من قبل نموذج {{model}}"
+        "descriptionUnsupported": ".الترجمة غير مدعومة من قبل نموذج {{model}}",
+        "descriptionNoModel": "اختر نموذجاً محلياً لتمكين الترجمة.",
+        "descriptionNonWhisper": "تعمل الترجمة مع نماذج Whisper فقط. الحالي: {{model}}",
+        "descriptionUnknownModel": "قدرات هذا النموذج غير معروفة. اختر نموذجاً مُنزَّلاً لتمكين الترجمة."
       },
       "modelUnload": {
         "title": "إلغاء تحميل النموذج",
@@ -262,24 +348,114 @@
         "placeholder": "أضف كلمة",
         "add": "إضافة",
         "remove": "إزالة {{word}}"
+      },
+      "vocabularyCorrections": {
+        "allApps": "كل التطبيقات",
+        "delete": "حذف هذا التصحيح",
+        "description": "تصحيحات المفردات المستفادة من سجل تعديلاتك",
+        "empty": "لا توجد تصحيحات مستفادة بعد",
+        "global": "عام",
+        "removeGlobal": "إزالة العامة",
+        "scope": "النطاق",
+        "setGlobal": "تعيين كعام",
+        "title": "قاموس المفردات"
+      },
+      "scope": {
+        "custom": "تطبيقات محددة",
+        "editDescription": "تعديل نطاق \"{{original}}\" → \"{{corrected}}\"",
+        "editTitle": "نطاق التصحيح",
+        "global": "عام",
+        "multiple": "{{count}} تطبيقات",
+        "none": "لا توجد تطبيقات",
+        "source": "التطبيق المصدر ({{app}})"
+      },
+      "proxy": {
+        "add": "إضافة وكيل",
+        "server": "الخادم",
+        "username": "اسم المستخدم",
+        "usernamePlaceholder": "اختياري",
+        "password": "كلمة المرور",
+        "passwordPlaceholder": "اختياري",
+        "enable": "تمكين",
+        "globalHint": "يُطبَّق على جميع المزودين افتراضياً",
+        "testAndSave": "اختبار وحفظ",
+        "testSuccess": "نجح اتصال الوكيل",
+        "testFailed": "فشل اتصال الوكيل: {{error}}",
+        "remove": "إزالة",
+        "removed": "تمت إزالة الوكيل"
+      },
+      "insertBlacklist": {
+        "label": "القائمة السوداء للإدراج",
+        "description": "عندما يكون تطبيق مُدرج في القائمة السوداء (طرفية، مدير كلمات مرور، ...) في المقدمة، يُنسخ النص المفرّغ إلى الحافظة مع إشعار بدلاً من كتابته أو لصقه تلقائياً."
+      },
+      "remoteRecord": {
+        "label": "مفتاح التسجيل عن بُعد",
+        "description": "احجز زر التسجيل في أجهزة التحكم الصوتية بالبلوتوث (مفتاح macOS Consumer غير مرئي للاختصارات العادية): اضغط مرة لبدء التسجيل، ومرة أخرى للإيقاف."
+      },
+      "punctuation": {
+        "description": "يضيف الترقيم إلى النص النهائي ({{model}}).",
+        "label": "إضافة الترقيم",
+        "model": {
+          "description": "اختر نموذج ترقيم للنص المختلط بالصينية والإنجليزية. يُطبَّق على النتيجة النهائية فقط.",
+          "notDownloaded": "النموذج المحدد غير مُنزَّل بعد.",
+          "title": "نموذج الترقيم"
+        }
+      },
+      "fillerWordRemoval": {
+        "label": "إزالة كلمات الحشو",
+        "description": "يزيل كلمات الحشو المنطوقة قبل المعالجة اللاحقة. يُطبَّق فقط على اللغات ذات أنماط الحشو الموثوقة."
+      },
+      "vadBackend": {
+        "title": "خلفية اكتشاف النشاط الصوتي",
+        "description": "اختر الكاشف المستخدم لتصفية الصمت. Earshot تجريبي؛ عُد إلى Silero إذا قُطع الكلام أو بقي الضجيج.",
+        "options": {
+          "silero": "Silero",
+          "earshot": "Earshot"
+        }
+      },
+      "localApi": {
+        "title": "API محلي",
+        "enable": "تمكين خادم محلي متوافق مع OpenAI",
+        "enableDescription": "معطّل افتراضياً. تفعيله يسري فوراً دون الحاجة إلى إعادة تشغيل. يرتبط بـ localhost فقط، بحيث يمكن للأدوات الخارجية استدعاء النماذج و ASR عبر URL ومفتاح واحد.",
+        "allowLan": "السماح بالوصول عبر الشبكة المحلية",
+        "allowLanDescription": "عند التمكين، يمكن للأجهزة الأخرى في شبكتك المحلية الوصول إليه عبر IP جهازك. أعد تشغيل التطبيق لسريان التغييرات.",
+        "port": "المنفذ",
+        "endpoint": "نقطة النهاية",
+        "url": "URL",
+        "accessKey": "مفتاح الوصول",
+        "restartToApply": "أعد التشغيل للتطبيق",
+        "copy": "نسخ",
+        "random": "عشوائي",
+        "localAccess": "الوصول المحلي:",
+        "lanAccess": "الوصول عبر الشبكة المحلية:",
+        "authHeader": "ترويسة المصادقة:",
+        "lanUrlHint": "http://<your-LAN-IP>:{{port}}{{path}}",
+        "copied": "تم نسخ {{label}}",
+        "copyFailed": "فشل نسخ {{label}}",
+        "keyGenerated": "تم إنشاء مفتاح وصول جديد",
+        "keyPlaceholder": "your-key"
       }
     },
     "postProcessing": {
       "title": "معالجة لاحقة",
-      "hotkey": {
-        "title": "مفتاح الاختصار"
-      },
       "api": {
         "title": "API (متوافق مع OpenAI)",
         "provider": {
           "title": "المزود",
-          "description": "اختر مزوداً متوافقاً مع OpenAI."
+          "description": "اختر مزوداً متوافقاً مع OpenAI.",
+          "builtin": "مدمج",
+          "builtinTooltip": "مزود مدمج، لا يمكن حذفه",
+          "deleteAction": "حذف المزود",
+          "deleteConfirmation": "هل أنت متأكد أنك تريد حذف المزود \"{{name}}\"؟ لا يمكن التراجع عن هذا الإجراء.",
+          "deleteTitle": "حذف المزود",
+          "editName": "تعديل اسم المزود",
+          "namePlaceholder": "اسم المزود",
+          "newProvider": "مزود جديد"
         },
         "appleIntelligence": {
           "title": "Apple Intelligence",
           "description": "يعمل بالكامل على الجهاز. لا يلزم وجود مفتاح API أو وصول إلى الشبكة.",
-          "requirements": "يتطلب جهاز Mac بمعالج Apple Silicon يعمل بنظام macOS Tahoe (26.0) أو أحدث. يجب تمكين Apple Intelligence في إعدادات النظام.",
-          "unavailable": "Apple Intelligence غير متاح على هذا الجهاز. يتطلب جهاز Mac بمعالج Apple Silicon يعمل بنظام macOS Tahoe (26.0) أو أحدث مع تمكين Apple Intelligence في إعدادات النظام."
+          "requirements": "يتطلب جهاز Mac بمعالج Apple Silicon يعمل بنظام macOS Tahoe (26.0) أو أحدث. يجب تمكين Apple Intelligence في إعدادات النظام."
         },
         "baseUrl": {
           "title": "URL الأساسي",
@@ -300,13 +476,78 @@
           "placeholderWithOptions": "ابحث عن نموذج أو اختره",
           "placeholderNoOptions": "اكتب اسم النموذج",
           "refreshModels": "تحديث النماذج"
+        },
+        "manageProviders": "إدارة المزودين",
+        "modelCard": {
+          "errorRate": "{{count}} استدعاء فاشل — معدل خطأ {{rate}}%"
+        },
+        "models": {
+          "deleteConfirm": {
+            "description": "هل أنت متأكد أنك تريد حذف هذا النموذج؟ لا يمكن التراجع عن هذا الإجراء.",
+            "title": "حذف النموذج؟"
+          }
+        },
+        "providers": {
+          "add": "إضافة مزود",
+          "addCustom": "إضافة مخصص",
+          "advancedSettings": "إعدادات متقدمة",
+          "api": {
+            "model": {
+              "title": "النموذج المستخدم"
+            },
+            "testConnection": "اختبار استدلال النموذج",
+            "testFailed": "فشل الاختبار: {{error}}",
+            "testing": "جاري اختبار الاتصال...",
+            "testSuccess": "نجح الاختبار: {{result}}"
+          },
+          "builtInBadge": "مدمج",
+          "deleteConfirm": {
+            "description": "سيؤدي هذا إلى إزالة المزود وأي نماذج مرتبطة به.",
+            "title": "حذف المزود؟"
+          },
+          "dialog": {
+            "createTitle": "إنشاء مزود",
+            "editTitle": "تعديل المزود"
+          },
+          "empty": {
+            "description": "أضف مزوداً للبدء.",
+            "title": "لا يوجد مزودون"
+          },
+          "fields": {
+            "apiKey": "مفتاح API",
+            "getApiKey": "الحصول على مفتاح API",
+            "baseUrl": "URL الأساسي",
+            "baseUrlHint": "وضع متوافق مع OpenAI، عادةً ينتهي بـ /v1. استخدم اللاحقة '#' لتجاوز الإضافة التلقائية لـ /v1.",
+            "actualUrlPreview": "معاينة URL الفعلي لـ API",
+            "modelsEndpoint": "نقطة نهاية النماذج",
+            "modelsEndpointPlaceholder": "/models أو https://...",
+            "name": "اسم المزود",
+            "namePlaceholder": "مزودي",
+            "v1AutoAppended": "تمت إضافة /v1 تلقائياً",
+            "v1MissingWarning": "قد يفتقد URL مسار الإصدار (مثل /v1)",
+            "addKey": "إضافة مفتاح"
+          },
+          "proxy": {
+            "useProxy": "الوكيل",
+            "noGlobalProxy": "قم بإعداد الوكيل في الإعدادات المتقدمة أولاً"
+          },
+          "group": {
+            "recommended": "موصى به",
+            "cloud": "مزودو السحابة",
+            "local": "المزودون المحليون"
+          },
+          "resetUrl": "إعادة تعيين URL",
+          "testConnection": "اختبار الاتصال",
+          "testFailed": "فشل الاتصال: {{error}}",
+          "testSuccess": "نجح الاتصال",
+          "title": "المزودون"
         }
       },
       "prompts": {
         "title": "المطالبة",
         "selectedPrompt": {
           "title": "المطالبة المختارة",
-          "description": "Choose the template used for post-processing, or create a new one. The system automatically injects the main input and supporting reference fields, so the prompt body only needs to describe the task, constraints, and output requirements."
+          "description": "اختر القالب المستخدم في المعالجة اللاحقة أو أنشئ واحداً جديداً. يضيف النظام تلقائياً الإدخال الرئيسي وحقول المرجع الداعمة، لذا يكفي أن يصف نص القالب المهمة والقيود ومتطلبات الإخراج."
         },
         "noPrompts": "لا توجد مطالبات متاحة",
         "selectPrompt": "اختر مطالبة",
@@ -314,7 +555,7 @@
         "promptLabel": "تسمية المطالبة",
         "promptLabelPlaceholder": "أدخل اسم المطالبة",
         "promptInstructions": "تعليمات المطالبة",
-        "promptInstructionsPlaceholder": "Describe how the model should process the input text, what it may change, what it must not change, and what the final output should look like.",
+        "promptInstructionsPlaceholder": "صف كيف يجب أن يعالج النموذج النص المُدخل، وما يجوز له تغييره، وما لا يجوز تغييره، وكيف يجب أن يبدو الناتج النهائي.",
         "promptTip": "Tip: You are editing the task body only. The system automatically injects the main input and supporting reference fields, so focus on the task, constraints, and output requirements.",
         "updatePrompt": "تحديث المطالبة",
         "deletePrompt": "حذف المطالبة",
@@ -327,13 +568,441 @@
         "varWindowTitleDesc": "عنوان النافذة الحالية.",
         "lockSkill": "Lock Skill",
         "unlockSkill": "Unlock Skill",
-        "skillLocked": "This skill is locked. Unlock to edit.",
-        "aiGeneratingWait": "AI is generating, please wait",
+        "skillLocked": "هذه المهارة مقفلة. افتح القفل للتعديل.",
+        "aiGeneratingWait": "الذكاء الاصطناعي يعمل على التوليد، يُرجى الانتظار",
         "unsavedChanges": {
           "title": "Unsaved Changes",
-          "description": "Current prompt has unsaved changes. Switching will discard these modifications.",
+          "description": "القالب الحالي يحتوي على تغييرات غير محفوظة. التبديل سيؤدي إلى تجاهل هذه التعديلات.",
           "discard": "Discard Changes"
+        },
+        "activeSet": "تعيين كمطالبة افتراضية",
+        "advancedSettings": "إعدادات متقدمة",
+        "createSuccess": "تم إنشاء المطالبة بنجاح",
+        "deleteConfirm": {
+          "description": "هل أنت متأكد أنك تريد حذف هذه المطالبة؟ لا يمكن التراجع عن هذا الإجراء.",
+          "title": "حذف المطالبة"
+        },
+        "createFailed": "فشل إنشاء المهارة",
+        "nameAndContentRequired": "لا يمكن أن يكون الاسم والمحتوى فارغين",
+        "fillNameAndInstructionsFirst": "يرجى ملء الاسم والتعليمات أولاً حتى يتمكن الذكاء الاصطناعي من إنشاء ملخص أفضل.",
+        "userOwnedPrompts": "مطالباتي",
+        "deleteFailed": "فشل الحذف",
+        "deleteSuccess": "تم حذف المطالبة بنجاح",
+        "resetToDefault": "إعادة التعيين إلى الافتراضي",
+        "resetConfirm": {
+          "description": "سيؤدي هذا إلى استعادة المهارة إلى محتواها المدمج الأصلي. ستفقد أي تخصيصات.",
+          "title": "إعادة التعيين إلى الافتراضي"
+        },
+        "resetSuccess": "تمت إعادة تعيين المهارة إلى الافتراضي",
+        "resetFailed": "فشلت إعادة تعيين المهارة",
+        "description": "الوصف (للتوجيه الذكي)",
+        "descriptionPlaceholder": "صف بإيجاز ما تفعله هذه المهارة ومتى ينبغي تشغيلها",
+        "editPrompt": "تعديل المطالبة",
+        "enabledToggle": "تمكين/تعطيل هذه المهارة",
+        "enableConfidenceCheck": "تمكين فحص الثقة",
+        "generationDescription": "يُنشئ محتوى جديداً بناءً على النص المُتعرَّف عليه كمطالبة (مثل الترجمة، والتلخيص).",
+        "globalConfigTitle": "الإعدادات العامة",
+        "managementTitle": "المطالبات",
+        "newPromptName": "مطالبة جديدة",
+        "outputMode": {
+          "chat": "دردشة AI",
+          "label": "وضع الإخراج",
+          "polish": "صقل النص"
+        },
+        "promptBody": "نص المهمة",
+        "promptBodyPlaceholder": "صف كيف ينبغي للنموذج معالجة النص المدخل، وما يجوز له تغييره، وما يجب ألا يغيّره، وكيف ينبغي أن يبدو الإخراج النهائي.",
+        "refinementDescription": "يصحّح النص المُتعرَّف عليه وينسّقه تلقائياً.",
+        "reviewThreshold": "عتبة المراجعة",
+        "setAsActive": "تعيين كافتراضي",
+        "updateFailed": "فشل التحديث",
+        "updateSuccess": "تم تحديث المطالبة بنجاح",
+        "inlineVarsLabel": "الحقول المرجعية",
+        "autoInjectedNote": "يحقن النظام تلقائياً المدخل الرئيسي والحقول المرجعية الداعمة. إذا كنت بحاجة إلى تحكم أدق، يمكنك الإشارة إليها صراحةً في نص المهمة.",
+        "primaryFieldsLabel": "الحقول الرئيسية",
+        "referenceFieldsLabel": "الحقول المرجعية",
+        "explicitReferenceNote": "إذا أشرت صراحةً إلى حقل أعلاه، فلن يضيف النظام نفس الحقل مرة أخرى لاحقاً في المطالبة.",
+        "inlineVarsSecondaryLabel": "متغيرات البيانات الوصفية",
+        "fieldAutocompleteTitle": "الإكمال التلقائي للحقول",
+        "fieldAutocompleteEmpty": "لا توجد حقول مطابقة",
+        "fieldInputTextDesc": "النص الأساسي الوحيد الذي ينبغي معالجته",
+        "fieldAsrReferenceDesc": "مرجع ASR مساعد يُستخدم للتصحيح والتوضيح",
+        "fieldSelectedTextDesc": "النص المحدد المستخدم كسياق ضعيف",
+        "fieldPersonNamesDesc": "أسماء الأشخاص المعروفة",
+        "fieldProductNamesDesc": "أسماء المنتجات أو العلامات التجارية أو المؤسسات المعروفة",
+        "fieldDomainTermsDesc": "مصطلحات المجال أو الاختصارات أو المصطلحات التقنية",
+        "fieldHotwordsDesc": "كلمات ساخنة أخرى ذات أولوية",
+        "fieldHistoryHintsDesc": "تلميحات السجل المستخدمة فقط لاتساق المصطلحات والتوضيح الضعيف",
+        "varAppCategoryDesc": "فئة التطبيق (CodeEditor، Email، إلخ).",
+        "varContextDesc": "السياق التاريخي من النافذة النشطة.",
+        "varOutputDesc": "النص المفرّغ النهائي.",
+        "varPromptDesc": "اسم العرض لمخطط المطالبة الحالي.",
+        "varRawInputDesc": "التفريغ الأصلي الكامل.",
+        "varSelectDesc": "النص المحدد عند انتهاء التسجيل.",
+        "varStreamingDesc": "النص الوسيط أثناء التفريغ الفوري.",
+        "autoGenerate": {
+          "title": "من الصوت إلى المهارة",
+          "description": "صف ما تريده باللغة الطبيعية. سينشئ الذكاء الاصطناعي مهارة كاملة لك.",
+          "shortcutHint": "تلميح: اضغط",
+          "placeholder": "مثال: ساعدني في صقل النص وتصحيح القواعد وجعله أكثر احترافية...",
+          "step1": "جاري تحسين تعليمات المطالبة",
+          "step2": "جاري إنشاء الاسم والأيقونة",
+          "step3": "جاري إنشاء الوصف",
+          "emptyInput": "يرجى وصف ما ينبغي أن تفعله هذه المهارة",
+          "start": "إنشاء",
+          "menuItem": "إدخال صوتي",
+          "success": "تم إنشاء المهارة بنجاح"
+        },
+        "templates": {
+          "template_polish": "الصقل الافتراضي",
+          "template_translate": "الترجمة",
+          "template_summary": "التلخيص",
+          "template_chat": "دردشة AI",
+          "template_blank": "مهارة فارغة"
+        },
+        "aliasDuplicate": "الاسم المستعار موجود بالفعل",
+        "aliasLabel": "الاسم المستعار",
+        "aliasPlaceholder": "مثال: /translate",
+        "commandPrefixDescription": "بادئة الأمر لتشغيل هذه المطالبة",
+        "commandPrefixPlaceholder": "مثال: /",
+        "commandPrefixTitle": "بادئة الأمر",
+        "noAliases": "لا توجد أسماء مستعارة مُعدّة",
+        "noPrefixes": "لا توجد بادئات مُعدّة",
+        "prefixesSaved": "تم حفظ البادئات",
+        "blankSkill": "مهارة فارغة",
+        "polishCategory": "صقل",
+        "skillCategory": "مهارة",
+        "references": {
+          "title": "مراجع السياق",
+          "add": "إضافة",
+          "empty": "لا توجد مراجع سياق بعد. أضف مراجع لتكييف السلوك حسب كل تطبيق.",
+          "createFirst": "إنشاء أول مرجع",
+          "createTitle": "إنشاء مرجع سياق",
+          "editTitle": "تعديل مرجع السياق",
+          "matchType": "نوع المطابقة",
+          "typeAlways": "قواعد عامة (نشطة دائماً)",
+          "typeApp": "حسب اسم التطبيق",
+          "typeCategory": "حسب فئة التطبيق",
+          "alwaysName": "قواعد عامة",
+          "badgeAlways": "نشط دائماً",
+          "appNamePlaceholder": "مثال: Slack، Obsidian، WeChat",
+          "contentPlaceholder": "أدخل قواعد خاصة بالسياق لهذا النطاق...\n\nمثال:\n## قواعد المراسلة/الدردشة\n- حافظ على النبرة المحادثية\n- صحّح الأخطاء الواضحة فقط\n- حافظ على الرموز التعبيرية",
+          "created": "تم إنشاء المرجع",
+          "saved": "تم حفظ المرجع",
+          "deleted": "تم حذف المرجع",
+          "errorNoName": "يرجى إدخال اسم",
+          "errorSave": "فشل الحفظ",
+          "errorDelete": "فشل الحذف",
+          "deleteTitle": "حذف المرجع",
+          "deleteConfirm": "هل أنت متأكد أنك تريد حذف \"{{name}}\"؟"
         }
+      },
+      "intentModel": {
+        "defaultOption": "استخدام النموذج الافتراضي",
+        "description": "النموذج المستخدم لاكتشاف نية المهارة. اتركه افتراضياً لمتابعة نموذج المعالجة اللاحقة الرئيسي.",
+        "hint": "يُستخدم لتوجيه المهارات (اكتشاف المهارة المراد استخدامها) وتصنيف إجراءات التوجيه الذكي. للصقل الخفيف، يقوم أيضاً بالتصحيح في نفس الاستدعاء.",
+        "placeholder": "اختر نموذج النية",
+        "title": "نموذج النية"
+      },
+      "translationModel": {
+        "hint": "يُستخدم بواسطة ميزة الترجمة قبل الإدراج. اتركه فارغاً للرجوع إلى نموذج النية، ثم إلى نموذج المعالجة اللاحقة الافتراضي.",
+        "title": "نموذج الترجمة"
+      },
+      "inputInjection": {
+        "groupTitle": "المدخلات التلقائية",
+        "title": "المدخلات التلقائية",
+        "description": "تحكم في المدخلات المساعدة التي تُرفق تلقائياً بطلبات المعالجة اللاحقة أو الترجمة.",
+        "summaryEnabled": "حقن سياق السجل مُمكّن، مع إرفاق حتى {{count}} إدخال.",
+        "summaryDisabled": "لن يُرفق أي سياق سجل تلقائياً.",
+        "moreOptions": "خيارات أكثر",
+        "basicOnly": "العنصر الأساسي فقط",
+        "history": {
+          "enabled": "حقن سياق السجل",
+          "description": "توفير عمليات التفريغ الأخيرة من التطبيق الحالي كسياق للمعالجة اللاحقة.",
+          "limit": "عمق سياق السجل",
+          "limitDesc": "إرفاق حتى آخر {{count}} إدخال من السجل بالمعالجة اللاحقة."
+        },
+        "streaming": {
+          "enabled": "حقن النص الفوري",
+          "description": "إرسال streaming_output إلى جانب النص النهائي للمساعدة في توضيح نتائج ASR."
+        },
+        "hotwords": {
+          "enabled": "حقن الكلمات الساخنة والمفردات",
+          "description": "إرفاق الكلمات الساخنة والمصطلحات وتعيينات الأخطاء الشائعة بالمعالجة اللاحقة."
+        }
+      },
+      "appRules": {
+        "activeProfiles": "{{count}} قاعدة نشطة",
+        "addApp": "إضافة تطبيق",
+        "addRuleHead": "إضافة قاعدة يدوياً",
+        "addTitlePattern": "إضافة مرشّح العنوان",
+        "assignedApps": "التطبيقات",
+        "assignedAppsDescription": "ستستخدم التطبيقات المدرجة أدناه إعدادات هذا الملف التعريفي.",
+        "capture": "التقاط",
+        "captureTitle": "التقاط العنوان",
+        "categoryDefaults": {
+          "title": "السياسات الافتراضية للفئات",
+          "hint": "التطبيقات التي لها ملفها التعريفي الخاص لا تتأثر بسياسات الفئات (بما في ذلك الملفات التعريفية المُنشأة تلقائياً عند قبول اقتراح).",
+          "inheritGlobal": "وراثة العام",
+          "categories": {
+            "CodeEditor": "محررات الكود",
+            "Terminal": "الطرفيات",
+            "InstantMessaging": "المراسلة الفورية",
+            "Email": "البريد الإلكتروني",
+            "Notes": "الملاحظات",
+            "Browser": "المتصفحات",
+            "Other": "أخرى"
+          }
+        },
+        "context": {
+          "description": "السماح لنماذج LLM بالرجوع إلى السجل الحديث للتطبيق الحالي لتحسين دقة التفريغ والتصحيح.",
+          "enabled": "تمكين مرجع السياق",
+          "limit": "عمق سجل السياق",
+          "limitDesc": "سيشير النموذج إلى آخر {{count}} إدخال من هذا التطبيق كسياق.",
+          "title": "معالجة واعية بالسياق"
+        },
+        "createPromptHint": "أضف قاعدة تطبيق للبدء",
+        "default": "افتراضي",
+        "newProfileName": "اسم ملف تعريفي جديد...",
+        "noAppsAssigned": "لا توجد تطبيقات مرتبطة بهذا الملف التعريفي بعد.",
+        "noProfiles": "لا توجد قواعد بعد",
+        "noProfilesShort": "انقر للإعداد",
+        "policy": {
+          "always": "مراجعة دائماً",
+          "auto": "تلقائي",
+          "label": "سياسة المراجعة",
+          "never": "إدراج مباشر"
+        },
+        "policyDesc": {
+          "always": "إظهار نافذة المراجعة دائماً لتطبيقات هذا الملف التعريفي.",
+          "auto": "يُشغّل المراجعة إذا تغيّر النص بشكل ملحوظ (بناءً على العتبة).",
+          "never": "عدم إظهار نافذة المراجعة أبداً لتطبيقات هذا الملف التعريفي."
+        },
+        "policyHeader": "سياسة تشغيل المراجعة",
+        "profilesDescription": "أنشئ ملفات تعريفية لتطبيق منطق معالجة أو مطالبات محددة على مجموعات مختلفة من التطبيقات.",
+        "profilesTitle": "الملفات التعريفية للتطبيقات",
+        "promptDescription": "اختر مطالبة مخصصة لاستخدامها في عمليات التفريغ ضمن هذا الملف التعريفي.",
+        "promptHeader": "تجاوز مطالبة LLM",
+        "selectionClipboardFallback": {
+          "description": "عند التعطيل، يستخدم النص المحدد لهذا التطبيق واجهة إمكانية الوصول فقط ويتخطى اللجوء إلى محاكاة النسخ إلى الحافظة.",
+          "label": "اللجوء إلى الحافظة"
+        },
+        "translateToEnglishOnInsert": {
+          "description": "لهذا التطبيق، نفّذ ترجمة LLM إضافية واحدة إلى الإنجليزية قبل الإدراج مباشرة. إذا فشلت الترجمة، ارجع إلى النص الأصلي.",
+          "label": "الترجمة قبل الإدراج"
+        },
+        "selectPrompt": "اختر ملفاً تعريفياً من الشريط الجانبي للتعديل",
+        "skipPostProcess": "تخطّي المعالجة اللاحقة",
+        "shortcuts": {
+          "description": "يمكنك استخدام اختصارات لوحة المفاتيح لتشغيل ملفات تعريفية محددة أو إدارة القواعد.",
+          "dialog": "تأكيد أو إغلاق الحوارات",
+          "dialogKeys": "Enter / Esc",
+          "nav": "التنقل بين علامات تبويب الإعدادات",
+          "navKeys": "⌘ + 1-8",
+          "title": "الاختصارات والاستخدام"
+        },
+        "matchType": {
+          "exact": "مطابق"
+        },
+        "testMatch": "اختبار المطابقة",
+        "title": "قواعد التطبيقات",
+        "titlePattern": "العنوان (Regex)",
+        "allApps": "كل التطبيقات",
+        "appNotInstalled": "لم يعد هذا التطبيق مثبتاً",
+        "recentApps": "الأخيرة",
+        "refresh": "إعادة فحص التطبيقات المثبتة",
+        "searchApps": "ابحث عن التطبيقات..."
+      },
+      "confidenceCheck": {
+        "description": "اضبط حساسية المطالبات التي تكون المراجعة مُمكّنة لها. القيم الأعلى تعني ظهور نافذة المراجعة بشكل أقل.",
+        "threshold": "عتبة الحساسية",
+        "thresholdHint": "ستؤدي الدرجات الأعلى من هذه القيمة إلى تشغيل نافذة المراجعة.",
+        "title": "حساسية المراجعة التلقائية"
+      },
+      "textModelMode": {
+        "title": "وضع المعالجة اللاحقة",
+        "single": "نموذج واحد",
+        "singleHint": "نموذج واحد لكل النص",
+        "length": "ذكي",
+        "lengthHint": "اختيار النموذج تلقائياً حسب طول النص",
+        "multi": "نماذج متعددة",
+        "multiHint": "مقارنة متوازية",
+        "defaultModelDescription": "النموذج الافتراضي",
+        "noModelSelected": "لم يتم اختيار نموذج",
+        "multiDescription": "اختر النماذج من القائمة أدناه للمقارنة المتوازية",
+        "multiStrategy": "استراتيجية النماذج المتعددة",
+        "multiStrategyManual": "يدوي",
+        "multiStrategyManualHint": "إظهار كل المرشحين للاختيار اليدوي",
+        "multiStrategyRace": "فائق السرعة",
+        "multiStrategyRaceShort": "فائق السرعة",
+        "multiStrategyRaceHint": "استخدام أول نتيجة متاحة",
+        "multiStrategyLazy": "متأنٍّ",
+        "multiStrategyLazyShort": "متأنٍّ",
+        "multiStrategyLazyHint": "الانتظار 3 ثوانٍ للنموذج المفضل، والاختيار تلقائياً عند انتهاء المهلة",
+        "preferredModel": "النموذج المفضل",
+        "setAsPreferred": "تعيين كنموذج مفضل",
+        "selectModelsTitle": "اختيار النماذج",
+        "selectModelsDescription": "اختر نماذج للمعالجة المتوازية. انقر على النجمة لتعيين النموذج المفضل.",
+        "selectedCount": "تم اختيار {{count}}",
+        "noneSelected": "لم يتم اختيار نماذج",
+        "models": "النماذج",
+        "modelSelection": "النموذج"
+      },
+      "lengthRouting": {
+        "enableLabel": "اختيار النموذج تلقائياً حسب طول النص",
+        "enableDescription": "استخدام نموذج سريع للنص القصير، ونموذج متقدم للنص الطويل",
+        "thresholdLabel": "عتبة الأحرف",
+        "thresholdDescription": "حسب أحرف Unicode (حرف صيني واحد = 1، حرف إنجليزي واحد = 1)",
+        "thresholdValue": "{{count}} حرف",
+        "shortModelLabel": "نص قصير",
+        "longModelLabel": "نص طويل",
+        "characters": " حرف",
+        "useDefault": "استخدام الافتراضي"
+      },
+      "smartRouting": {
+        "title": "التوجيه الذكي",
+        "hint": "يعيد استخدام النتائج السابقة تلقائياً للنص المتطابق، ويستخدم نموذجاً خفيفاً لتحديد ما إذا كان النص القصير يحتاج إلى صقل — مما يقلل تكلفة الرموز وزمن الاستجابة.",
+        "shortText": "نص قصير",
+        "longText": "نص طويل",
+        "fastModel": "نموذج سريع",
+        "fastModelHint": "نموذج خفيف أو سريع للنص القصير. يوفر الرموز ويقلل زمن الاستجابة للمحتوى البسيط.",
+        "modelSelection": "النموذج",
+        "description": "اكتشاف النية تلقائياً، وإعادة استخدام السجل، وتقليل تكلفة الرموز"
+      },
+      "modelChain": {
+        "primary": "أساسي",
+        "fallback": "احتياطي",
+        "leftClickHint": "انقر بزر الفأرة الأيسر لتحديد النموذج الأساسي",
+        "rightClickHint": "انقر بزر الفأرة الأيمن لتحديد النموذج الاحتياطي",
+        "strategy": "الاستراتيجية",
+        "serial": "تسلسلي",
+        "staggered": "متداخل",
+        "race": "متسابق",
+        "serialHint": "تجربة الاحتياطي بعد فشل الأساسي",
+        "staggeredHint": "بدء الاحتياطي عندما يكون الأساسي بطيئاً",
+        "raceHint": "استدعاء كليهما، واستخدام الأسرع",
+        "noModel": "لم يتم اختيار نموذج",
+        "selectModel": "اختر نموذجاً"
+      },
+      "disabledNotice": "المعالجة اللاحقة معطّلة حالياً. مكّنها للإعداد.",
+      "fusion": {
+        "enabled": {
+          "description": "توفير نص رئيسي ونص فوري ثانوي للمعالجة اللاحقة للمقارنة والتوضيح.",
+          "label": "استخدام النص الفوري (الدمج)"
+        },
+        "secondaryModel": {
+          "auto": "تلقائي",
+          "autoDescription": "استخدام النموذج المحلي الحالي",
+          "description": "يُستخدم فقط عند تمكين ASR عبر الإنترنت. يوفر هذا النموذج المحلي ترجمات فورية والنص الثانوي.",
+          "placeholder": "اختر نموذجاً...",
+          "title": "نموذج التفريغ الفوري (ASR عبر الإنترنت)"
+        }
+      },
+      "models": {
+        "addModel": "إضافة نموذج",
+        "deleteConfirm": {
+          "description": "هل أنت متأكد أنك تريد حذف هذا النموذج؟ لا يمكن التراجع عن هذا الإجراء.",
+          "title": "حذف النموذج؟"
+        },
+        "description": "إضافة وإدارة النماذج المستخدمة في المعالجة اللاحقة.",
+        "empty": {
+          "description": "أضف نموذجاً للبدء.",
+          "title": "لا توجد نماذج مُعدّة",
+          "noMatch": "لا توجد نماذج تطابق بحثك."
+        },
+        "promptMessageRole": {
+          "label": "وضع المطور"
+        },
+        "modelTypes": {
+          "asr": {
+            "hint": "التعرف على الكلام",
+            "label": "ASR"
+          },
+          "other": {
+            "hint": "استخدام مخصص",
+            "label": "أخرى"
+          },
+          "text": {
+            "hint": "تحسين النص وتنسيقه",
+            "label": "نص"
+          }
+        },
+        "selectModel": {
+          "addButton": "إضافة نموذج",
+          "customLabelPlaceholder": "أدخل التسمية...",
+          "customLabelTitle": "تسمية مخصصة",
+          "customModelPlaceholder": "أدخل معرّف النموذج...",
+          "description": "اختر نموذجاً لإضافته أو أدخل واحداً يدوياً.",
+          "placeholder": "اختر نموذجاً...",
+          "placeholderEmpty": "لا توجد نماذج متاحة",
+          "segmented": {
+            "customModel": "مخصص",
+            "selectModel": "تحديد",
+            "freeModels": "مجاني"
+          },
+          "noFreeModels": "لا توجد نماذج مجانية متاحة لهذا المزود.",
+          "alreadyAdded": "مُضاف",
+          "title": "تحديد النموذج",
+          "usageTypeTitle": "نوع الاستخدام",
+          "advancedOptions": "خيارات متقدمة",
+          "customLabel": "تسمية مخصصة",
+          "extraParams": "معاملات إضافية",
+          "manualLabel": "تسمية يدوية",
+          "selectLabel": "تحديد التسمية",
+          "sourceBuiltin": "نماذج مجانية مدمجة",
+          "sourceOfficial": "قائمة النماذج الرسمية",
+          "sourceBuiltinHint": "نماذج مجانية منتقاة، دون الحاجة إلى استدعاء API",
+          "sourceOfficialHint": "القائمة الكاملة من API المزود"
+        },
+        "searchPlaceholder": "ابحث عن النماذج...",
+        "filter": {
+          "all": "الكل"
+        },
+        "sort": {
+          "provider": "المزود",
+          "name": "الاسم",
+          "calls": "الاستدعاءات",
+          "speed": "السرعة",
+          "group": "تجميع حسب المزود"
+        },
+        "stats": {
+          "asr": "ASR: {{count}}",
+          "other": "أخرى: {{count}}",
+          "text": "نص: {{count}}"
+        },
+        "tabs": {
+          "local": "النماذج المحلية",
+          "remote": "النماذج عبر الإنترنت"
+        },
+        "title": "النماذج",
+        "setAsDefault": "تعيين كافتراضي",
+        "invalidJson": "تنسيق JSON غير صالح",
+        "addedCount": "تمت إضافة {{count}} نموذج",
+        "customAdd": {
+          "title": "إضافة نموذج مخصص",
+          "modelId": "معرّف النموذج",
+          "duplicateWarning": "يوجد بالفعل نموذج بهذا المعرّف لهذا المزود. ستؤدي الإضافة إلى إنشاء نسخة."
+        }
+      },
+      "providerModels": {
+        "totalCalls": "استدعاءات",
+        "avgSpeed": "tokens/sec"
+      },
+      "skills": {
+        "advancedSkills": "مهارات متقدمة",
+        "createHint": "أنشئ ملفات ‎.md‎ في ‎~/.votype/skills/‎ لإضافة مهارات مخصصة",
+        "enabledInFile": "المهارة مُمكّنة دائماً (تُعدّ في الملف)",
+        "helpText": "أنشئ ملفات ‎.md‎ مع YAML frontmatter في مجلد المهارات. سيتم تحميلها تلقائياً وإتاحتها للاستخدام.",
+        "noExternalSkills": "لم يتم العثور على مهارات خارجية",
+        "openFolder": "فتح المجلد",
+        "quickCommands": "أوامر سريعة",
+        "refresh": "تحديث",
+        "sourceBuiltin": "مدمج",
+        "sourceFile": "ملف",
+        "sourceUser": "المستخدم"
+      },
+      "modelCard": {
+        "errorRate": "{{count}} استدعاء فاشل — معدل خطأ {{rate}}%",
+        "lastError": "آخر خطأ{{when}}: {{error}}"
       }
     },
     "history": {
@@ -345,13 +1014,27 @@
       "save": "حفظ التفريغ",
       "unsave": "إزالة من المحفوظات",
       "delete": "حذف الإدخال",
-      "deleteError": ".فشل حذف الإدخال. يرجى المحاولة مرة أخرى"
+      "deleteError": ".فشل حذف الإدخال. يرجى المحاولة مرة أخرى",
+      "content": {
+        "chained": "معالجة متسلسلة",
+        "improved": "محسّن",
+        "original": "نتيجة التعرف على الكلام",
+        "streaming": "نتيجة التعرف الفوري"
+      },
+      "searchPlaceholder": "ابحث في السجل...",
+      "timeline": {
+        "earlier": "سابقاً",
+        "thisWeek": "هذا الأسبوع",
+        "today": "اليوم",
+        "yesterday": "أمس"
+      }
     },
     "debug": {
       "title": "تصحيح الأخطاء",
       "logDirectory": {
         "title": "مجلد السجلات",
-        "description": "الموقع الذي يتم فيه تخزين ملفات السجل"
+        "description": "الموقع الذي يتم فيه تخزين ملفات السجل",
+        "error": "خطأ في تحميل مجلد السجلات: {{error}}"
       },
       "logLevel": {
         "title": "مستوى السجل",
@@ -359,7 +1042,7 @@
       },
       "updateChecks": {
         "label": "التحقق من وجود تحديثات",
-        "description": "التحقق تلقائياً من وجود إصدارات جديدة من Handy"
+        "description": "التحقق تلقائياً من وجود إصدارات جديدة من Votype"
       },
       "soundTheme": {
         "label": "سمة الصوت",
@@ -404,30 +1087,54 @@
         "label": "إضافة مسافة تابعة",
         "description": "إضافة مسافة بعد التفريغ الملصق"
       },
-      "keyboardImplementation": {
-        "title": "تنفيذ لوحة المفاتيح",
-        "description": ".اختر الواجهة الخلفية لاختصارات لوحة المفاتيح",
-        "bindingsReset": "كانت اختصارات لوحة المفاتيح غير متوافقة وتمت إعادة تعيينها إلى القيم الافتراضية"
-      },
       "paths": {
         "appData": "بيانات التطبيق:",
         "models": "النماذج:",
-        "settings": "الإعدادات:"
+        "settings": "الإعدادات:",
+        "description": "مسارات نظام الملفات الشائعة التي يستخدمها Votype",
+        "title": "المسارات"
       },
-      "pasteDelay": {
-        "title": "تأخير اللصق",
-        "description": "التأخير قبل إرسال ضغطة مفتاح اللصق (بالمللي ثانية). قم بزيادتها إذا تم لصق نص خاطئ."
+      "destroySettingsWindowOnClose": {
+        "description": "عند إغلاق نافذة الإعدادات، دمّرها (لتحرير الموارد). أعد فتحها من قائمة شريط النظام.",
+        "label": "تدمير نافذة الإعدادات عند الإغلاق"
+      },
+      "groups": {
+        "audio": "الصوت والمعالجة",
+        "data": "إدارة البيانات",
+        "system": "النظام والسجلات",
+        "text": "معالجة النص"
+      },
+      "logChannels": {
+        "title": "قنوات السجل",
+        "postProcess": "طلبات المعالجة اللاحقة",
+        "postProcessDesc": "تسجيل جميع مطالبات واستجابات LLM لصقل النص (أحادي ومتعدد النماذج)",
+        "skillRouting": "توجيه المهارات والنية",
+        "skillRoutingDesc": "تسجيل مطالبات واستجابات توجيه المهارات",
+        "routing": "قرارات التوجيه",
+        "routingDesc": "تسجيل قرارات SmartRouting وModeRouting والمسار",
+        "transcription": "مخرجات التفريغ",
+        "transcriptionDesc": "تسجيل نتائج ASR والأجزاء الفورية"
+      },
+      "offlineVadRealtime": {
+        "intervalDescription": "فرض تحديث فوري كل N مللي ثانية (0 للتعطيل).",
+        "intervalLabel": "الفاصل الفوري دون اتصال (مللي ثانية)",
+        "windowDescription": "عندما يتجاوز إجمالي الصوت 30 ثانية، يستخدم فك التشفير الفوري آخر N ثانية عند عدم وجود مقاطع VAD.",
+        "windowLabel": "نافذة الوقت الفوري دون اتصال (ث)"
+      },
+      "reliablePaste": {
+        "title": "لصق موثوق (تجريبي)",
+        "description": "استعادة الحافظة فقط بعد أن يقرأ التطبيق الهدف النص المفرّغ فعلياً، بدلاً من بعد تأخير ثابت. يهدف إلى إصلاح لصق محتوى حافظة قديم تحت ضغط النظام. يتطلب طريقة لصق من الحافظة؛ على macOS وWindows فقط."
       }
     },
     "about": {
       "title": "حول",
       "version": {
         "title": "الإصدار",
-        "description": "الإصدار الحالي من Handy"
+        "description": "الإصدار الحالي من Votype"
       },
       "appDataDirectory": {
         "title": "مجلد بيانات التطبيق",
-        "description": "الموقع الذي يخزن فيه Handy بياناته"
+        "description": "الموقع الذي يخزن فيه Votype بياناته"
       },
       "sourceCode": {
         "title": "كود المصدر",
@@ -436,7 +1143,7 @@
       },
       "supportDevelopment": {
         "title": "دعم التطوير",
-        "description": "ساعدنا في مواصلة بناء Handy",
+        "description": "ساعدنا في مواصلة بناء Votype",
         "button": "تبرع"
       },
       "acknowledgments": {
@@ -444,31 +1151,150 @@
         "whisper": {
           "title": "Whisper.cpp",
           "description": "استنتاج عالي الأداء لنموذج التعرف التلقائي على الكلام Whisper من OpenAI",
-          "details": ".يستخدم Handy برنامج Whisper.cpp لمعالجة سريعة ومحلية لتحويل الكلام إلى نص. شكراً للعمل الرائع الذي قام به Georgi Gerganov والمساهمون"
+          "details": ".يستخدم Votype برنامج Whisper.cpp لمعالجة سريعة ومحلية لتحويل الكلام إلى نص. شكراً للعمل الرائع الذي قام به Georgi Gerganov والمساهمون"
         }
+      },
+      "recordingsDirectory": {
+        "description": "الموقع الذي تُحفظ فيه التسجيلات الصوتية",
+        "title": "مجلد التسجيلات"
+      },
+      "upstream": {
+        "button": "عرض المشروع الأصلي",
+        "description": "Votype مبني على Handy v0.9.7",
+        "title": "المشروع الأصلي"
       }
     },
-    "modelSettings": {
-      "title": "إعدادات النموذج",
-      "noSettingsNeeded": "لا توجد إعدادات مطلوبة لهذا النموذج"
-    },
-    "models": {
-      "title": "نماذج النسخ",
-      "description": "اختر نموذج نسخ أو قم بتنزيل نماذج إضافية. تقدم النماذج المختلفة مستويات متفاوتة من الدقة والسرعة.",
-      "yourModels": "النماذج المحمّلة",
-      "availableModels": "متاح للتنزيل",
-      "downloaded": "تم التنزيل",
-      "available": "متاح للتنزيل",
-      "deleteConfirm": "هل أنت متأكد أنك تريد حذف {{modelName}}؟ ستحتاج إلى تنزيله مرة أخرى لاستخدامه.",
-      "deleteActiveConfirm": "{{modelName}} هو النموذج النشط حاليًا. حذفه سيوقف النسخ حتى تختار نموذجًا جديدًا. هل أنت متأكد؟",
-      "deleteTitle": "حذف النموذج",
+    "asrModels": {
+      "addFromUrl": "إضافة وتنزيل",
+      "addSection": {
+        "description": "الصق رابط النموذج. سيستنتج التطبيق نوع النموذج من اسم الملف.",
+        "title": "تثبيت"
+      },
+      "delete": "حذف",
+      "description": "إدارة نماذج التفريغ المحلية والتحكم في النماذج التي تظهر في المُحدِّد السريع.",
+      "download": "تنزيل",
+      "favorite": "المفضلة",
       "filters": {
         "all": "الكل",
-        "multiLanguage": "متعدد اللغات",
-        "translation": "ترجمة",
-        "allLanguages": "جميع اللغات"
+        "downloaded": "مُنزَّل",
+        "favorites": "المفضلة",
+        "language": "اللغة",
+        "mode": "الوضع",
+        "recommended": "موصى به",
+        "status": "الحالة",
+        "type": "النوع"
       },
-      "noModelsMatch": "لا توجد نماذج مطابقة لهذا الفلتر."
+      "groupBy": {
+        "language": "اللغة",
+        "mode": "الوضع",
+        "type": "النوع"
+      },
+      "groups": {
+        "asr": "نماذج ASR",
+        "multilingual": "متعدد اللغات",
+        "punctuation": "نماذج الترقيم"
+      },
+      "idLabel": "id: {{id}}",
+      "install": {
+        "addCustomTagButton": "إضافة",
+        "button": "إضافة نموذج مخصص",
+        "customTagPlaceholder": "وسم مخصص...",
+        "description": "أدخل رابط أرشيف النموذج (tar.gz، tar.bz2، إلخ).",
+        "editDescription": "تحديث الاسم أو الوسوم لهذا النموذج.",
+        "editTitle": "تعديل النموذج المخصص",
+        "nameLabel": "الاسم (اختياري)",
+        "placeholder": "https://example.com/model.tar.gz",
+        "remove": "إزالة النموذج المخصص",
+        "removeConfirm": "إزالة هذا النموذج المخصص؟ سيؤدي هذا أيضاً إلى حذف أي ملفات مُنزَّلة.",
+        "tagsLabel": "الوسوم",
+        "title": "إضافة نموذج مخصص",
+        "tooltip": "إضافة نموذج من URL",
+        "urlLabel": "URL",
+        "edit": "تعديل النموذج المخصص"
+      },
+      "languages": {
+        "de": "الألمانية",
+        "en": "الإنجليزية",
+        "es": "الإسبانية",
+        "fr": "الفرنسية",
+        "ja": "اليابانية",
+        "ko": "الكورية",
+        "multilingual": "متعدد اللغات",
+        "other": "أخرى",
+        "ru": "الروسية",
+        "yue": "الكانتونية",
+        "zh": "الصينية"
+      },
+      "library": {
+        "count": "{{count}} نموذج",
+        "description": "اختر المفضلة لعرضها في المُحدِّد السريع.",
+        "searchPlaceholder": "ابحث عن النماذج…",
+        "title": "المكتبة"
+      },
+      "modeChips": {
+        "asr": "ASR",
+        "punctuation": "الترقيم"
+      },
+      "specialChips": {
+        "streaming": "بث مباشر",
+        "new": "جديد"
+      },
+      "pipeline": {
+        "description": "معالجة لاحقة عامة يمكن تطبيقها تلقائياً بعد التفريغ.",
+        "itn": "ITN (SenseVoice)",
+        "itnHint": "تطبيع النص العكسي: تنسيق أساسي (مثل الأرقام).",
+        "punctuation": "ترقيم تلقائي",
+        "punctuationHint": "يستخدم نموذج الترقيم المحدد لإضافة فواصل الجمل.",
+        "punctuationModel": "نموذج الترقيم",
+        "punctuationModelHint": "اختر نموذج الترقيم المراد استخدامه.",
+        "title": "المسار"
+      },
+      "quickSettings": {
+        "description": "تُطبَّق هذه الإعدادات عالمياً. احذف نماذج الترقيم من المكتبة أدناه.",
+        "title": "إعدادات سريعة"
+      },
+      "reset": "إعادة تعيين",
+      "status": {
+        "downloaded": "مُنزَّل",
+        "notDownloaded": "غير مُنزَّل"
+      },
+      "title": "النماذج المحلية",
+      "typeChips": {
+        "moonshine": "Moonshine",
+        "other": "أخرى",
+        "paraformer": "Paraformer",
+        "parakeet": "Parakeet",
+        "sensevoice": "SenseVoice",
+        "whisper": "Whisper",
+        "zipformer": "Zipformer"
+      },
+      "types": {
+        "moonshine": "Moonshine",
+        "paraformer": "Paraformer",
+        "parakeet": "Parakeet",
+        "punctuation": "الترقيم",
+        "sensevoice": "SenseVoice",
+        "whisper": "Whisper",
+        "zipformer": "Zipformer"
+      },
+      "autoDownloadingPunctuation": "جاري تنزيل نموذج الترقيم تلقائياً..."
+    },
+    "shortcuts": {
+      "title": "الاختصارات"
+    },
+    "vocabulary": {
+      "hotWords": {
+        "description": "أضف الكلمات التي كثيراً ما يُخطئ في سماعها. سيقوم النظام بالتصحيح تلقائياً.",
+        "empty": "لا توجد كلمات ساخنة بعد",
+        "placeholder": "أضف كلمة...",
+        "title": "الكلمات الساخنة",
+        "word": "كلمة"
+      },
+      "import": "استيراد",
+      "deleteConfirm": {
+        "title": "تأكيد الحذف",
+        "hotwordMessage": "هل أنت متأكد أنك تريد إزالة هذه الكلمة الساخنة؟"
+      }
     }
   },
   "footer": {
@@ -483,7 +1309,16 @@
     "downloading": "...جاري التنزيل {{progress}}%",
     "installing": "...جاري التثبيت",
     "preparing": "...جاري التحضير",
-    "checkForUpdates": "التحقق من وجود تحديثات"
+    "checkForUpdates": "التحقق من وجود تحديثات",
+    "postProcess": {
+      "title": "معالجة لاحقة",
+      "punctuation": "ترقيم تلقائي",
+      "translate": "الترجمة إلى الإنجليزية",
+      "realtime": "معاينة فورية",
+      "llm": "معالجة لاحقة بـ LLM",
+      "selectModel": "اختر نموذجاً...",
+      "openSettings": "الإعدادات"
+    }
   },
   "common": {
     "loading": "...جاري التحميل",
@@ -505,23 +1340,607 @@
     "off": "إيقاف",
     "yes": "نعم",
     "no": "لا",
-    "noOptionsFound": "لم يتم العثور على خيارات"
+    "noOptionsFound": "لم يتم العثور على خيارات",
+    "locale": "ar",
+    "active": "نشط",
+    "addNewOption": "إضافة خيار جديد",
+    "aiOptimizationFailed": "فشل التحسين بالذكاء الاصطناعي، يرجى التحقق من الإعدادات",
+    "aiOptimizationSuccess": "تم التحسين بالذكاء الاصطناعي بنجاح",
+    "aiOptimize": "تحسين بالذكاء الاصطناعي",
+    "authorize": "تفويض",
+    "bold": "عريض",
+    "code": "كود مضمّن",
+    "confirm": "تأكيد",
+    "copied": "تم النسخ",
+    "copy": "نسخ",
+    "done": "تم",
+    "exitFullscreen": "استعادة",
+    "filterOptions": "تصفية الخيارات...",
+    "fullscreen": "ملء الشاشة",
+    "granted": "تم المنح",
+    "h1": "H1",
+    "id": "ID",
+    "italic": "مائل",
+    "link": "رابط",
+    "list": "قائمة",
+    "models": "النماذج",
+    "next": "التالي",
+    "noMatchingOptions": "لا توجد خيارات مطابقة",
+    "notAvailable": "غير متاح",
+    "optional": "اختياري",
+    "quote": "اقتباس",
+    "requesting": "جاري الطلب...",
+    "required": "مطلوب",
+    "searchOrPaste": "ابحث أو الصق...",
+    "selectAll": "تحديد الكل",
+    "selectOption": "اختر خياراً",
+    "skip": "تخطٍّ",
+    "useInput": "استخدام \"{{input}}\"",
+    "useThisProvider": "استخدام هذا المزود",
+    "variables": "المتغيرات المتاحة",
+    "refresh": "تحديث",
+    "time": {
+      "justNow": "الآن",
+      "minutesAgo": "قبل {{count}} دقيقة",
+      "hoursAgo": "قبل {{count}} ساعة",
+      "daysAgo": "قبل {{count}} يوم"
+    },
+    "history": "السجل",
+    "latest": "الأحدث",
+    "localInsertCopied": "لا يوجد حقل إدخال في التركيز — تم نسخ النتيجة إلى الحافظة",
+    "insertBlocked": "{{app}} مدرج في القائمة السوداء للإدراج — تم نسخ المحتوى إلى الحافظة، الصقه يدوياً",
+    "expand": "توسيع الشريط الجانبي",
+    "collapse": "طي الشريط الجانبي",
+    "retry": "إعادة المحاولة",
+    "unknown": "غير معروف",
+    "error": "خطأ"
   },
   "accessibility": {
     "permissionsRequired": "أذونات إمكانية الوصول مطلوبة",
-    "permissionsDescription": ".يحتاج Handy إلى أذونات إمكانية الوصول لكتابة النص المفرغ",
+    "permissionsDescription": ".يحتاج Votype إلى أذونات إمكانية الوصول لكتابة النص المفرغ",
     "openSettings": "فتح إعدادات النظام",
-    "dismiss": "تجاهل"
+    "dismiss": "تجاهل",
+    "verify": "تحقق"
   },
   "errors": {
-    "loadDirectory": "خطأ في تحميل المجلد: {{error}}"
+    "loadDirectory": "خطأ في تحميل المجلد: {{error}}",
+    "noInputDeviceTitle": "الميكروفون غير متاح",
+    "noInputDevice": "لم يتم العثور على جهاز إدخال صوتي. تحقق من إعدادات النظام > الصوت > الإدخال، ثم أعد المحاولة.",
+    "recordingFailed": "فشل التسجيل: {{error}}"
   },
   "appLanguage": {
     "title": "لغة التطبيق",
-    "description": "تغيير لغة واجهة Handy"
+    "description": "تغيير لغة واجهة Votype"
   },
   "overlay": {
-    "transcribing": "...جاري التفريغ",
-    "processing": "...جاري المعالجة"
+    "error": {
+      "appleIntelligenceFailed": "فشل Apple Intelligence. تحقق من النظام.",
+      "appleIntelligenceUnavailable": "Apple Intelligence غير متاح.",
+      "llmInitFailed": "فشلت تهيئة LLM. تحقق من المفاتيح أو URL.",
+      "llmRequestFailed": "فشل طلب LLM. تحقق من الشبكة أو API.",
+      "llmNetworkError": "خطأ في الشبكة، جاري إعادة المحاولة...",
+      "llmRateLimited": "تم تحديد المعدل، يرجى الانتظار",
+      "llmAuthFailed": "مفتاح API غير صالح، تحقق من الإعدادات",
+      "llmBadRequest": "رفض النموذج معاملات الطلب (مثل min_p/top_k)، تحقق من معاملات النموذج",
+      "llmModelNotFound": "النموذج غير موجود أو غير مُمكّن، تحقق من معرّف النموذج",
+      "llmApiError": "خطأ في خدمة API",
+      "llmParseError": "فشل تحليل استجابة النموذج",
+      "transcriptionFailedSaved": "فشل التفريغ (تم الحفظ)"
+    },
+    "skillConfirmation": {
+      "confirmUse": "عند التحديد؟",
+      "detectedSelection": "استخدام ",
+      "prompt": "استخدام هذه المهارة؟",
+      "charCount": "{{count}} حرف"
+    },
+    "status": {
+      "inserting": "جاري الإدراج...",
+      "llm": "جاري المعالجة اللاحقة...",
+      "recording": "جاري التسجيل...",
+      "translation": "جاري الترجمة...",
+      "transcribing": "جاري التفريغ...",
+      "review": "جاري المراجعة...",
+      "rewrite": "جاري المعالجة…",
+      "success": "تم الإدراج",
+      "translationSuccess": "نجحت الترجمة"
+    },
+    "rewriteOperation": {
+      "rewrite": "أُعيدت صياغته",
+      "expand": "تم التوسيع",
+      "format": "تم التنسيق",
+      "translate": "تمت الترجمة",
+      "polish": "تم الصقل",
+      "append": "تم الإلحاق",
+      "unknown": "تم"
+    },
+    "timeout": {
+      "title": "انتهت مهلة التفريغ عبر الإنترنت",
+      "continue": "متابعة",
+      "retry": "إعادة المحاولة",
+      "cancel": "إلغاء"
+    },
+    "ruleSuggestion": {
+      "message": "استخدمت '{{promptName}}' {{count}} مرة في {{appName}} ({{title}}). هل تريد إضافة قاعدة لهذه النافذة؟",
+      "accept": "إضافة قاعدة",
+      "dismiss": "ليس الآن",
+      "never": "لا تسأل أبداً"
+    }
+  },
+  "dashboard": {
+    "actions": {
+      "edit": "تعديل",
+      "editDescription": "تعديل النص المفرّغ لهذا الإدخال في السجل",
+      "editPlaceholder": "أدخل النص المعدّل...",
+      "editTitle": "تعديل نتيجة التعرف",
+      "openRecordings": "التسجيلات",
+      "quickInsert": "إدراج في {{app}}",
+      "quickInsertEmpty": "لم يتم اكتشاف تطبيق خارجي حديث",
+      "quickInsertErrorFocus": "فشل تنشيط النافذة الهدف",
+      "quickInsertErrorNoTarget": "لا يوجد تطبيق هدف للإدراج فيه",
+      "quickInsertErrorPaste": "فشل اللصق",
+      "reprocessFailed": "فشلت إعادة المعالجة بالذكاء الاصطناعي",
+      "retranscribe": "إعادة التفريغ باستخدام الصوت",
+      "rejectPolish": "رفض نتيجة الصقل",
+      "retranscribeFailed": "فشلت إعادة التفريغ",
+      "retranscribing": "جاري إعادة التفريغ..."
+    },
+    "activity": {
+      "entries": "{{count}} إدخال",
+      "subtitle": "آخر 40 يوماً",
+      "title": "الاستخدام"
+    },
+    "cards": {
+      "allTime": "كل الوقت",
+      "recent": "آخر {{days}} يوم",
+      "today": "اليوم"
+    },
+    "dateLabels": {
+      "today": "اليوم",
+      "yesterday": "أمس"
+    },
+    "errorIndicator": {
+      "errorTypeLabel": {
+        "asr_empty": "نتيجة ASR فارغة",
+        "llm_api_error": "أعاد المزود خطأ",
+        "llm_auth_failed": "فشلت المصادقة",
+        "llm_bad_request": "طلب غير صالح",
+        "llm_config_error": "خطأ في إعدادات النموذج أو المزود",
+        "llm_empty_result": "استجابة فارغة",
+        "llm_init_failed": "فشل تهيئة العميل",
+        "llm_model_not_found": "النموذج غير موجود (404)",
+        "llm_network_error": "خطأ في الشبكة",
+        "llm_parse_error": "فشل تحليل الاستجابة",
+        "llm_rate_limited": "تم تحديد المعدل (429)",
+        "llm_timeout": "انتهت المهلة (10s)",
+        "llm_unknown": "خطأ LLM غير معروف",
+        "pipeline_timeout": "انتهت مهلة المسار (20s)"
+      },
+      "errorsOnlyToggle": "الفشل فقط",
+      "panelDetail": "التفاصيل",
+      "panelErrorType": "نوع الخطأ",
+      "panelModel": "النموذج",
+      "panelProvider": "المزود",
+      "panelTimestamp": "الطابع الزمني",
+      "stageAsr": "ASR",
+      "stagePolish": "الصقل",
+      "tooltipAsrEmpty": "أعاد ASR نتيجة فارغة",
+      "tooltipPolishFailed": "فشل الصقل",
+      "tooltipPolishProviderError": "فشل الصقل ({{status}})",
+      "tooltipPolishTimeout": "انتهت مهلة الصقل"
+    },
+    "details": {
+      "audioRemoved": "تمت إزالة التسجيل",
+      "cancelled": "ملغى",
+      "count": "{{count}} إدخال",
+      "empty": "لا توجد بيانات",
+      "emptyHint": "استخدم مفتاح الاختصار لبدء أول تفريغ لك",
+      "loadMore": "تحميل المزيد",
+      "meta": {
+        "chars": "{{value}} حرف"
+      },
+      "recordCount": "{{count}} تسجيل",
+      "title": "السجل"
+    },
+    "metrics": {
+      "characters": "الأحرف",
+      "duration": "مدة الصوت",
+      "entries": "عمليات التفريغ",
+      "postProcessed": "تمت معالجتها لاحقاً",
+      "saved": "محفوظ"
+    },
+    "range": {
+      "allTime": "كل الوقت",
+      "buttons": {
+        "allTime": "كل الوقت",
+        "last30Days": "آخر 30 يوماً",
+        "last40Days": "آخر 40 يوماً",
+        "last7Days": "آخر 7 أيام"
+      },
+      "lastNDays": "آخر {{days}} يوم",
+      "today": "اليوم"
+    },
+    "summary": {
+      "apps": {
+        "empty": "لا توجد بيانات تطبيقات",
+        "title": "أكثر 3 تطبيقات استخداماً",
+        "top3": "أفضل 3"
+      },
+      "llm": {
+        "calls": "{{count}} استدعاء للنموذج",
+        "title": "استخدام LLM",
+        "unknownApp": "غير معروف"
+      },
+      "recording": {
+        "count": "{{count}} عملية تفريغ",
+        "title": "إجمالي الإدخال الصوتي"
+      },
+      "transcription": {
+        "speed": "المتوسط {{rate}}/دقيقة",
+        "title": "النص المُنشأ"
+      }
+    },
+    "title": "لوحة التحكم"
+  },
+  "models": {
+    "large": {
+      "description": "دقة جيدة، لكنه بطيء.",
+      "name": "Whisper Large"
+    },
+    "medium": {
+      "description": "دقة جيدة، سرعة متوسطة",
+      "name": "Whisper Medium"
+    },
+    "parakeet-tdt-0.6b-v2": {
+      "description": "الإنجليزية فقط. أفضل نموذج للمتحدثين بالإنجليزية.",
+      "name": "Parakeet V2"
+    },
+    "parakeet-tdt-0.6b-v3": {
+      "description": "سريع ودقيق",
+      "name": "Parakeet V3"
+    },
+    "punct-zh-en-ct-transformer-2024-04-12": {
+      "description": "يضيف الترقيم وفواصل الجمل للنص المختلط بالصينية والإنجليزية. نموذج أكبر؛ أكثر دقة لكنه أبطأ. حُدّث في 2024-04-12.",
+      "name": "الترقيم (الصينية + الإنجليزية) كبير"
+    },
+    "punct-zh-en-ct-transformer-2024-04-12-int8": {
+      "description": "يضيف الترقيم وفواصل الجمل للنص المختلط بالصينية والإنجليزية. Int8؛ سريع وصغير. حُدّث في 2024-04-12.",
+      "name": "الترقيم (الصينية + الإنجليزية)"
+    },
+    "small": {
+      "description": "سريع ودقيق إلى حد ما.",
+      "name": "Whisper Small"
+    },
+    "turbo": {
+      "description": "توازن بين الدقة والسرعة.",
+      "name": "Whisper Turbo"
+    }
+  },
+  "inline": {
+    "listening": "يستمع...",
+    "transcribing": "جاري التفريغ...",
+    "polishing": "جاري الصقل...",
+    "executing": "جاري التنفيذ...",
+    "complete": "اكتمل",
+    "modeToggle": "وضع التعديل",
+    "closeConfirmTitle": "تغييرات غير محفوظة",
+    "closeConfirmMessage": "تم تعديل المحتوى. تأكيد الإغلاق؟",
+    "closeConfirmOk": "إغلاق",
+    "closeConfirmCancel": "إلغاء",
+    "sectionTitle": "نتيجة التفريغ",
+    "undo": "تراجع",
+    "redo": "إعادة",
+    "placeholder": "اضغط الاختصار لبدء الإملاء..."
+  },
+  "soundPicker": {
+    "custom": "مخصص",
+    "marimba": "ماريمبا",
+    "pop": "فرقعة",
+    "chime": "رنين",
+    "switch": "مفتاح",
+    "pluck": "نقر وتر",
+    "toggle": "تبديل",
+    "twotone": "نغمتان",
+    "pep": "حيوية",
+    "power": "قوة",
+    "zap": "وميض",
+    "blip": "صفير قصير",
+    "mouse": "نقرة فأرة",
+    "wood": "طرقة خشب",
+    "preview": "معاينة"
+  },
+  "summary": {
+    "periodSelector": {
+      "title": "النطاق الزمني",
+      "day": "اليوم",
+      "week": "أسبوع",
+      "month": "شهر"
+    },
+    "stats": {
+      "entries": "الإدخالات",
+      "chars": "الأحرف",
+      "duration": "المدة",
+      "aiCalls": "استدعاءات AI",
+      "noApps": "لا توجد بيانات تطبيقات",
+      "appDistribution": "توزيع التطبيقات",
+      "timeDistribution": "توزيع الوقت"
+    },
+    "recap": {
+      "title": "الملخص اليومي",
+      "empty": "لا يوجد نشاط كافٍ في هذا النطاق لبناء ملخص بعد.",
+      "progress": "التقدم الرئيسي",
+      "friction": "المعوقات",
+      "nextFocus": "التركيز التالي",
+      "blockers": "العوائق",
+      "nextStep": "الخطوة التالية المقترحة",
+      "records": "تسجيلات"
+    },
+    "timeline": {
+      "title": "السجل",
+      "days": "أيام",
+      "weeks": "أسابيع",
+      "months": "أشهر",
+      "empty": "لا توجد ملخصات بعد"
+    },
+    "actions": {
+      "export": "تصدير"
+    },
+    "export": {
+      "markdown": "تصدير كـ Markdown",
+      "json": "تصدير كـ JSON"
+    },
+    "aiAnalysis": {
+      "title": "تحليل AI",
+      "generate": "إنشاء",
+      "generating": "جاري الإنشاء...",
+      "view": "عرض",
+      "selectModel": "اختيار النموذج",
+      "provider": "المزود",
+      "modelUsed": "النموذج المستخدم",
+      "clickToGenerate": "انقر لإنشاء تحليل AI لأنشطتك",
+      "communicationStyle": "أسلوب التواصل",
+      "reflection": "تأملات واقتراحات",
+      "empty": "انقر على 'إنشاء' للحصول على رؤى مدعومة بالذكاء الاصطناعي حول أنشطتك.",
+      "updateProfile": "تحديث الملف الشخصي"
+    },
+    "userProfile": {
+      "currentStyle": "ملف الأسلوب الحالي"
+    }
+  },
+  "theme": {
+    "accentColor": {
+      "amber": "كهرماني",
+      "blue": "أزرق",
+      "bronze": "برونزي",
+      "brown": "بني",
+      "crimson": "قرمزي",
+      "current": "الحالي: {{color}}",
+      "cyan": "سماوي",
+      "description": "اختر لون التمييز المستخدم في جميع أنحاء التطبيق",
+      "gold": "ذهبي",
+      "grass": "عشبي",
+      "gray": "رمادي",
+      "green": "أخضر",
+      "indigo": "نيلي",
+      "iris": "أزرق بنفسجي",
+      "jade": "يشمي",
+      "lime": "ليموني",
+      "mint": "نعناعي",
+      "orange": "برتقالي",
+      "pink": "وردي",
+      "plum": "برقوقي",
+      "purple": "أرجواني",
+      "red": "أحمر",
+      "ruby": "ياقوتي",
+      "sky": "أزرق سماوي",
+      "teal": "أزرق مخضر",
+      "title": "لون التمييز",
+      "tomato": "طماطمي",
+      "violet": "بنفسجي",
+      "yellow": "أصفر"
+    },
+    "compactMode": {
+      "description": "عرض الأوصاف كتلميحات",
+      "title": "الوضع المضغوط"
+    },
+    "cornerRadius": {
+      "capsule": "كبسولة",
+      "capsuleDesc": "زوايا مستديرة بالكامل",
+      "default": "افتراضي",
+      "defaultDesc": "استدارة الزوايا القياسية",
+      "description": "اضبط استدارة الزوايا",
+      "rounded": "مستدير",
+      "roundedDesc": "زوايا أكثر استدارة",
+      "sharp": "حاد",
+      "sharpDesc": "بدون استدارة الزوايا",
+      "soft": "ناعم",
+      "softDesc": "زوايا مستديرة قليلاً",
+      "title": "استدارة الزوايا"
+    },
+    "panelStyle": {
+      "description": "اختر بين لوحات شفافة أو صلبة",
+      "solid": "صلب",
+      "solidDesc": "لوحات معتمة",
+      "title": "نمط اللوحة",
+      "translucent": "شفاف",
+      "translucentDesc": "تأثير الزجاج المصنفر"
+    },
+    "scaling": {
+      "current": "الحالي: {{scale}}",
+      "description": "ضبط حجم واجهة المستخدم",
+      "title": "التحجيم"
+    },
+    "themeMode": {
+      "dark": "داكن",
+      "darkDesc": "استخدام السمة الداكنة دائماً",
+      "description": "اختر مظهر Votype",
+      "light": "فاتح",
+      "lightDesc": "استخدام السمة الفاتحة دائماً",
+      "system": "النظام",
+      "systemDesc": "مطابقة سمة النظام",
+      "title": "وضع السمة"
+    },
+    "title": "السمة"
+  },
+  "transcription": {
+    "review": {
+      "aiResponse": "استجابة AI",
+      "change": "التغيير",
+      "confidence": "الثقة",
+      "confirm": "تأكيد وإدراج",
+      "description": "قد يحتوي النص المفرّغ على أخطاء. يرجى المراجعة والتعديل إذا لزم الأمر.",
+      "final": "الإخراج النهائي",
+      "generationTitle": "استجابة المساعد AI",
+      "highlightHint": "الكلمات المميزة تشير إلى تعديلات LLM.",
+      "hint": "⌘/Ctrl + Enter للتأكيد، وEscape للإلغاء",
+      "insert": "إدراج",
+      "insertCode": "إدراج كود",
+      "insertOriginal": "إدراج الأصلي (Tab)",
+      "insertStabilityHint": "اختصار: {{shortcut}}\nإذا كان الإدراج غير مستقر، يمكنك تعطيل هذه الميزة مؤقتاً.",
+      "instruction": "التعليمات",
+      "placeholder": "تعديل النص المفرّغ...",
+      "source": "النص المباشر",
+      "title": "مراجعة التفريغ",
+      "skipPostProcess": "تخطّي المعالجة اللاحقة",
+      "hideDiff": "إخفاء الفروقات",
+      "showDiff": "إظهار الفروقات",
+      "translateText": "ترجمة",
+      "translationResult": "نتيجة الترجمة",
+      "translationPreview": "معاينة إنجليزية",
+      "translationPreviewLangLabel": "الإنجليزية",
+      "translationModeAuto": "تلقائي",
+      "translationModeManual": "يدوي",
+      "translationUpdating": "جاري الترجمة...",
+      "translationWaiting": "يُحدَّث تلقائياً بعد ثانية من التعديلات",
+      "translationFailedFallback": "فشلت الترجمة، وسيتم إدراج النص الأصلي",
+      "translationReady": "تم التحديث",
+      "analysisTitle": "التحليل:",
+      "deviationNone": "تطابق تام",
+      "deviationMinor": "تغييرات طفيفة",
+      "deviationMajor": "تغييرات كبيرة",
+      "insertTranslation": "إدراج الترجمة",
+      "insertPolished": "إدراج المصقول",
+      "insertEnglish": "إدراج الإنجليزية",
+      "resizeGrip": "اسحب لتغيير الحجم، وانقر نقراً مزدوجاً للملاءمة التلقائية",
+      "multiModel": "نتائج النماذج المتعددة",
+      "processing": "جاري المعالجة...",
+      "restoreOrder": "استعادة الترتيب الأصلي",
+      "sortBySpeed": "الترتيب حسب سرعة الاستجابة",
+      "speedSorted": "السرعة أولاً",
+      "sortBySpeedShort": "حسب السرعة",
+      "rankCount": "#{{rank}} ({{count}} مرة)",
+      "sortByChange": "الترتيب حسب حجم التغيير",
+      "changeSorted": "التغيير أولاً",
+      "sortLabel": "ترتيب",
+      "pressEscAgain": "تم تعديل المحتوى، اضغط ESC مرة أخرى للإغلاق",
+      "speedHistoryAvg": "المتوسط التاريخي: {{speed}} ({{count}} استدعاء)",
+      "speedThisRun": "هذه الجولة: {{speed}} ({{diff}})"
+    }
+  },
+  "secureInput": {
+    "blockedWithCulprit_one": "قد يمنع {{name}} اختصاراً واحداً",
+    "blockedWithCulprit_other": "قد يمنع {{name}} {{count}} اختصاراً",
+    "blockedNoCulprit_one": "يقوم macOS بحظر اختصار واحد مؤقتاً",
+    "blockedNoCulprit_other": "يقوم macOS بحظر {{count}} اختصاراً مؤقتاً",
+    "recorderBlockedWithCulprit": "قد يمنع {{name}} تغييرات الاختصارات",
+    "recorderBlockedNoCulprit": "يقوم macOS بحظر تغييرات الاختصارات مؤقتاً",
+    "learnMore": "كيفية الإصلاح",
+    "recorderBlocked": "لا يمكن تسجيل الاختصارات الآن — يحظر macOS Secure Input أحداث المفاتيح. عالج تحذير Secure Input أولاً.",
+    "dismiss": "تجاهل"
+  },
+  "ruleSuggestion": {
+    "title": "إضافة قاعدة لهذه النافذة؟",
+    "app": "التطبيق",
+    "window": "النافذة",
+    "prompt": "المطالبة",
+    "used": "استُخدمت",
+    "times": "{{count}} مرة",
+    "description": "بمجرد الإضافة، تُطبَّق هذه المطالبة تلقائياً في المرة التالية التي تسجّل فيها في هذه النافذة.",
+    "dismiss": "ليس هذه المرة",
+    "neverAgain": "لا تسأل مرة أخرى",
+    "addRule": "إضافة قاعدة"
+  },
+  "hotword": {
+    "addBar": {
+      "placeholder": "أدخل الكلمات الساخنة (مفصولة بفواصل للإضافة دفعة واحدة)...",
+      "words": "{{count}} كلمة",
+      "add": "إضافة",
+      "addCount": "إضافة ({{count}})"
+    },
+    "source": {
+      "manual": "يدوي",
+      "autoLearned": "مستفاد تلقائياً",
+      "aiExtracted": "مستخرج بالذكاء الاصطناعي"
+    },
+    "scenario": {
+      "work": "العمل",
+      "casual": "غير رسمي"
+    },
+    "tagCloud": {
+      "add": "إضافة",
+      "import": "استيراد",
+      "export": "تصدير",
+      "sortByWeight": "الترتيب حسب الوزن",
+      "sortByAlpha": "الترتيب أبجدياً",
+      "searchPlaceholder": "ابحث عن الكلمات الساخنة...",
+      "aiSuggestions": "اقتراحات الذكاء الاصطناعي ({{count}})",
+      "acceptAll": "قبول الكل",
+      "dismissAll": "تجاهل الكل",
+      "contextFrequent": "متكررة في السياق",
+      "acceptSuggestion": "قبول الاقتراح",
+      "dismissSuggestion": "تجاهل الاقتراح",
+      "empty": "لا توجد كلمات ساخنة بعد. انقر على \"إضافة\" لإنشاء أول واحدة.",
+      "noMatch": "لا توجد كلمات ساخنة تطابق \"{{query}}\"",
+      "dropHere": "أفلت هنا"
+    },
+    "editPanel": {
+      "addAlias": "إضافة كلمة {{label}}",
+      "duplicate": "\"{{target}}\" موجود بالفعل",
+      "saveFailed": "فشل الحفظ",
+      "targetPlaceholder": "الكلمة الهدف",
+      "decreaseWeight": "تقليل الوزن",
+      "increaseWeight": "زيادة الوزن",
+      "falsePositive": "{{count}} نتيجة إيجابية خاطئة",
+      "deleteHotword": "حذف الكلمة الساخنة",
+      "category": "الفئة",
+      "scenario": "السياق",
+      "correction": "تصحيح",
+      "correctionDesc": "يُستخدم كمرجع للتصحيح ويُحقن في مطالبة LLM. اسحب اسماً مستعاراً إلى \"فرض\" لتحويله إلى استبدال محلي مباشر.",
+      "correctionPlaceholder": "إضافة كلمة تصحيح",
+      "force": "فرض",
+      "forceDesc": "استبدال محلي مطابق فقط، ولا يُرسل أبداً إلى LLM. اسحب اسماً مستعاراً مرة أخرى إلى \"تصحيح\" لاستعادة مرجع الذكاء الاصطناعي.",
+      "forcePlaceholder": "إضافة كلمة فرض",
+      "none": "بلا",
+      "confirmDeleteTitle": "تأكيد الحذف",
+      "confirmDeleteDesc": "حذف الكلمة الساخنة \"{{target}}\"؟"
+    },
+    "categoryDialog": {
+      "colors": {
+        "gray": "رمادي",
+        "green": "أخضر",
+        "orange": "برتقالي",
+        "blue": "أزرق",
+        "purple": "أرجواني",
+        "red": "أحمر",
+        "cyan": "سماوي",
+        "amber": "كهرماني",
+        "teal": "أزرق مخضر",
+        "pink": "وردي"
+      },
+      "idInvalid": "قد تحتوي المعرّفات على أحرف وأرقام وشرطات فقط",
+      "idDuplicate": "معرّف الفئة \"{{id}}\" موجود بالفعل",
+      "addFailed": "فشلت الإضافة",
+      "saveFailed": "فشل الحفظ",
+      "deleteFailed": "فشل الحذف",
+      "manageTooltip": "إدارة الفئات",
+      "title": "إدارة فئات الكلمات الساخنة",
+      "description": "خصّص الاسم واللون والأيقونة لكل فئة. لا يمكن حذف الفئات المدمجة.",
+      "namePlaceholder": "اسم الفئة",
+      "builtin": "مدمج",
+      "deleteTooltip": "حذف (تنتقل الكلمات الساخنة إلى المصطلحات)",
+      "idPlaceholder": "المعرّف (مثال: medical)",
+      "labelPlaceholder": "الاسم (مثال: Medical)",
+      "idInvalidDetail": "قد تحتوي المعرّفات على أحرف وأرقام وشرطات (-) فقط",
+      "addCategory": "إضافة فئة"
+    }
   }
 }

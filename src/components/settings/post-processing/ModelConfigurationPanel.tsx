@@ -44,7 +44,13 @@ function getModelStats(
   modelId: string,
   providerId: string,
   stats: ModelSpeedStats[],
-): { totalCalls: number; totalErrors: number; avgSpeed: number } | null {
+): {
+  totalCalls: number;
+  totalErrors: number;
+  avgSpeed: number;
+  lastError?: string | null;
+  lastErrorAt?: string | null;
+} | null {
   const matched = stats.filter(
     (s) => s.model_id === modelId && s.provider === providerId,
   );
@@ -58,10 +64,13 @@ function getModelStats(
     (sum, s) => sum + s.avg_speed * s.total_calls,
     0,
   );
+  const errored = matched.find((s) => s.last_error);
   return {
     totalCalls,
     totalErrors,
     avgSpeed: totalCalls > 0 ? weightedSpeed / totalCalls : 0,
+    lastError: errored?.last_error ?? null,
+    lastErrorAt: errored?.last_error_at ?? null,
   };
 }
 

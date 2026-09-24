@@ -1377,7 +1377,7 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                             color="gray"
                             className={PROVIDER_TAB_BUTTON_CLASS}
                           >
-                            <Text size="1">更多</Text>
+                            <Text size="1">{t("common.more", "More")}</Text>
                             <Text
                               size="1"
                               color="gray"
@@ -1615,7 +1615,7 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
               color="gray"
               className={PROVIDER_TAB_BUTTON_CLASS}
             >
-              <Text size="1">更多</Text>
+              <Text size="1">{t("common.more", "More")}</Text>
               <Text size="1" color="gray" className="tabular-nums">
                 99
               </Text>

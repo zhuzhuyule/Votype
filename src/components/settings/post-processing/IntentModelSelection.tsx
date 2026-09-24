@@ -26,7 +26,7 @@ export const IntentModelSelection: React.FC = () => {
           modelFilter={(m) => m.model_type === "text"}
           defaultStrategy="serial"
           disabled={!settings?.post_process_enabled}
-          label={t("settings.postProcessing.intentModel")}
+          label={t("settings.postProcessing.intentModel.title")}
         />
       </ActionWrapper>
     </SettingContainer>

@@ -192,7 +192,7 @@ const PromptsConfiguration: React.FC = () => {
         // Regular skill: create as user file
         const name =
           builtin?.name ||
-          t("settings.postProcessing.prompts.newPromptName", "新建 Skill");
+          t("settings.postProcessing.prompts.newPromptName", "New Prompt");
         const instructions = builtin?.instructions || "";
         const description = builtin?.description || "";
         const icon = builtin?.icon || "IconSparkles";
@@ -316,7 +316,7 @@ const PromptsConfiguration: React.FC = () => {
                           <DynamicIcon name="IconFilePlus" size={14} />
                           {t(
                             "settings.postProcessing.prompts.blankSkill",
-                            "空白 Skill",
+                            "Blank Skill",
                           )}
                         </Flex>
                       </DropdownMenu.Item>
@@ -338,7 +338,7 @@ const PromptsConfiguration: React.FC = () => {
                           <DropdownMenu.Label>
                             {t(
                               "settings.postProcessing.prompts.polishCategory",
-                              "润色",
+                              "Polish",
                             )}
                           </DropdownMenu.Label>
                           {builtinSkills
@@ -432,7 +432,7 @@ const PromptsConfiguration: React.FC = () => {
                           >
                             {t(
                               "settings.postProcessing.prompts.userOwnedPrompts",
-                              "我的提示词",
+                              "My Prompts",
                             )}
                             {` (${allSkills.length})`}
                           </Text>

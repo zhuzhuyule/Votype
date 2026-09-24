@@ -195,7 +195,10 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
               <IconBrain
                 size={16}
                 style={{ color: "var(--blue-9)" }}
-                title="Thinking 已启用"
+                title={t(
+                  "settings.postProcessing.models.editModel.thinkingEnabled",
+                  "Thinking enabled",
+                )}
               />
             )}
           </Flex>
@@ -253,7 +256,10 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
           {/* Model Family */}
           <Flex direction="column" gap="1">
             <Text size="2" weight="medium" color="gray">
-              模型系列
+              {t(
+                "settings.postProcessing.models.editModel.modelFamily",
+                "Model Family",
+              )}
             </Text>
             <Select.Root
               value={modelFamily || "__unknown__"}
@@ -263,7 +269,12 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
             >
               <Select.Trigger className="w-full" />
               <Select.Content>
-                <Select.Item value="__unknown__">未知</Select.Item>
+                <Select.Item value="__unknown__">
+                  {t(
+                    "settings.postProcessing.models.editModel.unknown",
+                    "Unknown",
+                  )}
+                </Select.Item>
                 {modelFamilies.map(([id, displayName]) => (
                   <Select.Item key={id} value={id}>
                     {displayName}
@@ -274,18 +285,32 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
           </Flex>
           {presetParamsHint && (
             <Text size="1" color="gray" mt="-2" as="div">
-              预设参数: {presetParamsHint}
+              {t(
+                "settings.postProcessing.models.editModel.presetParams",
+                "Preset parameters: {{hint}}",
+                {
+                  hint: presetParamsHint,
+                },
+              )}
             </Text>
           )}
 
-          {/* Body 参数 */}
+          {/* Body Parameters */}
           <Flex direction="column" gap="1">
             <Flex align="center" gap="2" wrap="wrap">
               <Text size="2" weight="medium" color="gray">
-                Body 参数
+                {t(
+                  "settings.postProcessing.models.paramEditor.bodyParams",
+                  "Body Parameters",
+                )}
               </Text>
               {bodyEntryCount > 0 && (
-                <Tooltip content="添加参数">
+                <Tooltip
+                  content={t(
+                    "settings.postProcessing.models.paramEditor.addParam",
+                    "Add Parameter",
+                  )}
+                >
                   <IconButton
                     size="1"
                     variant="outline"
@@ -309,7 +334,10 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
                 }}
               >
                 <IconBrain size={12} />
-                启用思考
+                {t(
+                  "settings.postProcessing.models.paramEditor.enableThinking",
+                  "Enable Thinking",
+                )}
               </Button>
               <Button
                 size="1"
@@ -323,14 +351,23 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
                 }}
               >
                 <IconBrain size={12} />
-                禁用思考
+                {t(
+                  "settings.postProcessing.models.paramEditor.disableThinking",
+                  "Disable Thinking",
+                )}
               </Button>
             </Flex>
             <KeyValueEditor
               value={extraParams}
               onChange={setExtraParams}
-              addLabel="添加 Body 参数"
-              addTooltip="添加参数"
+              addLabel={t(
+                "settings.postProcessing.models.paramEditor.addBodyParam",
+                "Add Body Parameter",
+              )}
+              addTooltip={t(
+                "settings.postProcessing.models.paramEditor.addParam",
+                "Add Parameter",
+              )}
               addRef={bodyEditorRef}
               onEntryCountChange={setBodyEntryCount}
             />
@@ -343,7 +380,12 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
                 Headers
               </Text>
               {headerEntryCount > 0 && (
-                <Tooltip content="添加 Header">
+                <Tooltip
+                  content={t(
+                    "settings.postProcessing.models.paramEditor.addHeader",
+                    "Add Header",
+                  )}
+                >
                   <IconButton
                     size="1"
                     variant="outline"
@@ -359,8 +401,14 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
             <KeyValueEditor
               value={extraHeaders}
               onChange={setExtraHeaders}
-              addLabel="添加 Header"
-              addTooltip="添加 Header"
+              addLabel={t(
+                "settings.postProcessing.models.paramEditor.addHeader",
+                "Add Header",
+              )}
+              addTooltip={t(
+                "settings.postProcessing.models.paramEditor.addParam",
+                "Add Parameter",
+              )}
               addRef={headersEditorRef}
               onEntryCountChange={setHeaderEntryCount}
             />

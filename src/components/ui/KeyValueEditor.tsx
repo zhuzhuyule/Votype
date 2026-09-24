@@ -10,6 +10,7 @@ import {
 } from "@radix-ui/themes";
 import { IconPlus, IconX } from "@tabler/icons-react";
 import React, { useCallback, useImperativeHandle } from "react";
+import { useTranslation } from "react-i18next";
 
 type ValueType = "text" | "number" | "bool" | "json";
 
@@ -121,6 +122,7 @@ export const KeyValueEditor: React.FC<KeyValueEditorProps> = ({
   addRef,
   onEntryCountChange,
 }) => {
+  const { t } = useTranslation();
   const [entries, setEntriesRaw] = React.useState<KVEntry[]>(() =>
     Object.keys(value).length > 0 ? objectToEntries(value) : [],
   );
@@ -231,7 +233,7 @@ export const KeyValueEditor: React.FC<KeyValueEditorProps> = ({
           style={{ cursor: "pointer", color: "var(--gray-9)" }}
         >
           <IconPlus size={12} />
-          {addLabel || "添加参数"}
+          {addLabel || t("settings.postProcessing.models.paramEditor.addParam")}
         </Flex>
         {quickActions?.map((action, i) => (
           <Button
@@ -316,7 +318,7 @@ export const KeyValueEditor: React.FC<KeyValueEditorProps> = ({
               type={entry.type === "number" ? "number" : "text"}
             />
           )}
-          <Tooltip content="删除">
+          <Tooltip content={t("common.delete")}>
             <IconButton
               size="1"
               variant="ghost"

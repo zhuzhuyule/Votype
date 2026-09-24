@@ -175,6 +175,12 @@ Two display modes based on candidate count:
 - **Summary:** Use a single, concise sentence in the imperative mood to describe the update. Do not use trailing punctuation.
 - **Description:** Add a detailed description only if necessary to explain complex changes.
 
+## Versioning
+
+- **Sync points (all four, every release):** `package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock` (the `name = "votype"` entry).
+- **Rule vs upstream Handy:** Votype version must always be strictly greater than the latest upstream Handy release. Baseline: upstream v0.9.7 → Votype started at 0.9.8. Each Votype release (feature, fix, or upstream sync) bumps the patch number by 1. If an upstream release ever catches or passes us, set Votype's version to the upstream version with its patch number +1 (e.g. upstream 0.9.12 → Votype 0.9.13).
+- **Provenance:** The upstream baseline is surfaced in Settings → About ("Based on Handy vX.Y.Z", i18n key `settings.about.upstream`) and tracked in `docs/specs/2026-09-22-upstream-v097-migration.spec.md`. Update both when syncing upstream.
+
 ## AI Prompt Rules
 
 - **External Files:** All AI prompts must be stored in external files at `src-tauri/resources/prompts/*.md`, NOT hardcoded in Rust code.

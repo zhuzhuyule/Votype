@@ -1352,7 +1352,7 @@ fn default_post_process_providers() -> Vec<PostProcessProvider> {
             label: "Apple Intelligence".to_string(),
             base_url: "apple-intelligence://local".to_string(),
             builtin: true,
-            deletable: false,
+            deletable: true,
             allow_base_url_edit: false,
             models_endpoint: None,
             supports_structured_output: false,

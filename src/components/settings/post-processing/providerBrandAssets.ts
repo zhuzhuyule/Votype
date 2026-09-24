@@ -199,10 +199,10 @@ export const PROVIDER_ICON_CATALOG: ProviderIconCatalogEntry[] = [
   },
   {
     key: "xingchen",
-    label: "讯飞星辰",
+    label: "讯飞星辰", // i18n-ignore (brand name)
     asset: sparkLogo,
     domains: ["xfyun.cn"],
-    keywords: ["星辰", "讯飞", "spark"],
+    keywords: ["星辰", "讯飞", "spark"], // i18n-ignore (brand keywords)
   },
   {
     key: "ollama",

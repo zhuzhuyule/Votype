@@ -32,7 +32,9 @@ export const GeneralSettings: React.FC = () => {
   const { audioFeedbackEnabled, expertMode } = useSettings();
   const { fontFamily, setFontFamily } = useTheme();
   const previewText =
-    "The quick brown fox jumps over the lazy dog — 语音转写 Votype 0123";
+    "The quick brown fox jumps over the lazy dog — 语音转写 Votype 0123"; // i18n-ignore (font rendering sample, intentionally bilingual)
+  const previewTextCJK =
+    "敏捷的棕色狐狸跳过了那只懒狗。Votype 让语音输入更顺滑。"; // i18n-ignore (font rendering sample, intentionally bilingual)
 
   return (
     <Flex direction="column" className="max-w-5xl w-full mx-auto space-y-8">
@@ -94,10 +96,10 @@ export const GeneralSettings: React.FC = () => {
       </SettingsGroup>
 
       {/* Font Settings */}
-      <SettingsGroup title="字体">
+      <SettingsGroup title={t("settings.general.font.title")}>
         <SettingContainer
-          title="界面字体"
-          description="切换后可立刻预览效果，选出最顺眼的后可作为默认字体。"
+          title={t("settings.general.font.interfaceFont")}
+          description={t("settings.general.font.description")}
           layout="stacked"
           descriptionMode="inline"
         >
@@ -123,7 +125,7 @@ export const GeneralSettings: React.FC = () => {
 
             <Flex direction="column" gap="2">
               <Text size="1" color="gray">
-                当前字体预览
+                {t("settings.general.font.previewLabel")}
               </Text>
               <div
                 className="rounded-md border border-gray-a5 bg-gray-a2 p-3"
@@ -139,7 +141,7 @@ export const GeneralSettings: React.FC = () => {
                   style={{ fontSize: 13, lineHeight: 1.6, opacity: 0.8 }}
                   className="mt-1"
                 >
-                  敏捷的棕色狐狸跳过了那只懒狗。Votype 让语音输入更顺滑。
+                  {previewTextCJK}
                 </div>
               </div>
             </Flex>

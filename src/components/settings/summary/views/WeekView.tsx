@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { Box, Flex, Grid, Text, Badge } from "@radix-ui/themes";
+import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import { useSummaryStore } from "../stores/summaryStore";
 import type { TaskCluster } from "../summaryTypes";
@@ -17,6 +18,7 @@ function weekDates(anchor: string): string[] {
 }
 
 export function WeekView() {
+  const { t } = useTranslation();
   const { selectedDate, setSelectedDate, setViewMode } = useSummaryStore();
   const [byDate, setByDate] = useState<Record<string, TaskCluster[]>>({});
 
@@ -58,7 +60,7 @@ export function WeekView() {
       {topKw.length > 0 && (
         <Card className="mb-3">
           <Text size="1" color="gray" mb="1">
-            本周热点
+            {t("settings.summary.weekView.weeklyHighlights")}
           </Text>
           <Flex gap="1" wrap="wrap">
             {topKw.map(([k, n]) => (
@@ -89,7 +91,7 @@ export function WeekView() {
                 }}
                 className="text-xs text-blue-600 hover:underline"
               >
-                打开
+                {t("common.open")}
               </button>
             </Flex>
             <Flex direction="column" gap="1">

@@ -686,6 +686,15 @@ pub async fn get_asr_model_usage(
         .map_err(|e| e.to_string())
 }
 
+/// Get the latest recorded error per (model_id, provider).
+#[tauri::command]
+pub async fn get_model_last_errors(
+    _app: AppHandle,
+    llm_metrics: State<'_, Arc<crate::managers::llm_metrics::LlmMetricsManager>>,
+) -> Result<Vec<crate::managers::llm_metrics::ModelLastError>, String> {
+    llm_metrics.get_last_errors().map_err(|e| e.to_string())
+}
+
 /// Get aggregated LLM usage stats (call count + token total).
 /// Optional `since_timestamp` filters to entries after that unix timestamp.
 #[tauri::command]

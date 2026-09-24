@@ -67,6 +67,16 @@ pub struct ModelSpeedStats {
     pub total_errors: i64,
 }
 
+/// Latest recorded failure for a (model_id, provider) pair, taken from the
+/// detail table so the UI can show *why* calls are failing, not just how often.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModelLastError {
+    pub model_id: String,
+    pub provider: String,
+    pub error: String,
+    pub created_at: String,
+}
+
 /// Aggregated LLM usage stats for dashboard display.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LlmUsageStats {
@@ -237,6 +247,28 @@ impl LlmMetricsManager {
                     avg_speed: row.get(3)?,
                     total_calls: row.get(4)?,
                     total_errors: row.get(5)?,
+                })
+            })?
+            .filter_map(|r| r.ok())
+            .collect();
+        Ok(results)
+    }
+
+    /// Latest error message per (model_id, provider) from the call detail log.
+    /// SQLite guarantees the bare `error` column comes from the MAX row.
+    pub fn get_last_errors(&self) -> Result<Vec<ModelLastError>> {
+        let conn = self.get_connection()?;
+        let mut stmt = conn.prepare(
+            "SELECT model_id, provider, error, MAX(created_at) FROM llm_call_log
+             WHERE error IS NOT NULL AND error <> '' GROUP BY model_id, provider",
+        )?;
+        let results = stmt
+            .query_map([], |row| {
+                Ok(ModelLastError {
+                    model_id: row.get(0)?,
+                    provider: row.get(1)?,
+                    error: row.get(2)?,
+                    created_at: row.get(3)?,
                 })
             })?
             .filter_map(|r| r.ok())

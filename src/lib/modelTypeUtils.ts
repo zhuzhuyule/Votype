@@ -33,8 +33,8 @@ const TEXT_KEYWORDS = [
   "qwen",
   "llama",
   "deepseek",
-  "文本",
-  "润色",
+  "文本", // i18n-ignore (keyword match against model capability strings)
+  "润色", // i18n-ignore (keyword match against model capability strings)
 ];
 
 function normalize(input?: string | null) {
@@ -54,7 +54,7 @@ export function inferModelType({
   const capabilityText = normalize(capabilities);
   if (
     capabilityText.includes("speech2text") ||
-    capabilityText.includes("语音") ||
+    capabilityText.includes("语音") || // i18n-ignore (keyword match against model capability strings)
     capabilityText.includes("asr")
   ) {
     return "asr";

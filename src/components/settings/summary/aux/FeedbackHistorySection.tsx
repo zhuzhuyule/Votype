@@ -1,10 +1,12 @@
 import { Badge, Box, Button, Flex, Text } from "@radix-ui/themes";
 import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import type { ClusterFeedback } from "../summaryTypes";
 
 export function FeedbackHistorySection() {
+  const { t } = useTranslation();
   const [items, setItems] = useState<ClusterFeedback[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -17,7 +19,9 @@ export function FeedbackHistorySection() {
       );
       setItems(list);
     } catch (e) {
-      toast.error(`加载失败: ${e}`);
+      toast.error(
+        t("settings.summary.feedbackHistoryLoadFailed", { error: String(e) }),
+      );
     } finally {
       setLoading(false);
     }
@@ -32,27 +36,27 @@ export function FeedbackHistorySection() {
       await invoke("delete_cluster_feedback", { id });
       await refresh();
     } catch (e) {
-      toast.error(`删除失败: ${e}`);
+      toast.error(t("settings.summary.deleteFailed", { error: String(e) }));
     }
   };
 
   if (loading)
     return (
       <Text size="2" color="gray">
-        加载中...
+        {t("common.loading")}
       </Text>
     );
   if (items.length === 0)
     return (
       <Text size="2" color="gray">
-        最近 30 天暂无负反馈记录
+        {t("settings.summary.feedbackHistory.empty")}
       </Text>
     );
 
   return (
     <Flex direction="column" gap="2">
       <Text size="1" color="gray">
-        最近 30 天的 👎+备注 反馈（这些备注会注入下次 AI 聚类的 prompt）
+        {t("settings.summary.feedbackHistory.desc")}
       </Text>
       {items.map((f) => (
         <Box
@@ -69,7 +73,9 @@ export function FeedbackHistorySection() {
                   {new Date(f.created_at).toLocaleString()}
                 </Text>
               </Flex>
-              <Text size="2">{f.note ?? "(空备注)"}</Text>
+              <Text size="2">
+                {f.note ?? t("settings.summary.feedbackHistory.emptyNote")}
+              </Text>
             </Box>
             <Button
               size="1"
@@ -77,7 +83,7 @@ export function FeedbackHistorySection() {
               color="gray"
               onClick={() => remove(f.id)}
             >
-              删除
+              {t("common.delete")}
             </Button>
           </Flex>
         </Box>

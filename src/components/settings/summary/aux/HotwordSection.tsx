@@ -2,6 +2,7 @@ import { Badge, Box, Flex, Text } from "@radix-ui/themes";
 import { IconCheck } from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { Hotword, HotwordCategory } from "../../../../types/hotword";
 import { parseAiAnalysis, type Summary } from "../summaryTypes";
 
@@ -17,14 +18,18 @@ function getTypeColor(
 ): BadgeColor {
   if (isAlreadyAdded) return "gray";
   if (!hint) return "purple";
-  if (hint.includes("项目") || hint.includes("模块") || hint.includes("工作"))
-    return "blue";
-  if (hint.includes("人名") || hint.includes("同事")) return "green";
-  if (hint.includes("技术") || hint.includes("术语")) return "orange";
+  // Chinese keyword-matching heuristics (i18n-ignore: matching literals, not UI text)
+  const BLUE_KW = ["项目", "模块", "工作"]; // i18n-ignore
+  if (BLUE_KW.some((k) => hint.includes(k))) return "blue";
+  const GREEN_KW = ["人名", "同事"]; // i18n-ignore
+  if (GREEN_KW.some((k) => hint.includes(k))) return "green";
+  const ORANGE_KW = ["技术", "术语"]; // i18n-ignore
+  if (ORANGE_KW.some((k) => hint.includes(k))) return "orange";
   return "purple";
 }
 
 export function HotwordSection({ summary }: HotwordSectionProps) {
+  const { t } = useTranslation();
   const [existingHotwords, setExistingHotwords] = useState<Set<string>>(
     new Set(),
   );
@@ -49,7 +54,7 @@ export function HotwordSection({ summary }: HotwordSectionProps) {
   if (items.length === 0) {
     return (
       <Text size="2" color="gray">
-        尚无提取词汇
+        {t("settings.summary.hotword.empty")}
       </Text>
     );
   }
@@ -61,7 +66,8 @@ export function HotwordSection({ summary }: HotwordSectionProps) {
         color="gray"
         className="uppercase tracking-wide block mb-3"
       >
-        {analysis?.vocabulary_extracted?.title ?? "词汇提取"}
+        {analysis?.vocabulary_extracted?.title ??
+          t("settings.summary.hotword.titleFallback")}
       </Text>
       <Flex wrap="wrap" gap="2">
         {items.map((item, i) => {
@@ -103,7 +109,11 @@ export function HotwordSection({ summary }: HotwordSectionProps) {
                 color={getTypeColor(typeHint, isAlreadyAdded)}
                 className={`px-3 py-1 ${isAlreadyAdded ? "opacity-60" : "cursor-pointer hover:opacity-80"}`}
                 onClick={handleAddToHotword}
-                title={isAlreadyAdded ? "已添加到热词" : "点击添加到热词"}
+                title={
+                  isAlreadyAdded
+                    ? t("settings.summary.hotword.addedTitle")
+                    : t("settings.summary.hotword.addTitle")
+                }
               >
                 {isAlreadyAdded && (
                   <IconCheck size={12} className="mr-1 inline" />

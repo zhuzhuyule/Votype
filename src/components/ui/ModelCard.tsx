@@ -14,6 +14,10 @@ export interface ModelCardStats {
   avgSpeed: number;
   /** Cumulative failed calls recorded in llm_call_stats.total_errors. */
   totalErrors?: number;
+  /** Message of the most recent failed call (from llm_call_log). */
+  lastError?: string | null;
+  /** RFC-3339 timestamp of the most recent failed call. */
+  lastErrorAt?: string | null;
 }
 
 export interface ModelCardProps {
@@ -64,6 +68,31 @@ export const ModelCardContent: React.FC<ModelCardProps> = ({
     hasStats && stats.totalCalls > 0
       ? (totalErrors / stats.totalCalls) * 100
       : 0;
+  const lastError = stats?.lastError ?? null;
+  const errorTooltipLines = [
+    t(
+      "settings.postProcessing.modelCard.errorRate",
+      "{{count}} failed call(s) — {{rate}}% error rate",
+      {
+        count: totalErrors,
+        rate: errorRate.toFixed(1),
+      },
+    ),
+  ];
+  if (lastError) {
+    const truncated =
+      lastError.length > 220 ? `${lastError.slice(0, 220)}…` : lastError;
+    const when = stats?.lastErrorAt
+      ? new Date(stats.lastErrorAt).toLocaleString()
+      : "";
+    errorTooltipLines.push(
+      t(
+        "settings.postProcessing.modelCard.lastError",
+        "Last error{{when}}: {{error}}",
+        { when: when ? ` (${when})` : "", error: truncated },
+      ),
+    );
+  }
 
   return (
     <Flex direction="column" gap="1">
@@ -143,14 +172,11 @@ export const ModelCardContent: React.FC<ModelCardProps> = ({
 
             {showErrorBadge && (
               <Tooltip
-                content={t(
-                  "settings.postProcessing.modelCard.errorRate",
-                  "{{count}} failed call(s) — {{rate}}% error rate",
-                  {
-                    count: totalErrors,
-                    rate: errorRate.toFixed(1),
-                  },
-                )}
+                content={
+                  <div style={{ whiteSpace: "pre-line" }}>
+                    {errorTooltipLines.join("\n")}
+                  </div>
+                }
                 delayDuration={200}
               >
                 <Flex align="center" gap="0.5">

@@ -1,4 +1,5 @@
 import { Box, Text } from "@radix-ui/themes";
+import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
 import { useTaskClusters } from "../hooks/useTaskClusters";
 import { useSummaryStore } from "../stores/summaryStore";
@@ -14,6 +15,7 @@ interface DayViewProps {
 }
 
 export function DayView({ onNavigateToHistory }: DayViewProps) {
+  const { t } = useTranslation();
   const { selectedDate, expandedClusterIds, toggleClusterExpanded } =
     useSummaryStore();
   const {
@@ -48,14 +50,14 @@ export function DayView({ onNavigateToHistory }: DayViewProps) {
   if (loading) {
     return (
       <Text size="2" color="gray">
-        加载中...
+        {t("common.loading")}
       </Text>
     );
   }
   if (generating && clusters.length === 0) {
     return (
       <Text size="2" color="gray">
-        AI 生成中...
+        {t("settings.summary.dayView.aiGenerating")}
       </Text>
     );
   }
@@ -63,7 +65,7 @@ export function DayView({ onNavigateToHistory }: DayViewProps) {
     return (
       <Box className="text-center py-12">
         <Text size="3" color="gray">
-          今天没有转录
+          {t("settings.summary.dayView.noTranscriptsToday")}
         </Text>
       </Box>
     );
@@ -72,7 +74,9 @@ export function DayView({ onNavigateToHistory }: DayViewProps) {
   return (
     <Box>
       <Text size="2" weight="medium" mb="2">
-        📌 今日聚类（{clusters.length}）
+        {t("settings.summary.dayView.todayClusters", {
+          count: clusters.length,
+        })}
       </Text>
       {clusters.map((c) => (
         <ClusterCard

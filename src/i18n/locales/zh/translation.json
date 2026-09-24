@@ -78,7 +78,13 @@
       "daysAgo": "{{count}} 天前"
     },
     "localInsertCopied": "输入框未聚焦，识别结果已复制到剪贴板",
-    "insertBlocked": "{{app}} 在插入黑名单中，内容已复制到剪贴板，请手动粘贴"
+    "insertBlocked": "{{app}} 在插入黑名单中，内容已复制到剪贴板，请手动粘贴",
+    "expand": "展开侧边栏",
+    "collapse": "收起侧边栏",
+    "retry": "重试",
+    "unknown": "未知",
+    "error": "错误",
+    "more": "更多"
   },
   "dashboard": {
     "actions": {
@@ -133,10 +139,10 @@
       "panelDetail": "详情",
       "panelErrorType": "错误类型",
       "panelModel": "模型",
-      "panelProvider": "Provider",
+      "panelProvider": "服务商",
       "panelTimestamp": "时间戳",
       "stageAsr": "ASR",
-      "stagePolish": "Polish",
+      "stagePolish": "润色",
       "tooltipAsrEmpty": "ASR 返回空结果",
       "tooltipPolishFailed": "Polish 失败",
       "tooltipPolishProviderError": "Polish 失败 ({{status}})",
@@ -241,7 +247,13 @@
       "sortBySpeed": "按反应速率排序",
       "speedSorted": "速度优先",
       "sortBySpeedShort": "按速度",
-      "rankCount": "第{{rank}}名 {{count}}次"
+      "rankCount": "第{{rank}}名 {{count}}次",
+      "sortByChange": "按变化幅度排序",
+      "changeSorted": "变化优先",
+      "sortLabel": "排序",
+      "pressEscAgain": "内容已修改，再次按 ESC 关闭",
+      "speedHistoryAvg": "历史平均: {{speed}} ({{count}} 次)",
+      "speedThisRun": "本次: {{speed}} ({{diff}})"
     }
   },
   "errors": {
@@ -269,7 +281,8 @@
       "translate": "翻译为英文",
       "realtime": "实时预览",
       "llm": "大模型后处理",
-      "selectModel": "选择模型..."
+      "selectModel": "选择模型...",
+      "openSettings": "设置"
     }
   },
   "models": {
@@ -364,7 +377,7 @@
       "selected": "实时：{{modelName}}",
       "title": "实时转录模型"
     },
-    "realtimeModelLabel": "Realtime Model",
+    "realtimeModelLabel": "实时模型",
     "searchPlaceholder": "搜索模型…",
     "userAddedModel": "用户添加的模型",
     "welcome": "欢迎使用 Votype",
@@ -711,6 +724,28 @@
           "silero": "Silero",
           "earshot": "Earshot"
         }
+      },
+      "localApi": {
+        "title": "本地 API",
+        "enable": "启用 OpenAI-compatible 本地服务",
+        "enableDescription": "默认关闭，打开开关即刻生效、无需重启应用。仅绑定本机地址，供外部工具通过统一 URL 和 Key 调用模型与 ASR。",
+        "allowLan": "允许局域网访问",
+        "allowLanDescription": "开启后其他局域网设备可通过你的机器 IP 访问。修改后需重启应用生效。",
+        "port": "端口",
+        "endpoint": "端点",
+        "url": "URL",
+        "accessKey": "访问密钥",
+        "restartToApply": "重启生效",
+        "copy": "复制",
+        "random": "随机",
+        "localAccess": "本机访问：",
+        "lanAccess": "局域网访问：",
+        "authHeader": "鉴权头：",
+        "lanUrlHint": "http://<你的局域网IP>:{{port}}{{path}}",
+        "copied": "{{label}}已复制",
+        "copyFailed": "复制{{label}}失败",
+        "keyGenerated": "已生成新的 Access Key",
+        "keyPlaceholder": "your-key"
       }
     },
     "asrModels": {
@@ -758,7 +793,8 @@
         "tagsLabel": "标签",
         "title": "添加自定义模型",
         "tooltip": "从 URL 添加模型",
-        "urlLabel": "URL"
+        "urlLabel": "URL",
+        "edit": "编辑自定义模型"
       },
       "languages": {
         "de": "德语",
@@ -824,7 +860,8 @@
         "sensevoice": "SenseVoice",
         "whisper": "Whisper",
         "zipformer": "Zipformer"
-      }
+      },
+      "autoDownloadingPunctuation": "正在自动下载标点模型..."
     },
     "debug": {
       "alwaysOnMicrophone": {
@@ -999,7 +1036,22 @@
         "pressKeys": "请按键...",
         "title": "Votype 快捷键"
       },
-      "title": "通用"
+      "title": "通用",
+      "font": {
+        "title": "字体",
+        "interfaceFont": "界面字体",
+        "description": "切换后可立刻预览效果，选出最顺眼的后可作为默认字体。",
+        "previewLabel": "当前字体预览",
+        "labels": {
+          "default": "默认（系统 UI）",
+          "sfPro": "SF Pro",
+          "helvetica": "Helvetica Neue / Arial",
+          "rounded": "SF Pro Rounded（圆体）",
+          "kaiti": "楷体 (Kaiti)",
+          "songti": "宋体 (Songti)",
+          "mono": "等宽 (Monospace)"
+        }
+      }
     },
     "history": {
       "content": {
@@ -1111,7 +1163,8 @@
             "name": "提供商名称",
             "namePlaceholder": "我的提供商",
             "v1AutoAppended": "已自动追加 /v1",
-            "v1MissingWarning": "URL 可能缺少版本路径（如 /v1）"
+            "v1MissingWarning": "URL 可能缺少版本路径（如 /v1）",
+            "addKey": "添加 Key"
           },
           "proxy": {
             "useProxy": "代理",
@@ -1125,7 +1178,7 @@
           "resetUrl": "重置 URL",
           "testConnection": "测试连接",
           "testFailed": "连接失败: {{error}}",
-          "testSuccess": "连接成功：{{result}}",
+          "testSuccess": "连接成功",
           "title": "提供商"
         },
         "title": "API（兼容 OpenAI）"
@@ -1239,7 +1292,12 @@
         },
         "testMatch": "测试匹配",
         "title": "应用规则",
-        "titlePattern": "标题（正则表达式）"
+        "titlePattern": "标题（正则表达式）",
+        "allApps": "全部应用",
+        "appNotInstalled": "该应用已卸载",
+        "recentApps": "最近使用",
+        "refresh": "重新扫描已安装应用",
+        "searchApps": "搜索应用..."
       },
       "disabledNotice": "后期处理当前已禁用。启用后即可进行配置。",
       "fusion": {
@@ -1257,6 +1315,8 @@
       },
       "models": {
         "addModel": "添加模型",
+        "addModelIdTooltip": "添加自定义模型 ID",
+        "addModelCustom": "自定义",
         "deleteConfirm": {
           "description": "你确定要删除此模型吗？此操作无法撤销。",
           "title": "删除模型？"
@@ -1333,7 +1393,33 @@
         },
         "title": "模型",
         "setAsDefault": "设为默认",
-        "invalidJson": "无效的 JSON 格式"
+        "invalidJson": "无效的 JSON 格式",
+        "addedCount": "已添加 {{count}} 个模型",
+        "customAdd": {
+          "title": "添加自定义模型",
+          "modelId": "模型 ID",
+          "duplicateWarning": "该提供商下已存在相同 ID 的模型。继续添加将创建一个副本。",
+          "addFailed": "添加失败: {{error}}",
+          "testTooltipEmpty": "请先填入模型 ID",
+          "testTooltip": "发送一句话 ping 测试",
+          "testing": "测试中…",
+          "test": "测试",
+          "skipTest": "跳过测试直接添加"
+        },
+        "paramEditor": {
+          "bodyParams": "Body 参数",
+          "enableThinking": "启用思考",
+          "disableThinking": "禁用思考",
+          "addBodyParam": "添加 Body 参数",
+          "addParam": "添加参数",
+          "addHeader": "添加 Header"
+        },
+        "editModel": {
+          "thinkingEnabled": "Thinking 已启用",
+          "modelFamily": "模型系列",
+          "unknown": "未知",
+          "presetParams": "预设参数: {{hint}}"
+        }
       },
       "providerModels": {
         "totalCalls": "次调用",
@@ -1342,7 +1428,7 @@
       "prompts": {
         "activeSet": "已设为默认提示词",
         "advancedSettings": "高级设置",
-        "aliasDuplicate": "别名 '{{alias}}' 与提示词 '{{promptName}}' 冲突",
+        "aliasDuplicate": "别名已存在",
         "aliasLabel": "别名 / 触发词",
         "aliasPlaceholder": "例如：翻译，翻译英语",
         "cancel": "取消",
@@ -1463,6 +1549,33 @@
           "template_summary": "总结",
           "template_chat": "AI 问答",
           "template_blank": "空白技能"
+        },
+        "blankSkill": "空白 Skill",
+        "polishCategory": "润色",
+        "skillCategory": "技能",
+        "references": {
+          "title": "场景参考",
+          "add": "添加",
+          "empty": "还没有场景参考。添加参考可按应用自适应处理行为。",
+          "createFirst": "创建第一个参考",
+          "createTitle": "创建场景参考",
+          "editTitle": "编辑场景参考",
+          "matchType": "匹配方式",
+          "typeAlways": "通用规则（始终生效）",
+          "typeApp": "按应用名",
+          "typeCategory": "按应用类别",
+          "alwaysName": "通用规则",
+          "badgeAlways": "始终生效",
+          "appNamePlaceholder": "例如 Slack、Obsidian、微信",
+          "contentPlaceholder": "输入该场景的专属规则...\n\n示例：\n## 即时通讯/聊天规则\n- 保持口语化\n- 只修正明显错误\n- 保留 emoji",
+          "created": "参考已创建",
+          "saved": "参考已保存",
+          "deleted": "参考已删除",
+          "errorNoName": "请输入名称",
+          "errorSave": "保存失败",
+          "errorDelete": "删除失败",
+          "deleteTitle": "删除参考",
+          "deleteConfirm": "确定要删除「{{name}}」吗？"
         }
       },
       "skills": {
@@ -1510,7 +1623,8 @@
         "selectModelsDescription": "选择用于并行处理的模型，点击星标设为偏好模型",
         "selectedCount": "已选 {{count}} 个",
         "noneSelected": "未选择模型",
-        "models": "模型"
+        "models": "模型",
+        "modelSelection": "模型"
       },
       "lengthRouting": {
         "enableLabel": "按文本长度自动选择模型",
@@ -1530,7 +1644,8 @@
         "longText": "长文本",
         "fastModel": "快速模型",
         "fastModelHint": "用于短文本的轻量或快速模型，节省 Token 消耗并降低延迟",
-        "modelSelection": "模型"
+        "modelSelection": "模型",
+        "description": "自动识别意图、复用历史结果、降低 token 开销"
       },
       "modelChain": {
         "primary": "主模型",
@@ -1547,7 +1662,11 @@
         "noModel": "未选择模型",
         "selectModel": "选择模型"
       },
-      "title": "后期处理"
+      "title": "后期处理",
+      "modelCard": {
+        "errorRate": "{{count}} 次调用失败 — 错误率 {{rate}}%",
+        "lastError": "最近错误{{when}}：{{error}}"
+      }
     },
     "shortcuts": {
       "title": "快捷键"
@@ -1588,6 +1707,121 @@
         "title": "确认删除",
         "hotwordMessage": "确定要移除此热词吗？"
       }
+    },
+    "summary": {
+      "cluster": {
+        "status": {
+          "inProgress": "进行中",
+          "done": "完成",
+          "blocked": "卡住",
+          "shelved": "已搁置",
+          "unknown": "未知"
+        },
+        "edited": "已编辑",
+        "split": "拆分",
+        "merge": "合并"
+      },
+      "split": {
+        "title": "从「{{title}}」中拆出",
+        "hint": "勾选要拆出的源转录条目，并为新 cluster 命名。",
+        "titlePlaceholder": "新 cluster 标题",
+        "selected": "已选 {{selected}} / {{total}}",
+        "atLeastOne": " — 至少选一条",
+        "cannotAll": " — 不能全选（剩余 cluster 会空）",
+        "confirm": "拆分"
+      },
+      "delete": {
+        "title": "删除 cluster",
+        "body": "确认删除「{{title}}」？源转录记录不会被删除。下次重新生成时 AI 可能再次提出类似聚类。"
+      },
+      "merge": {
+        "title": "合并到「{{title}}」",
+        "hint": "选择要并入的 cluster。被并入的 cluster 会被删除，其 source_ids 与关键词合并到当前 cluster。",
+        "noOthers": "当日没有其他 cluster 可合并。",
+        "confirm": "合并"
+      },
+      "detail": {
+        "loading": "加载源转录...",
+        "invalid": "该 cluster 已失效，建议重新生成",
+        "jumpAria": "跳转到 Dashboard 对应条目"
+      },
+      "feedbackButtons": {
+        "upAria": "赞同",
+        "downAria": "反对",
+        "notePromptDown": "反馈：哪里不对？",
+        "notePromptOptional": "可选备注",
+        "placeholderDown": "例：Slack 消息应该单独成簇...",
+        "submit": "提交",
+        "submitNoNote": "（无备注）"
+      },
+      "dayView": {
+        "aiGenerating": "AI 生成中...",
+        "noTranscriptsToday": "今天没有转录",
+        "todayClusters": "📌 今日聚类（{{count}}）"
+      },
+      "weekView": {
+        "weeklyHighlights": "本周热点"
+      },
+      "recap": {
+        "empty": "尚无 Recap"
+      },
+      "regenerate": {
+        "label": "重新生成",
+        "loading": "重新生成中..."
+      },
+      "period": {
+        "prevAria": "上一段",
+        "nextAria": "下一段"
+      },
+      "stats": {
+        "empty": "无统计数据"
+      },
+      "feedbackHistory": {
+        "empty": "最近 30 天暂无负反馈记录",
+        "desc": "最近 30 天的 👎+备注 反馈（这些备注会注入下次 AI 聚类的 prompt）",
+        "emptyNote": "(空备注)"
+      },
+      "export": {
+        "pleaseSelect": "请先选择 Summary",
+        "copied": "{{format}} 已复制到剪贴板",
+        "failed": "导出失败: {{error}}",
+        "markdown": "导出 Markdown",
+        "json": "导出 JSON"
+      },
+      "hotword": {
+        "empty": "尚无提取词汇",
+        "titleFallback": "词汇提取",
+        "addedTitle": "已添加到热词",
+        "addTitle": "点击添加到热词"
+      },
+      "profile": {
+        "emptyLabel": "暂无 {{label}} 数据",
+        "emptyProfile": "尚无 Profile 数据",
+        "tabVocab": "词汇",
+        "tabExpr": "表达",
+        "tabTime": "时间"
+      },
+      "defaultTitle": {
+        "vocabulary": "词汇提取",
+        "activities": "具体活动",
+        "highlights": "亮点",
+        "style": "沟通风格",
+        "patterns": "表达特征",
+        "suggestions": "改进建议"
+      },
+      "clusterLoadFailed": "加载聚类失败: {{error}}",
+      "clusterRegenerated": "已重新生成聚类",
+      "aiCallFailed": "AI 调用失败，已保留上次结果: {{error}}",
+      "clusterUpdateFailed": "更新失败: {{error}}",
+      "splitDone": "已拆分",
+      "splitFailed": "拆分失败: {{error}}",
+      "mergeDone": "已合并",
+      "mergeFailed": "合并失败: {{error}}",
+      "deleteFailed": "删除失败: {{error}}",
+      "feedbackLoadFailed": "加载反馈失败: {{error}}",
+      "feedbackSubmitFailed": "提交反馈失败: {{error}}",
+      "feedbackDeleteFailed": "删除反馈失败: {{error}}",
+      "feedbackHistoryLoadFailed": "加载失败: {{error}}"
     }
   },
   "sidebar": {
@@ -1769,5 +2003,101 @@
     "learnMore": "如何解决",
     "recorderBlocked": "当前无法录制快捷键——macOS 的 Secure Input 正在阻止按键事件。请先解决 Secure Input 警告。",
     "dismiss": "关闭"
+  },
+  "ruleSuggestion": {
+    "title": "是否为该窗口添加规则？",
+    "app": "应用",
+    "window": "窗口",
+    "prompt": "提示词",
+    "used": "已使用",
+    "times": "{{count}} 次",
+    "description": "添加后，下次在该窗口录音将自动应用此提示词。",
+    "dismiss": "这次不要",
+    "neverAgain": "别再问",
+    "addRule": "添加规则"
+  },
+  "hotword": {
+    "addBar": {
+      "placeholder": "输入热词（逗号分隔可批量添加）...",
+      "words": "{{count}} 个词",
+      "add": "添加",
+      "addCount": "添加 ({{count}})"
+    },
+    "source": {
+      "manual": "手动",
+      "autoLearned": "自动学习",
+      "aiExtracted": "AI 提取"
+    },
+    "scenario": {
+      "work": "工作",
+      "casual": "日常"
+    },
+    "tagCloud": {
+      "add": "添加",
+      "import": "导入",
+      "export": "导出",
+      "sortByWeight": "按权重排序",
+      "sortByAlpha": "按字母排序",
+      "searchPlaceholder": "搜索热词...",
+      "aiSuggestions": "AI 建议 ({{count}})",
+      "acceptAll": "全部采纳",
+      "dismissAll": "全部清除",
+      "contextFrequent": "上下文高频词",
+      "acceptSuggestion": "采纳建议",
+      "dismissSuggestion": "忽略建议",
+      "empty": "暂无热词，点击“添加”按钮添加新热词",
+      "noMatch": "未找到匹配「{{query}}」的热词",
+      "dropHere": "拖放到此分类"
+    },
+    "editPanel": {
+      "addAlias": "添加{{label}}词",
+      "duplicate": "「{{target}}」已存在",
+      "saveFailed": "保存失败",
+      "targetPlaceholder": "目标词",
+      "decreaseWeight": "减少权重",
+      "increaseWeight": "增加权重",
+      "falsePositive": "误报 {{count}}",
+      "deleteHotword": "删除热词",
+      "category": "类别",
+      "scenario": "场景",
+      "correction": "纠错",
+      "correctionDesc": "参与纠错参考与 LLM 注入。可把某个别名拖到“强替”中，转成本地直接替换。",
+      "correctionPlaceholder": "添加纠错词",
+      "force": "强替",
+      "forceDesc": "仅做本地精确替换，不进入 LLM。可把某个别名拖回“纠错”中恢复 AI 参考。",
+      "forcePlaceholder": "添加强替词",
+      "none": "暂无",
+      "confirmDeleteTitle": "确认删除",
+      "confirmDeleteDesc": "确定要删除热词「{{target}}」吗？"
+    },
+    "categoryDialog": {
+      "colors": {
+        "gray": "灰色",
+        "green": "绿色",
+        "orange": "橙色",
+        "blue": "蓝色",
+        "purple": "紫色",
+        "red": "红色",
+        "cyan": "青色",
+        "amber": "琥珀",
+        "teal": "蓝绿",
+        "pink": "粉色"
+      },
+      "idInvalid": "ID 只允许英文字母、数字和中划线",
+      "idDuplicate": "分类 ID「{{id}}」已存在",
+      "addFailed": "添加失败",
+      "saveFailed": "保存失败",
+      "deleteFailed": "删除失败",
+      "manageTooltip": "管理分类",
+      "title": "管理热词分类",
+      "description": "自定义分类名称、颜色和图标。内置分类不可删除。",
+      "namePlaceholder": "分类名称",
+      "builtin": "内置",
+      "deleteTooltip": "删除（热词将归入术语）",
+      "idPlaceholder": "ID (如 medical)",
+      "labelPlaceholder": "名称（如 医学）",
+      "idInvalidDetail": "ID 只允许英文字母、数字和中划线（-）",
+      "addCategory": "添加分类"
+    }
   }
 }

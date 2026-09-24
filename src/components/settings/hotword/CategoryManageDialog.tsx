@@ -19,6 +19,7 @@ import {
   IconTrash,
 } from "@tabler/icons-react";
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { HotwordCategoryMeta } from "../../../types/hotword";
 import { resolveIcon } from "../../../lib/hotwordIcons";
 import { IconPicker } from "../../shared/IconPicker";
@@ -36,17 +37,18 @@ const RADIX_COLORS = [
   "pink",
 ] as const;
 
-const COLOR_LABELS: Record<string, string> = {
-  gray: "灰色",
-  green: "绿色",
-  orange: "橙色",
-  blue: "蓝色",
-  purple: "紫色",
-  red: "红色",
-  cyan: "青色",
-  amber: "琥珀",
-  teal: "蓝绿",
-  pink: "粉色",
+// i18n key 而非展示文案：见 src/types/hotword.ts 顶部说明。
+const COLOR_LABEL_KEYS: Record<string, string> = {
+  gray: "hotword.categoryDialog.colors.gray",
+  green: "hotword.categoryDialog.colors.green",
+  orange: "hotword.categoryDialog.colors.orange",
+  blue: "hotword.categoryDialog.colors.blue",
+  purple: "hotword.categoryDialog.colors.purple",
+  red: "hotword.categoryDialog.colors.red",
+  cyan: "hotword.categoryDialog.colors.cyan",
+  amber: "hotword.categoryDialog.colors.amber",
+  teal: "hotword.categoryDialog.colors.teal",
+  pink: "hotword.categoryDialog.colors.pink",
 };
 
 const ID_REGEX = /^[a-zA-Z0-9-]+$/;
@@ -70,29 +72,32 @@ interface CategoryManageDialogProps {
 const ColorSelect: React.FC<{
   value: string;
   onChange: (v: string) => void;
-}> = ({ value, onChange }) => (
-  <Select.Root size="1" value={value} onValueChange={onChange}>
-    <Select.Trigger />
-    <Select.Content>
-      {RADIX_COLORS.map((c) => (
-        <Select.Item key={c} value={c}>
-          <Flex align="center" gap="2">
-            <Box
-              style={{
-                width: 10,
-                height: 10,
-                borderRadius: "2px",
-                backgroundColor: `var(--${c}-9)`,
-                flexShrink: 0,
-              }}
-            />
-            {COLOR_LABELS[c] || c}
-          </Flex>
-        </Select.Item>
-      ))}
-    </Select.Content>
-  </Select.Root>
-);
+}> = ({ value, onChange }) => {
+  const { t } = useTranslation();
+  return (
+    <Select.Root size="1" value={value} onValueChange={onChange}>
+      <Select.Trigger />
+      <Select.Content>
+        {RADIX_COLORS.map((c) => (
+          <Select.Item key={c} value={c}>
+            <Flex align="center" gap="2">
+              <Box
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: "2px",
+                  backgroundColor: `var(--${c}-9)`,
+                  flexShrink: 0,
+                }}
+              />
+              {COLOR_LABEL_KEYS[c] ? t(COLOR_LABEL_KEYS[c]) : c}
+            </Flex>
+          </Select.Item>
+        ))}
+      </Select.Content>
+    </Select.Root>
+  );
+};
 
 export const CategoryManageDialog: React.FC<CategoryManageDialogProps> = ({
   categories,
@@ -100,6 +105,7 @@ export const CategoryManageDialog: React.FC<CategoryManageDialogProps> = ({
   onUpdate,
   onDelete,
 }) => {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [adding, setAdding] = useState(false);
   const [newId, setNewId] = useState("");
@@ -118,7 +124,7 @@ export const CategoryManageDialog: React.FC<CategoryManageDialogProps> = ({
     const trimmedId = newId.trim();
     if (!trimmedId || !newLabel.trim()) return;
     if (!ID_REGEX.test(trimmedId)) {
-      setError("ID 只允许英文字母、数字和中划线");
+      setError(t("hotword.categoryDialog.idInvalid"));
       return;
     }
     setError(null);
@@ -132,9 +138,9 @@ export const CategoryManageDialog: React.FC<CategoryManageDialogProps> = ({
     } catch (e) {
       const msg = String(e);
       if (msg.includes("UNIQUE") || msg.includes("already exists")) {
-        setError(`分类 ID「${trimmedId}」已存在`);
+        setError(t("hotword.categoryDialog.idDuplicate", { id: trimmedId }));
       } else {
-        setError("添加失败");
+        setError(t("hotword.categoryDialog.addFailed"));
       }
     }
   };
@@ -158,7 +164,7 @@ export const CategoryManageDialog: React.FC<CategoryManageDialogProps> = ({
       });
       setEditingId(null);
     } catch (e) {
-      setError("保存失败");
+      setError(t("hotword.categoryDialog.saveFailed"));
     }
   };
 
@@ -167,7 +173,7 @@ export const CategoryManageDialog: React.FC<CategoryManageDialogProps> = ({
     try {
       await onDelete(id);
     } catch (e) {
-      setError("删除失败");
+      setError(t("hotword.categoryDialog.deleteFailed"));
     }
   };
 
@@ -182,7 +188,7 @@ export const CategoryManageDialog: React.FC<CategoryManageDialogProps> = ({
 
   return (
     <Dialog.Root open={open} onOpenChange={handleOpenChange}>
-      <Tooltip content="管理分类">
+      <Tooltip content={t("hotword.categoryDialog.manageTooltip")}>
         <IconButton
           size="2"
           variant="soft"
@@ -193,9 +199,9 @@ export const CategoryManageDialog: React.FC<CategoryManageDialogProps> = ({
         </IconButton>
       </Tooltip>
       <Dialog.Content maxWidth="480px">
-        <Dialog.Title>管理热词分类</Dialog.Title>
+        <Dialog.Title>{t("hotword.categoryDialog.title")}</Dialog.Title>
         <Dialog.Description size="2" color="gray" mb="4">
-          自定义分类名称、颜色和图标。内置分类不可删除。
+          {t("hotword.categoryDialog.description")}
         </Dialog.Description>
 
         {error && (
@@ -220,7 +226,7 @@ export const CategoryManageDialog: React.FC<CategoryManageDialogProps> = ({
                       size="1"
                       value={editLabel}
                       onChange={(e) => setEditLabel(e.target.value)}
-                      placeholder="分类名称"
+                      placeholder={t("hotword.categoryDialog.namePlaceholder")}
                     />
                     <Flex gap="2" align="center">
                       <ColorSelect value={editColor} onChange={setEditColor} />
@@ -233,7 +239,7 @@ export const CategoryManageDialog: React.FC<CategoryManageDialogProps> = ({
                         color="gray"
                         onClick={() => setEditingId(null)}
                       >
-                        取消
+                        {t("common.cancel")}
                       </Button>
                       <Button
                         size="1"
@@ -241,7 +247,7 @@ export const CategoryManageDialog: React.FC<CategoryManageDialogProps> = ({
                         onClick={handleSaveEdit}
                         disabled={!editLabel.trim()}
                       >
-                        保存
+                        {t("common.save")}
                       </Button>
                     </Flex>
                   </Flex>
@@ -267,11 +273,11 @@ export const CategoryManageDialog: React.FC<CategoryManageDialogProps> = ({
                 </Text>
                 {cat.is_builtin && (
                   <Text size="1" color="gray" className="text-[10px]">
-                    内置
+                    {t("hotword.categoryDialog.builtin")}
                   </Text>
                 )}
                 <Flex gap="1">
-                  <Tooltip content="编辑">
+                  <Tooltip content={t("common.edit")}>
                     <IconButton
                       size="1"
                       variant="ghost"
@@ -281,7 +287,9 @@ export const CategoryManageDialog: React.FC<CategoryManageDialogProps> = ({
                     </IconButton>
                   </Tooltip>
                   {!cat.is_builtin && (
-                    <Tooltip content="删除（热词将归入术语）">
+                    <Tooltip
+                      content={t("hotword.categoryDialog.deleteTooltip")}
+                    >
                       <IconButton
                         size="1"
                         variant="ghost"
@@ -305,7 +313,7 @@ export const CategoryManageDialog: React.FC<CategoryManageDialogProps> = ({
                     size="1"
                     value={newId}
                     onChange={(e) => setNewId(e.target.value)}
-                    placeholder="ID (如 medical)"
+                    placeholder={t("hotword.categoryDialog.idPlaceholder")}
                     className="flex-1"
                     color={!idValid ? "red" : undefined}
                   />
@@ -313,13 +321,13 @@ export const CategoryManageDialog: React.FC<CategoryManageDialogProps> = ({
                     size="1"
                     value={newLabel}
                     onChange={(e) => setNewLabel(e.target.value)}
-                    placeholder="名称（如 医学）"
+                    placeholder={t("hotword.categoryDialog.labelPlaceholder")}
                     className="flex-1"
                   />
                 </Flex>
                 {!idValid && (
                   <Text size="1" color="red">
-                    ID 只允许英文字母、数字和中划线（-）
+                    {t("hotword.categoryDialog.idInvalidDetail")}
                   </Text>
                 )}
                 <Flex gap="2" align="center">
@@ -336,7 +344,7 @@ export const CategoryManageDialog: React.FC<CategoryManageDialogProps> = ({
                       setError(null);
                     }}
                   >
-                    取消
+                    {t("common.cancel")}
                   </Button>
                   <Button
                     size="1"
@@ -344,7 +352,7 @@ export const CategoryManageDialog: React.FC<CategoryManageDialogProps> = ({
                     onClick={handleAdd}
                     disabled={!newId.trim() || !newLabel.trim() || !idValid}
                   >
-                    添加
+                    {t("common.add")}
                   </Button>
                 </Flex>
               </Flex>
@@ -357,7 +365,7 @@ export const CategoryManageDialog: React.FC<CategoryManageDialogProps> = ({
               className="self-start"
             >
               <IconPlus size={12} />
-              添加分类
+              {t("hotword.categoryDialog.addCategory")}
             </Button>
           )}
         </Flex>
@@ -365,7 +373,7 @@ export const CategoryManageDialog: React.FC<CategoryManageDialogProps> = ({
         <Flex mt="4" justify="end">
           <Dialog.Close>
             <Button variant="soft" color="gray">
-              关闭
+              {t("common.close")}
             </Button>
           </Dialog.Close>
         </Flex>

@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { useTranslation } from "react-i18next";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { TaskCluster } from "../summaryTypes";
@@ -13,6 +14,7 @@ interface TaskClustersState {
 const cacheByDate = new Map<string, TaskCluster[]>();
 
 export function useTaskClusters(date: string) {
+  const { t } = useTranslation();
   const [state, setState] = useState<TaskClustersState>({
     clusters: cacheByDate.get(date) ?? [],
     loading: false,
@@ -48,7 +50,7 @@ export function useTaskClusters(date: string) {
       if (mountedRef.current) {
         setState((s) => ({ ...s, loading: false, error: msg }));
       }
-      toast.error(`加载聚类失败: ${msg}`);
+      toast.error(t("settings.summary.clusterLoadFailed", { error: msg }));
     }
   }, [date]);
 
@@ -69,13 +71,13 @@ export function useTaskClusters(date: string) {
             error: null,
           });
         }
-        if (force) toast.success("已重新生成聚类");
+        if (force) toast.success(t("settings.summary.clusterRegenerated"));
       } catch (e) {
         const msg = String(e);
         if (mountedRef.current) {
           setState((s) => ({ ...s, generating: false, error: msg }));
         }
-        toast.error(`AI 调用失败，已保留上次结果: ${msg}`);
+        toast.error(t("settings.summary.aiCallFailed", { error: msg }));
       }
     },
     [date],
@@ -95,7 +97,9 @@ export function useTaskClusters(date: string) {
         });
         await refresh();
       } catch (e) {
-        toast.error(`更新失败: ${e}`);
+        toast.error(
+          t("settings.summary.clusterUpdateFailed", { error: String(e) }),
+        );
       }
     },
     [refresh],
@@ -116,9 +120,9 @@ export function useTaskClusters(date: string) {
           extractedDurationMs,
         });
         await refresh();
-        toast.success("已拆分");
+        toast.success(t("settings.summary.splitDone"));
       } catch (e) {
-        toast.error(`拆分失败: ${e}`);
+        toast.error(t("settings.summary.splitFailed", { error: String(e) }));
       }
     },
     [refresh],
@@ -132,9 +136,9 @@ export function useTaskClusters(date: string) {
           sourceClusterIds,
         });
         await refresh();
-        toast.success("已合并");
+        toast.success(t("settings.summary.mergeDone"));
       } catch (e) {
-        toast.error(`合并失败: ${e}`);
+        toast.error(t("settings.summary.mergeFailed", { error: String(e) }));
       }
     },
     [refresh],
@@ -146,7 +150,7 @@ export function useTaskClusters(date: string) {
         await invoke("delete_task_cluster", { clusterId });
         await refresh();
       } catch (e) {
-        toast.error(`删除失败: ${e}`);
+        toast.error(t("settings.summary.deleteFailed", { error: String(e) }));
       }
     },
     [refresh],

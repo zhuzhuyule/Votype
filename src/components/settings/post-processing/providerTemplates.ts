@@ -248,7 +248,7 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
   },
   {
     id: "xingchen",
-    label: "讯飞星辰",
+    label: "讯飞星辰", // i18n-ignore (brand name)
     baseUrl: "https://maas-api.cn-huabei-1.xf-yun.com/v2",
     category: "Official",
     modelsEndpoint: "/models",

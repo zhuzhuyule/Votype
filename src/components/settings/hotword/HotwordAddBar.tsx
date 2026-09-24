@@ -4,6 +4,7 @@ import { Badge, Button, Flex, Text, TextField } from "@radix-ui/themes";
 import { IconPlus } from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import type {
   HotwordCategory,
   HotwordCategoryMeta,
@@ -27,6 +28,7 @@ export const HotwordAddBar: React.FC<HotwordAddBarProps> = ({
   onBatchAdd,
   categoryMap,
 }) => {
+  const { t } = useTranslation();
   const [input, setInput] = useState("");
   const [inferredCategory, setInferredCategory] =
     useState<HotwordCategory | null>(null);
@@ -102,7 +104,7 @@ export const HotwordAddBar: React.FC<HotwordAddBarProps> = ({
           value={input}
           onChange={(e) => handleInputChange(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="输入热词（逗号分隔可批量添加）..."
+          placeholder={t("hotword.addBar.placeholder")}
         />
         {inferredMeta && !isBatch && (
           <Badge size="1" variant="soft" color="gray">
@@ -114,7 +116,7 @@ export const HotwordAddBar: React.FC<HotwordAddBarProps> = ({
         )}
         {isBatch && (
           <Text size="1" color="gray">
-            {targets.length} 个词
+            {t("hotword.addBar.words", { count: targets.length })}
           </Text>
         )}
         <Button
@@ -123,7 +125,9 @@ export const HotwordAddBar: React.FC<HotwordAddBarProps> = ({
           disabled={targets.length === 0 || isSubmitting}
         >
           <IconPlus size={14} />
-          {isBatch ? `添加 (${targets.length})` : "添加"}
+          {isBatch
+            ? t("hotword.addBar.addCount", { count: targets.length })
+            : t("hotword.addBar.add")}
         </Button>
       </Flex>
     </div>

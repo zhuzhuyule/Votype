@@ -1,3 +1,5 @@
+import i18n from "../../../i18n";
+
 export interface AppStats {
   count: number;
   chars: number;
@@ -15,7 +17,7 @@ export interface TaskCluster {
   summary_id: number;
   date: string;
   title: string;
-  status: string; // "进行中" | "完成" | "卡住" | "已搁置"
+  status: string; // i18n-ignore (canonical status values: "进行中" | "完成" | "卡住" | "已搁置")
   time_span: string | null;
   apps: string[];
   source_history_ids: number[];
@@ -202,7 +204,9 @@ export function parseAiAnalysis(
 
         if (normalizedItems.length > 0) {
           normalizedVocabulary = {
-            title: vocabularySection.title || "词汇提取",
+            title:
+              vocabularySection.title ||
+              i18n.t("settings.summary.defaultTitle.vocabulary"),
             items: normalizedItems,
           };
         }
@@ -210,8 +214,14 @@ export function parseAiAnalysis(
 
       return {
         summary: parsed.summary,
-        activities: parsed.activities || { title: "具体活动", items: [] },
-        highlights: parsed.highlights || { title: "亮点", items: [] },
+        activities: parsed.activities || {
+          title: i18n.t("settings.summary.defaultTitle.activities"),
+          items: [],
+        },
+        highlights: parsed.highlights || {
+          title: i18n.t("settings.summary.defaultTitle.highlights"),
+          items: [],
+        },
         // Extended fields
         work_focus: parsed.work_focus,
         communication_patterns: parsed.communication_patterns,
@@ -230,9 +240,18 @@ export function parseAiAnalysis(
     // Convert legacy format to new format
     if (parsed.style || parsed.patterns || parsed.suggestions) {
       return {
-        summary: parsed.style || { title: "沟通风格", content: "" },
-        activities: parsed.patterns || { title: "表达特征", items: [] },
-        highlights: parsed.suggestions || { title: "改进建议", items: [] },
+        summary: parsed.style || {
+          title: i18n.t("settings.summary.defaultTitle.style"),
+          content: "",
+        },
+        activities: parsed.patterns || {
+          title: i18n.t("settings.summary.defaultTitle.patterns"),
+          items: [],
+        },
+        highlights: parsed.suggestions || {
+          title: i18n.t("settings.summary.defaultTitle.suggestions"),
+          items: [],
+        },
       };
     }
 

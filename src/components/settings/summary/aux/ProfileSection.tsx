@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Box, Flex, Tabs, Text } from "@radix-ui/themes";
 import { IconSettings } from "@tabler/icons-react";
 import type { UserProfile } from "../summaryTypes";
@@ -7,10 +8,11 @@ interface ProfileSectionProps {
 }
 
 function StatBlock({ label, value }: { label: string; value: string | null }) {
+  const { t } = useTranslation();
   if (!value || value.trim() === "") {
     return (
       <Text size="2" color="gray">
-        暂无 {label} 数据
+        {t("settings.summary.profile.emptyLabel", { label })}
       </Text>
     );
   }
@@ -25,10 +27,11 @@ function StatBlock({ label, value }: { label: string; value: string | null }) {
 }
 
 export function ProfileSection({ userProfile }: ProfileSectionProps) {
+  const { t } = useTranslation();
   if (!userProfile) {
     return (
       <Text size="2" color="gray">
-        尚无 Profile 数据
+        {t("settings.summary.profile.emptyProfile")}
       </Text>
     );
   }
@@ -62,19 +65,34 @@ export function ProfileSection({ userProfile }: ProfileSectionProps) {
 
       <Tabs.Root defaultValue="vocab">
         <Tabs.List>
-          <Tabs.Trigger value="vocab">词汇</Tabs.Trigger>
-          <Tabs.Trigger value="expr">表达</Tabs.Trigger>
-          <Tabs.Trigger value="time">时间</Tabs.Trigger>
+          <Tabs.Trigger value="vocab">
+            {t("settings.summary.profile.tabVocab")}
+          </Tabs.Trigger>
+          <Tabs.Trigger value="expr">
+            {t("settings.summary.profile.tabExpr")}
+          </Tabs.Trigger>
+          <Tabs.Trigger value="time">
+            {t("settings.summary.profile.tabTime")}
+          </Tabs.Trigger>
         </Tabs.List>
         <Box pt="3">
           <Tabs.Content value="vocab">
-            <StatBlock label="词汇" value={userProfile.vocabulary_stats} />
+            <StatBlock
+              label={t("settings.summary.profile.tabVocab")}
+              value={userProfile.vocabulary_stats}
+            />
           </Tabs.Content>
           <Tabs.Content value="expr">
-            <StatBlock label="表达" value={userProfile.expression_stats} />
+            <StatBlock
+              label={t("settings.summary.profile.tabExpr")}
+              value={userProfile.expression_stats}
+            />
           </Tabs.Content>
           <Tabs.Content value="time">
-            <StatBlock label="时间" value={userProfile.time_pattern_stats} />
+            <StatBlock
+              label={t("settings.summary.profile.tabTime")}
+              value={userProfile.time_pattern_stats}
+            />
           </Tabs.Content>
         </Box>
       </Tabs.Root>

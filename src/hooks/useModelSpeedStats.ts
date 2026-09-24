@@ -8,6 +8,16 @@ export interface ModelSpeedStats {
   avg_speed: number;
   total_calls: number;
   total_errors: number;
+  /** Client-side join from `get_model_last_errors` (latest failure for this model+provider). */
+  last_error?: string | null;
+  last_error_at?: string | null;
+}
+
+interface ModelLastError {
+  model_id: string;
+  provider: string;
+  error: string;
+  created_at: string;
 }
 
 export function useModelSpeedStats() {
@@ -17,8 +27,21 @@ export function useModelSpeedStats() {
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await invoke<ModelSpeedStats[]>("get_model_speed_stats");
-      setStats(data);
+      const [data, lastErrors] = await Promise.all([
+        invoke<ModelSpeedStats[]>("get_model_speed_stats"),
+        invoke<ModelLastError[]>("get_model_last_errors").catch(() => []),
+      ]);
+      const byModel = new Map(
+        lastErrors.map((e) => [`${e.model_id}\u0000${e.provider}`, e]),
+      );
+      setStats(
+        data.map((s) => {
+          const le = byModel.get(`${s.model_id}\u0000${s.provider}`);
+          return le
+            ? { ...s, last_error: le.error, last_error_at: le.created_at }
+            : s;
+        }),
+      );
     } catch (e) {
       console.error("Failed to fetch model speed stats:", e);
     } finally {
@@ -56,8 +79,15 @@ export function useModelSpeedStats() {
         0,
       );
       const avgSpeed = totalCalls > 0 ? weightedSpeed / totalCalls : 0;
+      const errored = matched.find((s) => s.last_error);
 
-      return { totalCalls, totalErrors, avgSpeed };
+      return {
+        totalCalls,
+        totalErrors,
+        avgSpeed,
+        lastError: errored?.last_error ?? null,
+        lastErrorAt: errored?.last_error_at ?? null,
+      };
     },
     [getStatsForModel],
   );

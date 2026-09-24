@@ -1,12 +1,4 @@
 {
-  "tray": {
-    "settings": "Nastavení...",
-    "checkUpdates": "Zkontrolovat aktualizace...",
-    "copyLastTranscript": "Zkopírovat poslední přepis",
-    "unloadModel": "Uvolnit model",
-    "quit": "Ukončit",
-    "cancel": "Zrušit"
-  },
   "sidebar": {
     "general": "Obecné",
     "models": "Modely",
@@ -14,15 +6,23 @@
     "postProcessing": "Následné zpracování",
     "history": "Historie",
     "debug": "Ladění",
-    "about": "O aplikaci"
+    "about": "O aplikaci",
+    "appProfiles": "Profily aplikací",
+    "dashboard": "Přehled",
+    "expertMode": "Expertní režim",
+    "expertModeHint": "Zobrazit pokročilé možnosti nastavení",
+    "prompts": "Prompty",
+    "shortcuts": "Zkratky",
+    "summary": "Souhrn",
+    "vocabulary": "Slovník",
+    "asrModels": "ASR modely",
+    "dailyVocabulary": "Denní slovník"
   },
   "onboarding": {
     "subtitle": "Pro začátek vyberte model pro přepis",
     "recommended": "Doporučeno",
     "download": "Stáhnout",
     "downloading": "Stahování...",
-    "customModelDescription": "Oficiálně nepodporováno",
-    "downloadFailed": "Stahování se nezdařilo. Zkuste to prosím znovu.",
     "modelCard": {
       "accuracy": "přesnost",
       "speed": "rychlost"
@@ -52,38 +52,67 @@
         "name": "Parakeet V3",
         "description": "Rychlý a přesný"
       },
-      "moonshine-base": {
-        "name": "Moonshine Base",
-        "description": "Velmi rychlý, pouze angličtina. Dobře zvládá přízvuky."
-      }
+      "description": "Vyberte model pro začátek. Doporučené modely fungují dobře ve většině případů.",
+      "showMore": "Další modely",
+      "title": "Vyberte model"
     },
     "errors": {
       "loadModels": "Nepodařilo se načíst dostupné modely",
       "downloadModel": "Nepodařilo se stáhnout model: {{error}}"
     },
-    "permissions": {
-      "title": "Vyžadována oprávnění",
-      "description": "Handy potřebuje několik oprávnění pro správné fungování.",
-      "microphone": {
-        "title": "Přístup k mikrofonu",
-        "description": "Potřebný pro zachycení vašeho hlasu k přepisu."
-      },
-      "accessibility": {
-        "title": "Přístup k usnadnění",
-        "description": "Potřebný pro psaní přepsaného textu do vašich aplikací."
-      },
+    "accessibility": {
+      "description": "Toto oprávnění umožňuje automatické vkládání textu",
+      "feature1": "Automatické vložení přepisu do aktuální aplikace",
+      "feature2": "Získání pozice kurzoru pro umístění překryvu",
+      "feature3": "Simulace klávesových zkratek pro vložení",
       "grant": "Udělit oprávnění",
-      "granted": "Uděleno",
-      "waiting": "Čekání...",
-      "allGranted": "Vše připraveno!",
-      "errors": {
-        "checkFailed": "Nepodařilo se zkontrolovat oprávnění. Zkuste to prosím znovu.",
-        "requestFailed": "Nepodařilo se požádat o oprávnění. Zkuste to prosím znovu."
-      }
+      "granted": "Oprávnění usnadnění přístupu uděleno ✓",
+      "noteImpact": "Bez oprávnění se výsledky pouze zkopírují do schránky.",
+      "reason1": "Automaticky vkládat přepsaný text do aktivních aplikací",
+      "reason2": "Získat pozici kurzoru pro umístění překryvu",
+      "reason3": "Zajistit plynulejší zážitek",
+      "simpleDesc": "Automaticky vkládat výsledky přepisu, bez nutnosti Cmd+V",
+      "skip": "Přeskočit tento krok",
+      "step1": "Otevřete Nastavení systému → Soukromí a zabezpečení → Usnadnění přístupu",
+      "step2": "Pokud je aplikace již v seznamu, odeberte ji",
+      "step3": "Klikněte na + a přidejte a povolte oprávnění",
+      "stepsTitle": "Máte potíže?",
+      "title": "Oprávnění usnadnění přístupu",
+      "whyTitle": "Proč je potřeba?",
+      "without1": "Aplikace bude fungovat normálně",
+      "without2": "Přepsaný text se zkopíruje do schránky",
+      "without3": "Budete muset vložit ručně (Cmd+V)",
+      "withoutTitle": "Bez tohoto oprávnění:"
+    },
+    "microphone": {
+      "denied": "Pro nahrávání hlasu je vyžadováno oprávnění k mikrofonu. Udělte prosím oprávnění v Nastavení systému.",
+      "description": "Votype potřebuje přístup k mikrofonu pro nahrávání hlasu",
+      "devModeHint": "Vývojový režim: kontrola oprávnění není k dispozici",
+      "error": "Žádost o oprávnění se nezdařila. Zkuste to znovu nebo oprávnění udělte ručně v Nastavení systému.",
+      "grant": "Udělit přístup k mikrofonu",
+      "granted": "Přístup k mikrofonu udělen ✓",
+      "grantFirst": "Pro pokračování udělte oprávnění k mikrofonu",
+      "reason1": "Nahrávání vašeho hlasu pro přepis",
+      "reason2": "Veškeré zpracování probíhá lokálně",
+      "reason3": "Vaše hlasová data nikdy neopustí vaše zařízení",
+      "shortDesc": "Pro nahrávání hlasu k přepisu",
+      "skipDev": "Přeskočit (vývojový režim)",
+      "title": "Mikrofon",
+      "whyTitle": "Proč je potřeba?"
+    },
+    "welcome": {
+      "continue": "Pokračovat",
+      "description": "Metoda hlasového vstupu, která podporuje lokální, online nebo hybridní režim.",
+      "feature1": "Přepis řeči na text zcela offline",
+      "feature2": "Soukromí na prvním místě, data nikdy neopustí vaše zařízení",
+      "feature3": "Spouštění zkratkou, stiskněte a mluvte",
+      "permissionsTitle": "Nastavení oprávnění",
+      "skipDev": "Přeskočit (vývojový režim)",
+      "start": "Začít",
+      "title": "Vítejte"
     }
   },
   "modelSelector": {
-    "custom": "Vlastní",
     "active": "Aktivní",
     "noModelsAvailable": "Nejsou dostupné žádné modely",
     "extracting": "Rozbaluji {{modelName}}...",
@@ -98,46 +127,44 @@
     "modelUnloaded": "Model uvolněn",
     "noModelDownloadRequired": "Žádný model - je nutné stáhnout",
     "deleteModel": "Smazat {{modelName}}",
-    "switching": "Přepínání...",
-    "downloadSpeed": "{{speed}} MB/s",
-    "capabilities": {
-      "languageSelection": "Podporuje více vstupních jazyků",
-      "multiLanguage": "Vícejazyčný",
-      "translation": "Umí překládat do angličtiny",
-      "translate": "Přeložit do angličtiny",
-      "singleLanguage": "Podporuje pouze tento jazyk",
-      "languageOnly": "Pouze {{language}}"
+    "addModelFromUrl": "Přidat z URL",
+    "addModelFromUrlPrompt": "Vložte URL pro stažení modelu (např. .tar.bz2):",
+    "availableModels": "Dostupné modely",
+    "chooseModel": "Vyberte model",
+    "clickToEnableOnlineAsr": "Kliknutím zapnete online ASR",
+    "download": "Stáhnout",
+    "downloadModels": "Stáhnout modely",
+    "downloadPrompt": "Stáhněte model níže a začněte přepisovat.",
+    "downloadSize": "Velikost ke stažení",
+    "local": "Lokální",
+    "online": "Online",
+    "onlineAsr": "Online ASR",
+    "onlineAsrActive": "Online ASR aktivní",
+    "onlineAsrModels": "Online ASR modely",
+    "realtimeModel": {
+      "empty": "Žádné vhodné lokální modely. Nejprve stáhněte (a označte jako oblíbený) model Sherpa.",
+      "enabled": "Zapnuto",
+      "off": "Vypnuto",
+      "offHint": "Není třeba zobrazovat živé titulky pro lokální modely (šetří paměťové prostředky)",
+      "open": "Vybrat model přepisu v reálném čase",
+      "selected": "Reálný čas: {{modelName}}",
+      "title": "Model přepisu v reálném čase"
     },
-    "cancel": "Zrušit",
-    "cancelDownload": "Zrušit stahování"
+    "realtimeModelLabel": "Model v reálném čase",
+    "searchPlaceholder": "Hledat modely…",
+    "userAddedModel": "Uživatelem přidaný model",
+    "welcome": "Vítejte ve Votype",
+    "asrFallback": {
+      "add": "+ Záložní",
+      "label": "Záložní",
+      "remove": "Odebrat záložní"
+    }
   },
   "settings": {
-    "modelSettings": {
-      "title": "Nastavení {{model}}",
-      "noSettingsNeeded": "Tento model funguje automaticky bez nutnosti konfigurace."
-    },
-    "models": {
-      "title": "Modely přepisu",
-      "description": "Vyberte model přepisu nebo stáhněte další modely. Různé modely nabízejí různé úrovně přesnosti a rychlosti.",
-      "downloaded": "Staženo",
-      "available": "K dispozici ke stažení",
-      "deleteConfirm": "Opravdu chcete smazat {{modelName}}? Pro opětovné použití jej budete muset znovu stáhnout.",
-      "deleteActiveConfirm": "{{modelName}} je váš aktivní model. Jeho smazáním se zastaví přepisy, dokud nevyberete nový model. Opravdu chcete pokračovat?",
-      "deleteTitle": "Smazat model",
-      "filters": {
-        "all": "Vše",
-        "multiLanguage": "Vícejazyčný",
-        "translation": "Překlad",
-        "allLanguages": "Všechny jazyky"
-      },
-      "noModelsMatch": "Tomuto filtru neodpovídají žádné modely.",
-      "yourModels": "Stažené modely",
-      "availableModels": "Dostupné ke stažení"
-    },
     "general": {
       "title": "Obecné",
       "shortcut": {
-        "title": "Zkratky Handy",
+        "title": "Zkratky Votype",
         "description": "Nastavte klávesové zkratky pro spuštění nahrávání řeči na text",
         "loading": "Načítám zkratky...",
         "none": "Žádné zkratky nejsou nastavené",
@@ -151,6 +178,18 @@
           "cancel": {
             "name": "Zkratka zrušení",
             "description": "Klávesová zkratka pro zrušení aktuálního nahrávání."
+          },
+          "invoke_skill": {
+            "description": "Spustí nahrávání v režimu dovednosti s inteligentním směrováním záměru.",
+            "name": "Vyvolat dovednost"
+          },
+          "open_settings": {
+            "description": "Otevře okno nastavení.",
+            "name": "Otevřít nastavení"
+          },
+          "paste_first_entry": {
+            "description": "Vloží první záznam historie do aktivního okna.",
+            "name": "Vložit první záznam"
           }
         },
         "errors": {
@@ -165,11 +204,39 @@
         "descriptionUnsupported": "Model Parakeet rozpozná jazyk automaticky. Ruční výběr není potřeba.",
         "searchPlaceholder": "Hledat jazyky...",
         "noResults": "Žádné jazyky nenalezeny",
-        "auto": "Auto"
+        "auto": "Auto",
+        "descriptionNoModel": "Pro nastavení jazyka vyberte lokální model.",
+        "descriptionSenseVoice": "SenseVoice použije jazyk při načtení modelu. Po změně jazyka model znovu vyberte.",
+        "descriptionUnknownModel": "Aktuální model není znám; výběr jazyka je zakázán.",
+        "descriptionUnsupportedEngine": "Výběr jazyka platí pouze pro modely Whisper nebo SenseVoice."
       },
-      "pushToTalk": {
-        "label": "Stisk a mluv",
-        "description": "Podržte pro nahrávání, uvolněte pro zastavení"
+      "audioInputAutoEnhance": {
+        "description": "Automaticky zesílit tichý hlasový vstup a omezit zkreslení během nahrávání. Může změnit zvuk přehrávání.",
+        "label": "Automatické vylepšení mikrofonu"
+      },
+      "groups": {
+        "recording": "Nahrávání",
+        "transcription": "Jazyk přepisu"
+      },
+      "activationMode": {
+        "label": "Režim aktivace",
+        "tooltip": {
+          "summary": "Zvolte, jak se spouští zkratka nahrávání"
+        },
+        "descriptions": {
+          "toggle": "Stiskněte pro spuštění, stiskněte znovu pro zastavení",
+          "hold": "Podržte pro nahrávání, uvolněte pro zastavení",
+          "hold_or_toggle": "Krátký stisk přepíná, podržení 300 ms+ zastaví při uvolnění"
+        },
+        "options": {
+          "toggle": "Přepínání",
+          "hold": "Podržení",
+          "holdOrToggle": "Auto"
+        }
+      },
+      "holdThreshold": {
+        "label": "Práh podržení",
+        "description": "Pouze v režimu Auto: jak dlouho (v milisekundách) musí být zkratka podržena, aby se počítala jako podržení a ne klepnutí. Snižte, pokud krátká podržení ponechávají nahrávání zapnuté; zvyšte, pokud se záměrná klepnutí vyhodnocují jako podržení."
       }
     },
     "sound": {
@@ -198,15 +265,12 @@
     "advanced": {
       "title": "Pokročilé",
       "groups": {
-        "app": "Aplikace",
-        "output": "Výstup",
-        "transcription": "Přepis",
-        "history": "Historie",
-        "experimental": "Experimentální"
-      },
-      "experimentalToggle": {
-        "label": "Experimentální funkce",
-        "description": "Povolit experimentální funkce, které jsou stále ve vývoji."
+        "dataManagement": "Správa dat",
+        "debug": "Možnosti ladění",
+        "inputOutput": "Vstup a výstup",
+        "network": "Síť",
+        "startup": "Spouštění a chování",
+        "transcriptionOptimization": "Optimalizace přepisu"
       },
       "startHidden": {
         "label": "Spouštět skrytě",
@@ -214,11 +278,7 @@
       },
       "autostart": {
         "label": "Spouštět při startu",
-        "description": "Automaticky spustit Handy po přihlášení do počítače."
-      },
-      "showTrayIcon": {
-        "label": "Zobrazit ikonu v systémové liště",
-        "description": "Zobrazit ikonu Handy v systémové liště."
+        "description": "Automaticky spustit Votype po přihlášení do počítače."
       },
       "overlay": {
         "title": "Pozice překryvu",
@@ -226,7 +286,8 @@
         "options": {
           "none": "Žádné",
           "bottom": "Dole",
-          "top": "Nahoře"
+          "top": "Nahoře",
+          "follow": "Následovat kurzor"
         }
       },
       "pasteMethod": {
@@ -262,7 +323,10 @@
       "translateToEnglish": {
         "label": "Překládat do angličtiny",
         "description": "Během přepisu automaticky překládat řeč z jiných jazyků do angličtiny.",
-        "descriptionUnsupported": "Překlad není podporován modelem {{model}}."
+        "descriptionUnsupported": "Překlad není podporován modelem {{model}}.",
+        "descriptionNoModel": "Pro zapnutí překladu vyberte lokální model.",
+        "descriptionNonWhisper": "Překlad funguje pouze s modely Whisper. Aktuální: {{model}}",
+        "descriptionUnknownModel": "Schopnosti tohoto modelu nejsou známy. Pro zapnutí překladu vyberte stažený model."
       },
       "modelUnload": {
         "title": "Uvolnění modelu",
@@ -284,24 +348,114 @@
         "placeholder": "Přidat slovo",
         "add": "Přidat",
         "remove": "Odebrat {{word}}"
+      },
+      "vocabularyCorrections": {
+        "allApps": "Všechny aplikace",
+        "delete": "Smazat tuto opravu",
+        "description": "Opravy slovníku naučené z vaší historie úprav",
+        "empty": "Zatím žádné naučené opravy",
+        "global": "Globální",
+        "removeGlobal": "Odebrat globální",
+        "scope": "Rozsah",
+        "setGlobal": "Nastavit jako globální",
+        "title": "Slovník"
+      },
+      "scope": {
+        "custom": "Konkrétní aplikace",
+        "editDescription": "Upravit rozsah pro \"{{original}}\" → \"{{corrected}}\"",
+        "editTitle": "Rozsah opravy",
+        "global": "Globální",
+        "multiple": "{{count}} aplikací",
+        "none": "Žádné aplikace",
+        "source": "Zdrojová aplikace ({{app}})"
+      },
+      "proxy": {
+        "add": "Přidat proxy",
+        "server": "Server",
+        "username": "Uživatelské jméno",
+        "usernamePlaceholder": "Volitelné",
+        "password": "Heslo",
+        "passwordPlaceholder": "Volitelné",
+        "enable": "Zapnout",
+        "globalHint": "Ve výchozím stavu použít pro všechny poskytovatele",
+        "testAndSave": "Otestovat a uložit",
+        "testSuccess": "Připojení přes proxy proběhlo úspěšně",
+        "testFailed": "Připojení přes proxy se nezdařilo: {{error}}",
+        "remove": "Odebrat",
+        "removed": "Proxy odebráno"
+      },
+      "insertBlacklist": {
+        "label": "Černá listina vkládání",
+        "description": "Pokud je v popředí aplikace na černé listině (terminál, správce hesel, ...), přepis se místo automatického psaní či vložení zkopíruje do schránky s oznámením."
+      },
+      "remoteRecord": {
+        "label": "Klávesa nahrávání dálkového ovládání",
+        "description": "Převezměte tlačítko nahrávání na Bluetooth hlasových ovladačích (klávesa Consumer v macOS neviditelná pro běžné zkratky): stiskněte jednou pro spuštění nahrávání, znovu pro zastavení."
+      },
+      "punctuation": {
+        "description": "Přidá interpunkci do konečného přepisu ({{model}}).",
+        "label": "Přidat interpunkci",
+        "model": {
+          "description": "Vyberte model interpunkce pro smíšený text zh+en. Použije se pouze na konečný výsledek.",
+          "notDownloaded": "Vybraný model zatím není stažen.",
+          "title": "Model interpunkce"
+        }
+      },
+      "fillerWordRemoval": {
+        "label": "Odstraňování parazitních slov",
+        "description": "Odstraní mluvené výplňové výrazy před následným zpracováním. Použije se pouze u jazyků se spolehlivými vzory výplňových slov."
+      },
+      "vadBackend": {
+        "title": "Backend detekce hlasu",
+        "description": "Vyberte detektor používaný k filtrování ticha. Earshot je experimentální; pokud je řeč ořezávána nebo zůstává šum, přepněte zpět na Silero.",
+        "options": {
+          "silero": "Silero",
+          "earshot": "Earshot"
+        }
+      },
+      "localApi": {
+        "title": "Lokální API",
+        "enable": "Zapnout lokální server kompatibilní s OpenAI",
+        "enableDescription": "Ve výchozím stavu vypnuto. Zapnutí proběhne okamžitě, není třeba restart. Naslouchá pouze na localhostu, takže externí nástroje mohou volat modely a ASR přes jednu URL a klíč.",
+        "allowLan": "Povolit přístup v LAN",
+        "allowLanDescription": "Po zapnutí k němu budou moci přistupovat další zařízení v LAN přes IP adresu vašeho počítače. Změny se projeví po restartu aplikace.",
+        "port": "Port",
+        "endpoint": "Endpoint",
+        "url": "URL",
+        "accessKey": "Přístupový klíč",
+        "restartToApply": "Pro použití restartujte",
+        "copy": "Kopírovat",
+        "random": "Náhodně",
+        "localAccess": "Lokální přístup:",
+        "lanAccess": "Přístup v LAN:",
+        "authHeader": "Hlavička ověření:",
+        "lanUrlHint": "http://<vaše-LAN-IP>:{{port}}{{path}}",
+        "copied": "{{label}} zkopírováno",
+        "copyFailed": "Nepodařilo se zkopírovat {{label}}",
+        "keyGenerated": "Vygenerován nový přístupový klíč",
+        "keyPlaceholder": "your-key"
       }
     },
     "postProcessing": {
       "title": "Následné zpracování",
-      "hotkey": {
-        "title": "Klávesová zkratka"
-      },
       "api": {
         "title": "API (kompatibilní s OpenAI)",
         "provider": {
           "title": "Poskytovatel",
-          "description": "Vyberte poskytovatele kompatibilního s OpenAI."
+          "description": "Vyberte poskytovatele kompatibilního s OpenAI.",
+          "builtin": "Vestavěný",
+          "builtinTooltip": "Vestavěný poskytovatel, nelze smazat",
+          "deleteAction": "Smazat poskytovatele",
+          "deleteConfirmation": "Opravdu chcete smazat poskytovatele \"{{name}}\"? Tuto akci nelze vrátit zpět.",
+          "deleteTitle": "Smazat poskytovatele",
+          "editName": "Upravit název poskytovatele",
+          "namePlaceholder": "Název poskytovatele",
+          "newProvider": "Nový poskytovatel"
         },
         "appleIntelligence": {
           "title": "Apple Intelligence",
           "description": "Běží plně na zařízení. Není potřeba API klíč ani síťové připojení.",
-          "requirements": "Vyžaduje Mac s Apple Silicon a macOS Tahoe (26.0) nebo novější. Apple Intelligence musí být povoleno v Nastavení systému.",
-          "unavailable": "Apple Intelligence není na tomto zařízení k dispozici. Vyžaduje Mac s Apple Silicon a macOS Tahoe (26.0) nebo novější a povolené Apple Intelligence v Nastavení systému."
+          "requirements": "Vyžaduje Mac s Apple Silicon a macOS Tahoe (26.0) nebo novější. Apple Intelligence musí být povoleno v Nastavení systému."
         },
         "baseUrl": {
           "title": "Základní URL",
@@ -322,13 +476,78 @@
           "placeholderWithOptions": "Vyhledejte nebo vyberte model",
           "placeholderNoOptions": "Zadejte název modelu",
           "refreshModels": "Obnovit modely"
+        },
+        "manageProviders": "Spravovat poskytovatele",
+        "modelCard": {
+          "errorRate": "{{count}} neúspěšných volání — míra chyb {{rate}} %"
+        },
+        "models": {
+          "deleteConfirm": {
+            "description": "Opravdu chcete tento model smazat? Tuto akci nelze vrátit zpět.",
+            "title": "Smazat model?"
+          }
+        },
+        "providers": {
+          "add": "Přidat poskytovatele",
+          "addCustom": "Přidat vlastního",
+          "advancedSettings": "Pokročilé nastavení",
+          "api": {
+            "model": {
+              "title": "Používaný model"
+            },
+            "testConnection": "Otestovat inferenci modelu",
+            "testFailed": "Test se nezdařil: {{error}}",
+            "testing": "Testuji připojení...",
+            "testSuccess": "Test úspěšný: {{result}}"
+          },
+          "builtInBadge": "Vestavěný",
+          "deleteConfirm": {
+            "description": "Tímto odeberete poskytovatele a všechny související modely.",
+            "title": "Smazat poskytovatele?"
+          },
+          "dialog": {
+            "createTitle": "Vytvořit poskytovatele",
+            "editTitle": "Upravit poskytovatele"
+          },
+          "empty": {
+            "description": "Přidejte poskytovatele a začněte.",
+            "title": "Žádní poskytovatelé"
+          },
+          "fields": {
+            "apiKey": "API klíč",
+            "getApiKey": "Získat API klíč",
+            "baseUrl": "Základní URL",
+            "baseUrlHint": "Režim kompatibilní s OpenAI, obvykle končí na /v1. Příponou '#' obejdete automatické přidání /v1.",
+            "actualUrlPreview": "Náhled skutečné URL API",
+            "modelsEndpoint": "Endpoint modelů",
+            "modelsEndpointPlaceholder": "/models nebo https://...",
+            "name": "Název poskytovatele",
+            "namePlaceholder": "Můj poskytovatel",
+            "v1AutoAppended": "/v1 bylo automaticky přidáno",
+            "v1MissingWarning": "V URL možná chybí cesta s verzí (např. /v1)",
+            "addKey": "Přidat klíč"
+          },
+          "proxy": {
+            "useProxy": "Proxy",
+            "noGlobalProxy": "Nejprve nastavte proxy v Pokročilém nastavení"
+          },
+          "group": {
+            "recommended": "Doporučeno",
+            "cloud": "Cloudoví poskytovatelé",
+            "local": "Lokální poskytovatelé"
+          },
+          "resetUrl": "Obnovit URL",
+          "testConnection": "Otestovat připojení",
+          "testFailed": "Připojení se nezdařilo: {{error}}",
+          "testSuccess": "Připojení úspěšné",
+          "title": "Poskytovatelé"
         }
       },
       "prompts": {
         "title": "Prompt",
         "selectedPrompt": {
           "title": "Vybraný prompt",
-          "description": "Choose the template used for post-processing, or create a new one. The system automatically injects the main input and supporting reference fields, so the prompt body only needs to describe the task, constraints, and output requirements."
+          "description": "Vyberte šablonu použitou pro post-processing nebo vytvořte novou. Systém automaticky vkládá hlavní vstup a podpůrná referenční pole, takže tělo promptu musí popsat pouze úkol, omezení a požadavky na výstup."
         },
         "noPrompts": "Nejsou k dispozici žádné prompty",
         "selectPrompt": "Vyberte prompt",
@@ -336,7 +555,7 @@
         "promptLabel": "Název promptu",
         "promptLabelPlaceholder": "Zadejte název promptu",
         "promptInstructions": "Instrukce promptu",
-        "promptInstructionsPlaceholder": "Describe how the model should process the input text, what it may change, what it must not change, and what the final output should look like.",
+        "promptInstructionsPlaceholder": "Popište, jak má model zpracovat vstupní text, co může změnit, co nesmí změnit a jak má vypadat výsledný výstup.",
         "promptTip": "Tip: You are editing the task body only. The system automatically injects the main input and supporting reference fields, so focus on the task, constraints, and output requirements.",
         "updatePrompt": "Aktualizovat prompt",
         "deletePrompt": "Smazat prompt",
@@ -349,13 +568,441 @@
         "varWindowTitleDesc": "Titulek aktuálního okna.",
         "lockSkill": "Lock Skill",
         "unlockSkill": "Unlock Skill",
-        "skillLocked": "This skill is locked. Unlock to edit.",
-        "aiGeneratingWait": "AI is generating, please wait",
+        "skillLocked": "Tato dovednost je uzamčena. Pro úpravy ji odemkněte.",
+        "aiGeneratingWait": "AI generuje, čekejte prosím",
         "unsavedChanges": {
           "title": "Unsaved Changes",
-          "description": "Current prompt has unsaved changes. Switching will discard these modifications.",
+          "description": "Aktuální prompt má neuložené změny. Přepnutím tyto úpravy zahodíte.",
           "discard": "Discard Changes"
+        },
+        "activeSet": "Nastavit jako výchozí prompt",
+        "advancedSettings": "Pokročilé nastavení",
+        "createSuccess": "Prompt úspěšně vytvořen",
+        "deleteConfirm": {
+          "description": "Opravdu chcete tento prompt smazat? Tuto akci nelze vrátit zpět.",
+          "title": "Smazat prompt"
+        },
+        "createFailed": "Nepodařilo se vytvořit dovednost",
+        "nameAndContentRequired": "Název a obsah nesmí být prázdné",
+        "fillNameAndInstructionsFirst": "Nejprve vyplňte název a instrukce, aby AI mohla vygenerovat lepší shrnutí.",
+        "userOwnedPrompts": "Moje prompty",
+        "deleteFailed": "Smazání se nezdařilo",
+        "deleteSuccess": "Prompt úspěšně smazán",
+        "resetToDefault": "Obnovit výchozí",
+        "resetConfirm": {
+          "description": "Tímto obnovíte dovednost na původní vestavěný obsah. Všechny úpravy budou ztraceny.",
+          "title": "Obnovit výchozí"
+        },
+        "resetSuccess": "Dovednost obnovena na výchozí",
+        "resetFailed": "Nepodařilo se obnovit dovednost",
+        "description": "Popis (pro chytré směrování)",
+        "descriptionPlaceholder": "Stručně popište, co tato dovednost dělá a kdy se má spustit",
+        "editPrompt": "Upravit prompt",
+        "enabledToggle": "Zapnout/vypnout tuto dovednost",
+        "enableConfidenceCheck": "Zapnout kontrolu spolehlivosti",
+        "generationDescription": "Generuje nový obsah na základě rozpoznaného textu jako prompt (např. překlad, shrnutí).",
+        "globalConfigTitle": "Globální konfigurace",
+        "managementTitle": "Prompty",
+        "newPromptName": "Nový prompt",
+        "outputMode": {
+          "chat": "AI chat",
+          "label": "Režim výstupu",
+          "polish": "Vylepšení textu"
+        },
+        "promptBody": "Tělo úlohy",
+        "promptBodyPlaceholder": "Popište, jak má model zpracovat vstupní text, co může změnit, co nesmí změnit a jak má vypadat konečný výstup.",
+        "refinementDescription": "Automaticky opraví a naformátuje rozpoznaný text.",
+        "reviewThreshold": "Práh kontroly",
+        "setAsActive": "Nastavit jako výchozí",
+        "updateFailed": "Aktualizace se nezdařila",
+        "updateSuccess": "Prompt úspěšně aktualizován",
+        "inlineVarsLabel": "Referenční pole",
+        "autoInjectedNote": "Systém automaticky vkládá hlavní vstup a podpůrná referenční pole. Pokud potřebujete přesnější kontrolu, můžete je v těle úlohy výslovně uvést.",
+        "primaryFieldsLabel": "Klíčová pole",
+        "referenceFieldsLabel": "Referenční pole",
+        "explicitReferenceNote": "Pokud pole výše výslovně uvedete, systém jej v promptu znovu nepřipojí.",
+        "inlineVarsSecondaryLabel": "Proměnné metadat",
+        "fieldAutocompleteTitle": "Automatické doplňování polí",
+        "fieldAutocompleteEmpty": "Žádná odpovídající pole",
+        "fieldInputTextDesc": "Jediný primární text, který má být zpracován",
+        "fieldAsrReferenceDesc": "Pomocná reference ASR pro opravy a rozlišení",
+        "fieldSelectedTextDesc": "Vybraný text použitý jako slabý kontext",
+        "fieldPersonNamesDesc": "Známá jména osob",
+        "fieldProductNamesDesc": "Známé názvy produktů, značek nebo organizací",
+        "fieldDomainTermsDesc": "Oborové termíny, zkratky nebo technické termíny",
+        "fieldHotwordsDesc": "Další prioritní hotwordy",
+        "fieldHistoryHintsDesc": "Nápovědy z historie použité pouze pro konzistenci termínů a slabé rozlišení",
+        "varAppCategoryDesc": "Kategorie aplikace (CodeEditor, Email atd.).",
+        "varContextDesc": "Historický kontext z aktivního okna.",
+        "varOutputDesc": "Konečný přepsaný text.",
+        "varPromptDesc": "Zobrazovaný název aktuálního schématu promptu.",
+        "varRawInputDesc": "Úplný původní přepis.",
+        "varSelectDesc": "Text vybraný při ukončení nahrávání.",
+        "varStreamingDesc": "Průběžný text během přepisu v reálném čase.",
+        "autoGenerate": {
+          "title": "Hlas na dovednost",
+          "description": "Popište přirozeným jazykem, co chcete. AI za vás vygeneruje kompletní dovednost.",
+          "shortcutHint": "Tip: Stiskněte",
+          "placeholder": "např. Pomoz mi vylepšit text, opravit gramatiku a udělat ho profesionálnější...",
+          "step1": "Vylepšuji instrukce promptu",
+          "step2": "Generuji název a ikonu",
+          "step3": "Generuji popis",
+          "emptyInput": "Popište, co má tato dovednost dělat",
+          "start": "Vygenerovat",
+          "menuItem": "Hlasový vstup",
+          "success": "Dovednost úspěšně vytvořena"
+        },
+        "templates": {
+          "template_polish": "Výchozí vylepšení",
+          "template_translate": "Překlad",
+          "template_summary": "Shrnutí",
+          "template_chat": "AI chat",
+          "template_blank": "Prázdná dovednost"
+        },
+        "aliasDuplicate": "Alias již existuje",
+        "aliasLabel": "Alias",
+        "aliasPlaceholder": "např. /translate",
+        "commandPrefixDescription": "Prefix příkazu pro spuštění tohoto promptu",
+        "commandPrefixPlaceholder": "např. /",
+        "commandPrefixTitle": "Prefix příkazu",
+        "noAliases": "Nejsou nastaveny žádné aliasy",
+        "noPrefixes": "Nejsou nastaveny žádné prefixy",
+        "prefixesSaved": "Prefixy uloženy",
+        "blankSkill": "Prázdná dovednost",
+        "polishCategory": "Vylepšení",
+        "skillCategory": "Dovednost",
+        "references": {
+          "title": "Reference scénářů",
+          "add": "Přidat",
+          "empty": "Zatím žádné reference scénářů. Přidejte reference pro přizpůsobení chování podle aplikace.",
+          "createFirst": "Vytvořit první referenci",
+          "createTitle": "Vytvořit referenci scénáře",
+          "editTitle": "Upravit referenci scénáře",
+          "matchType": "Typ shody",
+          "typeAlways": "Obecná pravidla (vždy aktivní)",
+          "typeApp": "Podle názvu aplikace",
+          "typeCategory": "Podle kategorie aplikace",
+          "alwaysName": "Obecná pravidla",
+          "badgeAlways": "Vždy aktivní",
+          "appNamePlaceholder": "např. Slack, Obsidian, WeChat",
+          "contentPlaceholder": "Zadejte pravidla specifická pro tento scénář...\n\nPříklad:\n## Pravidla pro IM/chat\n- Zachovat konverzační tón\n- Opravit jen zjevné chyby\n- Zachovat emoji",
+          "created": "Reference vytvořena",
+          "saved": "Reference uložena",
+          "deleted": "Reference smazána",
+          "errorNoName": "Zadejte název",
+          "errorSave": "Uložení se nezdařilo",
+          "errorDelete": "Smazání se nezdařilo",
+          "deleteTitle": "Smazat referenci",
+          "deleteConfirm": "Opravdu chcete smazat \"{{name}}\"?"
         }
+      },
+      "intentModel": {
+        "defaultOption": "Použít výchozí model",
+        "description": "Model používaný pro detekci záměru dovednosti. Ponechte výchozí, aby se řídil hlavním modelem následného zpracování.",
+        "hint": "Používá se pro směrování dovedností (detekce, kterou dovednost použít) a klasifikaci akcí chytrého směrování. U lite vylepšení také provádí opravu ve stejném volání.",
+        "placeholder": "Vyberte model záměru",
+        "title": "Model záměru"
+      },
+      "translationModel": {
+        "hint": "Používá se funkcí překladu před vložením. Ponechte prázdné pro návrat k modelu záměru a poté k výchozímu modelu následného zpracování.",
+        "title": "Model překladu"
+      },
+      "inputInjection": {
+        "groupTitle": "Automatické vstupy",
+        "title": "Automatické vstupy",
+        "description": "Určete, které pomocné vstupy se automaticky přikládají k požadavkům na následné zpracování nebo překlad.",
+        "summaryEnabled": "Vkládání kontextu historie je zapnuto, přikládá se až {{count}} záznamů.",
+        "summaryDisabled": "Kontext historie nebude automaticky přikládán.",
+        "moreOptions": "Další možnosti",
+        "basicOnly": "Pouze základní položka",
+        "history": {
+          "enabled": "Vkládat kontext historie",
+          "description": "Poskytnout nedávné přepisy z aktuální aplikace jako kontext pro následné zpracování.",
+          "limit": "Hloubka kontextu historie",
+          "limitDesc": "Přiložit až posledních {{count}} záznamů historie k následnému zpracování."
+        },
+        "streaming": {
+          "enabled": "Vkládat průběžný přepis",
+          "description": "Odeslat streaming_output spolu s konečným textem pro lepší rozlišení výsledků ASR."
+        },
+        "hotwords": {
+          "enabled": "Vkládat hotwordy a slovník",
+          "description": "Přiložit hotwordy, terminologii a běžná chybná rozpoznání k následnému zpracování."
+        }
+      },
+      "appRules": {
+        "activeProfiles": "{{count}} aktivních pravidel",
+        "addApp": "Přidat aplikaci",
+        "addRuleHead": "Přidat pravidlo ručně",
+        "addTitlePattern": "Přidat filtr titulku",
+        "assignedApps": "Aplikace",
+        "assignedAppsDescription": "Níže uvedené aplikace budou používat nastavení tohoto profilu.",
+        "capture": "Zachytit",
+        "captureTitle": "Zachytit titulek",
+        "categoryDefaults": {
+          "title": "Výchozí zásady kategorií",
+          "hint": "Aplikace s vlastním profilem nejsou zásadami kategorií ovlivněny (včetně profilů automaticky vytvořených při přijetí návrhu).",
+          "inheritGlobal": "Zdědit globální",
+          "categories": {
+            "CodeEditor": "Editory kódu",
+            "Terminal": "Terminály",
+            "InstantMessaging": "Instant messaging",
+            "Email": "E-mail",
+            "Notes": "Poznámky",
+            "Browser": "Prohlížeče",
+            "Other": "Jiné"
+          }
+        },
+        "context": {
+          "description": "Umožnit LLM odkazovat na nedávnou historii aktuální aplikace pro lepší přesnost přepisu a oprav.",
+          "enabled": "Zapnout odkaz na kontext",
+          "limit": "Hloubka kontextové historie",
+          "limitDesc": "Model bude odkazovat na posledních {{count}} záznamů z této aplikace jako kontext.",
+          "title": "Zpracování s ohledem na kontext"
+        },
+        "createPromptHint": "Začněte přidáním pravidla aplikace",
+        "default": "Výchozí",
+        "newProfileName": "Název nového profilu...",
+        "noAppsAssigned": "K tomuto profilu zatím nejsou přiřazeny žádné aplikace.",
+        "noProfiles": "Zatím žádná pravidla",
+        "noProfilesShort": "Kliknutím nastavíte",
+        "policy": {
+          "always": "Vždy zkontrolovat",
+          "auto": "Auto",
+          "label": "Zásada kontroly",
+          "never": "Přímé vložení"
+        },
+        "policyDesc": {
+          "always": "U aplikací v tomto profilu vždy zobrazit okno kontroly.",
+          "auto": "Spustí kontrolu, pokud se text výrazně změní (podle prahu).",
+          "never": "U aplikací v tomto profilu nikdy nezobrazovat okno kontroly."
+        },
+        "policyHeader": "Zásada spouštění kontroly",
+        "profilesDescription": "Vytvořte profily pro použití specifické logiky zpracování nebo promptů na různé skupiny aplikací.",
+        "profilesTitle": "Profily aplikací",
+        "promptDescription": "Vyberte vlastní prompt pro přepisy v tomto profilu.",
+        "promptHeader": "Přepsat prompt LLM",
+        "selectionClipboardFallback": {
+          "description": "Pokud je vypnuto, vybraný text pro tuto aplikaci používá pouze API pro usnadnění přístupu a přeskakuje záložní vložení přes simulované kopírování do schránky.",
+          "label": "Záložní schránka"
+        },
+        "translateToEnglishOnInsert": {
+          "description": "Pro tuto aplikaci spustit jeden překlad LLM do angličtiny těsně před vložením. Pokud překlad selže, použije se původní text.",
+          "label": "Přeložit před vložením"
+        },
+        "selectPrompt": "Vyberte profil v postranním panelu k úpravě",
+        "skipPostProcess": "Přeskočit následné zpracování",
+        "shortcuts": {
+          "description": "Klávesovými zkratkami můžete spouštět konkrétní profily nebo spravovat pravidla.",
+          "dialog": "Potvrzení nebo zavření dialogů",
+          "dialogKeys": "Enter / Esc",
+          "nav": "Přepínání mezi kartami nastavení",
+          "navKeys": "⌘ + 1-8",
+          "title": "Zkratky a použití"
+        },
+        "matchType": {
+          "exact": "Přesná"
+        },
+        "testMatch": "Otestovat shodu",
+        "title": "Pravidla aplikací",
+        "titlePattern": "Titulek (regex)",
+        "allApps": "Všechny aplikace",
+        "appNotInstalled": "Tato aplikace již není nainstalována",
+        "recentApps": "Nedávné",
+        "refresh": "Znovu prohledat nainstalované aplikace",
+        "searchApps": "Hledat aplikace..."
+      },
+      "confidenceCheck": {
+        "description": "Upravte citlivost pro prompty s povolenou kontrolou. Vyšší hodnoty znamenají, že se okno kontroly zobrazuje méně často.",
+        "threshold": "Práh citlivosti",
+        "thresholdHint": "Skóre nad touto hodnotou spustí okno kontroly.",
+        "title": "Citlivost automatické kontroly"
+      },
+      "textModelMode": {
+        "title": "Režim následného zpracování",
+        "single": "Jeden model",
+        "singleHint": "Jeden model pro veškerý text",
+        "length": "Chytré",
+        "lengthHint": "Automaticky vybrat model podle délky textu",
+        "multi": "Více modelů",
+        "multiHint": "Paralelní srovnání",
+        "defaultModelDescription": "Výchozí model",
+        "noModelSelected": "Není vybrán žádný model",
+        "multiDescription": "Vyberte modely v seznamu níže pro paralelní srovnání",
+        "multiStrategy": "Strategie více modelů",
+        "multiStrategyManual": "Ruční",
+        "multiStrategyManualHint": "Zobrazit všechny kandidáty pro ruční výběr",
+        "multiStrategyRace": "Ultra rychlé",
+        "multiStrategyRaceShort": "Ultra rychlé",
+        "multiStrategyRaceHint": "Použít první dostupný výsledek",
+        "multiStrategyLazy": "Líné",
+        "multiStrategyLazyShort": "Líné",
+        "multiStrategyLazyHint": "Čekat 3 s na preferovaný model, při vypršení vybrat automaticky",
+        "preferredModel": "Preferovaný model",
+        "setAsPreferred": "Nastavit jako preferovaný model",
+        "selectModelsTitle": "Vybrat modely",
+        "selectModelsDescription": "Vyberte modely pro paralelní zpracování. Kliknutím na hvězdičku nastavíte preferovaný model.",
+        "selectedCount": "Vybráno: {{count}}",
+        "noneSelected": "Nejsou vybrány žádné modely",
+        "models": "Modely",
+        "modelSelection": "Model"
+      },
+      "lengthRouting": {
+        "enableLabel": "Automaticky vybrat model podle délky textu",
+        "enableDescription": "Pro krátký text použít rychlý model, pro dlouhý text pokročilý model",
+        "thresholdLabel": "Práh znaků",
+        "thresholdDescription": "Podle znaků Unicode (1 čínský znak = 1, 1 anglické písmeno = 1)",
+        "thresholdValue": "{{count}} znaků",
+        "shortModelLabel": "Krátký text",
+        "longModelLabel": "Dlouhý text",
+        "characters": " znaků",
+        "useDefault": "Použít výchozí"
+      },
+      "smartRouting": {
+        "title": "Chytré směrování",
+        "hint": "Automaticky znovu použít předchozí výsledky pro shodný text a použít odlehčený model k určení, zda krátký text potřebuje vylepšení — snižuje náklady na tokeny a latenci.",
+        "shortText": "Krátký text",
+        "longText": "Dlouhý text",
+        "fastModel": "Rychlý model",
+        "fastModelHint": "Odlehčený nebo rychlý model pro krátký text. Šetří tokeny a snižuje latenci u jednoduchého obsahu.",
+        "modelSelection": "Model",
+        "description": "Automaticky rozpoznat záměr, znovu použít historii, snížit náklady na tokeny"
+      },
+      "modelChain": {
+        "primary": "Primární",
+        "fallback": "Záložní",
+        "leftClickHint": "Kliknutím levým tlačítkem vyberete primární model",
+        "rightClickHint": "Kliknutím pravým tlačítkem vyberete záložní model",
+        "strategy": "Strategie",
+        "serial": "Sériová",
+        "staggered": "Postupná",
+        "race": "Závod",
+        "serialHint": "Vyzkoušet záložní po selhání primárního",
+        "staggeredHint": "Spustit záložní, když je primární pomalý",
+        "raceHint": "Zavolat oba, použít nejrychlejší",
+        "noModel": "Není vybrán žádný model",
+        "selectModel": "Vybrat model"
+      },
+      "disabledNotice": "Následné zpracování je momentálně vypnuto. Pro konfiguraci jej zapněte.",
+      "fusion": {
+        "enabled": {
+          "description": "Poskytnout následnému zpracování hlavní přepis a sekundární průběžný přepis pro srovnání a rozlišení.",
+          "label": "Použít průběžný přepis (fúze)"
+        },
+        "secondaryModel": {
+          "auto": "Auto",
+          "autoDescription": "Použít aktuální lokální model",
+          "description": "Používá se pouze při zapnutém Online ASR. Tento lokální model poskytuje titulky v reálném čase a sekundární přepis.",
+          "placeholder": "Vyberte model...",
+          "title": "Model přepisu v reálném čase (Online ASR)"
+        }
+      },
+      "models": {
+        "addModel": "Přidat model",
+        "deleteConfirm": {
+          "description": "Opravdu chcete tento model smazat? Tuto akci nelze vrátit zpět.",
+          "title": "Smazat model?"
+        },
+        "description": "Přidávejte a spravujte modely používané pro následné zpracování.",
+        "empty": {
+          "description": "Přidejte model a začněte.",
+          "title": "Nejsou nastaveny žádné modely",
+          "noMatch": "Vašemu hledání neodpovídají žádné modely."
+        },
+        "promptMessageRole": {
+          "label": "Vývojářský režim"
+        },
+        "modelTypes": {
+          "asr": {
+            "hint": "Rozpoznávání řeči",
+            "label": "ASR"
+          },
+          "other": {
+            "hint": "Vlastní použití",
+            "label": "Jiné"
+          },
+          "text": {
+            "hint": "Vylepšování a formátování textu",
+            "label": "Text"
+          }
+        },
+        "selectModel": {
+          "addButton": "Přidat model",
+          "customLabelPlaceholder": "Zadejte označení...",
+          "customLabelTitle": "Vlastní označení",
+          "customModelPlaceholder": "Zadejte ID modelu...",
+          "description": "Vyberte model k přidání nebo jej zadejte ručně.",
+          "placeholder": "Vyberte model...",
+          "placeholderEmpty": "Nejsou dostupné žádné modely",
+          "segmented": {
+            "customModel": "Vlastní",
+            "selectModel": "Vybrat",
+            "freeModels": "Zdarma"
+          },
+          "noFreeModels": "Pro tohoto poskytovatele nejsou dostupné žádné modely zdarma.",
+          "alreadyAdded": "Přidáno",
+          "title": "Vybrat model",
+          "usageTypeTitle": "Typ použití",
+          "advancedOptions": "Pokročilé možnosti",
+          "customLabel": "Vlastní označení",
+          "extraParams": "Další parametry",
+          "manualLabel": "Ruční označení",
+          "selectLabel": "Vybrat označení",
+          "sourceBuiltin": "Vestavěné modely zdarma",
+          "sourceOfficial": "Oficiální seznam modelů",
+          "sourceBuiltinHint": "Vybrané modely zdarma, není potřeba volání API",
+          "sourceOfficialHint": "Úplný seznam z API poskytovatele"
+        },
+        "searchPlaceholder": "Hledat modely...",
+        "filter": {
+          "all": "Vše"
+        },
+        "sort": {
+          "provider": "Poskytovatel",
+          "name": "Název",
+          "calls": "Volání",
+          "speed": "Rychlost",
+          "group": "Seskupit podle poskytovatele"
+        },
+        "stats": {
+          "asr": "ASR: {{count}}",
+          "other": "Jiné: {{count}}",
+          "text": "Text: {{count}}"
+        },
+        "tabs": {
+          "local": "Lokální modely",
+          "remote": "Online modely"
+        },
+        "title": "Modely",
+        "setAsDefault": "Nastavit jako výchozí",
+        "invalidJson": "Neplatný formát JSON",
+        "addedCount": "Přidán {{count}} model(ů)",
+        "customAdd": {
+          "title": "Přidat vlastní model",
+          "modelId": "ID modelu",
+          "duplicateWarning": "Model s tímto ID již u tohoto poskytovatele existuje. Přidáním se vytvoří kopie."
+        }
+      },
+      "providerModels": {
+        "totalCalls": "volání",
+        "avgSpeed": "tokens/sec"
+      },
+      "skills": {
+        "advancedSkills": "Pokročilé dovednosti",
+        "createHint": "Vytvořte soubory .md ve složce ~/.votype/skills/ pro přidání vlastních dovedností",
+        "enabledInFile": "Dovednost je vždy zapnutá (nastavte v souboru)",
+        "helpText": "Vytvořte soubory .md s YAML frontmatter ve složce dovedností. Budou automaticky načteny a dostupné k použití.",
+        "noExternalSkills": "Nebyly nalezeny žádné externí dovednosti",
+        "openFolder": "Otevřít složku",
+        "quickCommands": "Rychlé příkazy",
+        "refresh": "Obnovit",
+        "sourceBuiltin": "Vestavěné",
+        "sourceFile": "Soubor",
+        "sourceUser": "Uživatel"
+      },
+      "modelCard": {
+        "errorRate": "{{count}} neúspěšných volání — míra chyb {{rate}} %",
+        "lastError": "Poslední chyba{{when}}: {{error}}"
       }
     },
     "history": {
@@ -367,13 +1014,27 @@
       "save": "Uložit přepis",
       "unsave": "Odebrat z uložených",
       "delete": "Smazat záznam",
-      "deleteError": "Nepodařilo se smazat záznam. Zkuste to prosím znovu."
+      "deleteError": "Nepodařilo se smazat záznam. Zkuste to prosím znovu.",
+      "content": {
+        "chained": "Řetězené zpracování",
+        "improved": "Vylepšeno",
+        "original": "Výsledek rozpoznávání řeči",
+        "streaming": "Výsledek rozpoznávání v reálném čase"
+      },
+      "searchPlaceholder": "Hledat v historii...",
+      "timeline": {
+        "earlier": "Dříve",
+        "thisWeek": "Tento týden",
+        "today": "Dnes",
+        "yesterday": "Včera"
+      }
     },
     "debug": {
       "title": "Ladění",
       "logDirectory": {
         "title": "Složka protokolů",
-        "description": "Umístění, kde jsou uloženy soubory protokolu"
+        "description": "Umístění, kde jsou uloženy soubory protokolu",
+        "error": "Chyba při načítání složky protokolů: {{error}}"
       },
       "logLevel": {
         "title": "Úroveň logování",
@@ -381,7 +1042,7 @@
       },
       "updateChecks": {
         "label": "Kontrolovat aktualizace",
-        "description": "Automaticky kontrolovat nové verze Handy"
+        "description": "Automaticky kontrolovat nové verze Votype"
       },
       "soundTheme": {
         "label": "Zvukový motiv",
@@ -426,30 +1087,54 @@
         "label": "Přidat koncovou mezeru",
         "description": "Přidat mezeru po vloženém přepisu"
       },
-      "keyboardImplementation": {
-        "title": "Keyboard Implementation",
-        "description": "Choose the keyboard shortcut backend.",
-        "bindingsReset": "Keyboard shortcuts were incompatible and reset to defaults"
-      },
       "paths": {
         "appData": "Data aplikace:",
         "models": "Modely:",
-        "settings": "Nastavení:"
+        "settings": "Nastavení:",
+        "description": "Běžné cesty v souborovém systému, které Votype používá",
+        "title": "Cesty"
       },
-      "pasteDelay": {
-        "title": "Zpoždění vložení",
-        "description": "Zpoždění před odesláním klávesy pro vložení (v milisekundách). Zvyšte, pokud se vkládá špatný text."
+      "destroySettingsWindowOnClose": {
+        "description": "Při zavření okna nastavení jej zničit (uvolnit prostředky). Znovu otevřete z nabídky v liště.",
+        "label": "Zničit okno nastavení při zavření"
+      },
+      "groups": {
+        "audio": "Zvuk a zpracování",
+        "data": "Správa dat",
+        "system": "Systém a logování",
+        "text": "Zpracování textu"
+      },
+      "logChannels": {
+        "title": "Kanály protokolů",
+        "postProcess": "Požadavky na následné zpracování",
+        "postProcessDesc": "Logovat všechny prompty a odpovědi LLM pro vylepšování textu (jeden i více modelů)",
+        "skillRouting": "Směrování dovedností/záměru",
+        "skillRoutingDesc": "Logovat prompty a odpovědi směrování dovedností",
+        "routing": "Rozhodnutí o směrování",
+        "routingDesc": "Logovat SmartRouting, ModeRouting a rozhodnutí pipeline",
+        "transcription": "Výstup přepisu",
+        "transcriptionDesc": "Logovat výsledky ASR a průběžné části v reálném čase"
+      },
+      "offlineVadRealtime": {
+        "intervalDescription": "Vynutit obnovení v reálném čase každých N ms (0 pro vypnutí).",
+        "intervalLabel": "Interval offline reálného času (ms)",
+        "windowDescription": "Když celkové audio přesáhne 30 s, dekódování v reálném čase použije posledních N sekund, pokud nejsou žádné segmenty VAD.",
+        "windowLabel": "Okno offline reálného času (s)"
+      },
+      "reliablePaste": {
+        "title": "Spolehlivé vložení (beta)",
+        "description": "Obnovit schránku až poté, co cílová aplikace skutečně přečte přepis, místo po pevné prodlevě. Má opravit vkládání starého obsahu schránky při zatížení systému. Vyžaduje metodu vložení přes schránku; pouze macOS a Windows."
       }
     },
     "about": {
       "title": "O aplikaci",
       "version": {
         "title": "Verze",
-        "description": "Aktuální verze Handy"
+        "description": "Aktuální verze Votype"
       },
       "appDataDirectory": {
         "title": "Adresář dat aplikace",
-        "description": "Umístění, kde Handy ukládá data"
+        "description": "Umístění, kde Votype ukládá data"
       },
       "sourceCode": {
         "title": "Zdrojový kód",
@@ -458,7 +1143,7 @@
       },
       "supportDevelopment": {
         "title": "Podpořte vývoj",
-        "description": "Pomozte nám pokračovat ve vývoji Handy",
+        "description": "Pomozte nám pokračovat ve vývoji Votype",
         "button": "Přispět"
       },
       "acknowledgments": {
@@ -466,8 +1151,149 @@
         "whisper": {
           "title": "Whisper.cpp",
           "description": "Vysoce výkonné inferenční zpracování modelu automatického rozpoznávání řeči Whisper od OpenAI",
-          "details": "Handy používá Whisper.cpp pro rychlé lokální zpracování řeči na text. Díky skvělé práci Georgiho Gerganova a přispěvatelů."
+          "details": "Votype používá Whisper.cpp pro rychlé lokální zpracování řeči na text. Díky skvělé práci Georgiho Gerganova a přispěvatelů."
         }
+      },
+      "recordingsDirectory": {
+        "description": "Umístění, kam se ukládají zvukové nahrávky",
+        "title": "Složka nahrávek"
+      },
+      "upstream": {
+        "button": "Zobrazit upstream",
+        "description": "Votype vychází z Handy v0.9.7",
+        "title": "Původní projekt"
+      }
+    },
+    "asrModels": {
+      "addFromUrl": "Přidat a stáhnout",
+      "addSection": {
+        "description": "Vložte URL modelu. Aplikace odvodí typ modelu z názvu souboru.",
+        "title": "Instalace"
+      },
+      "delete": "Smazat",
+      "description": "Spravujte lokální modely přepisu a určete, které se zobrazí v rychlém výběru.",
+      "download": "Stáhnout",
+      "favorite": "Oblíbené",
+      "filters": {
+        "all": "Vše",
+        "downloaded": "Staženo",
+        "favorites": "Oblíbené",
+        "language": "Jazyk",
+        "mode": "Režim",
+        "recommended": "Doporučeno",
+        "status": "Stav",
+        "type": "Typ"
+      },
+      "groupBy": {
+        "language": "Jazyk",
+        "mode": "Režim",
+        "type": "Typ"
+      },
+      "groups": {
+        "asr": "ASR modely",
+        "multilingual": "Vícejazyčné",
+        "punctuation": "Modely interpunkce"
+      },
+      "idLabel": "id: {{id}}",
+      "install": {
+        "addCustomTagButton": "Přidat",
+        "button": "Přidat vlastní model",
+        "customTagPlaceholder": "Vlastní štítek...",
+        "description": "Zadejte URL archivu modelu (tar.gz, tar.bz2 atd.).",
+        "editDescription": "Aktualizujte název nebo štítky tohoto modelu.",
+        "editTitle": "Upravit vlastní model",
+        "nameLabel": "Název (volitelné)",
+        "placeholder": "https://example.com/model.tar.gz",
+        "remove": "Odebrat vlastní model",
+        "removeConfirm": "Odebrat tento vlastní model? Smažou se také všechny stažené soubory.",
+        "tagsLabel": "Štítky",
+        "title": "Přidat vlastní model",
+        "tooltip": "Přidat model z URL",
+        "urlLabel": "URL",
+        "edit": "Upravit vlastní model"
+      },
+      "languages": {
+        "de": "Němčina",
+        "en": "Angličtina",
+        "es": "Španělština",
+        "fr": "Francouzština",
+        "ja": "Japonština",
+        "ko": "Korejština",
+        "multilingual": "Vícejazyčný",
+        "other": "Jiné",
+        "ru": "Ruština",
+        "yue": "Kantonština",
+        "zh": "Čínština"
+      },
+      "library": {
+        "count": "{{count}} modelů",
+        "description": "Vyberte oblíbené modely, které se zobrazí v rychlém výběru.",
+        "searchPlaceholder": "Hledat modely…",
+        "title": "Knihovna"
+      },
+      "modeChips": {
+        "asr": "ASR",
+        "punctuation": "Interpunkce"
+      },
+      "specialChips": {
+        "streaming": "streaming",
+        "new": "nové"
+      },
+      "pipeline": {
+        "description": "Globální následné zpracování, které lze použít automaticky po přepisu.",
+        "itn": "ITN (SenseVoice)",
+        "itnHint": "Inverzní normalizace textu: základní formátování (např. čísla).",
+        "punctuation": "Automatická interpunkce",
+        "punctuationHint": "Použije vybraný model interpunkce k přidání dělení vět.",
+        "punctuationModel": "Model interpunkce",
+        "punctuationModelHint": "Vyberte, který model interpunkce použít.",
+        "title": "Pipeline"
+      },
+      "quickSettings": {
+        "description": "Tato nastavení platí globálně. Modely interpunkce smažete v knihovně níže.",
+        "title": "Rychlé nastavení"
+      },
+      "reset": "Obnovit",
+      "status": {
+        "downloaded": "Staženo",
+        "notDownloaded": "Nestaženo"
+      },
+      "title": "Lokální modely",
+      "typeChips": {
+        "moonshine": "Moonshine",
+        "other": "Jiné",
+        "paraformer": "Paraformer",
+        "parakeet": "Parakeet",
+        "sensevoice": "SenseVoice",
+        "whisper": "Whisper",
+        "zipformer": "Zipformer"
+      },
+      "types": {
+        "moonshine": "Moonshine",
+        "paraformer": "Paraformer",
+        "parakeet": "Parakeet",
+        "punctuation": "Interpunkce",
+        "sensevoice": "SenseVoice",
+        "whisper": "Whisper",
+        "zipformer": "Zipformer"
+      },
+      "autoDownloadingPunctuation": "Automaticky stahuji model interpunkce..."
+    },
+    "shortcuts": {
+      "title": "Zkratky"
+    },
+    "vocabulary": {
+      "hotWords": {
+        "description": "Přidejte slova, která jsou často špatně slyšet. Systém je automaticky opraví.",
+        "empty": "Zatím žádné hotwordy",
+        "placeholder": "Přidat slovo...",
+        "title": "Hotwordy",
+        "word": "Slovo"
+      },
+      "import": "Importovat",
+      "deleteConfirm": {
+        "title": "Potvrdit smazání",
+        "hotwordMessage": "Opravdu chcete tento hotword odebrat?"
       }
     }
   },
@@ -483,7 +1309,16 @@
     "downloading": "Stahování... {{progress}}%",
     "installing": "Instalace...",
     "preparing": "Příprava...",
-    "checkForUpdates": "Zkontrolovat aktualizace"
+    "checkForUpdates": "Zkontrolovat aktualizace",
+    "postProcess": {
+      "title": "Následné zpracování",
+      "punctuation": "Automatická interpunkce",
+      "translate": "Přeložit do angličtiny",
+      "realtime": "Náhled v reálném čase",
+      "llm": "LLM následné zpracování",
+      "selectModel": "Vyberte model...",
+      "openSettings": "Nastavení"
+    }
   },
   "common": {
     "loading": "Načítání...",
@@ -505,23 +1340,607 @@
     "off": "Vypnuto",
     "yes": "Ano",
     "no": "Ne",
-    "noOptionsFound": "Nenalezeny žádné možnosti"
+    "noOptionsFound": "Nenalezeny žádné možnosti",
+    "locale": "cs",
+    "active": "Aktivní",
+    "addNewOption": "Přidat novou možnost",
+    "aiOptimizationFailed": "AI vylepšení se nezdařilo, zkontrolujte nastavení",
+    "aiOptimizationSuccess": "AI vylepšení proběhlo úspěšně",
+    "aiOptimize": "AI vylepšení",
+    "authorize": "Autorizovat",
+    "bold": "Tučné",
+    "code": "Vložený kód",
+    "confirm": "Potvrdit",
+    "copied": "Zkopírováno",
+    "copy": "Kopírovat",
+    "done": "Hotovo",
+    "exitFullscreen": "Obnovit",
+    "filterOptions": "Filtrovat možnosti...",
+    "fullscreen": "Celá obrazovka",
+    "granted": "Uděleno",
+    "h1": "H1",
+    "id": "ID",
+    "italic": "Kurzíva",
+    "link": "Odkaz",
+    "list": "Seznam",
+    "models": "Modely",
+    "next": "Další",
+    "noMatchingOptions": "Žádné odpovídající možnosti",
+    "notAvailable": "Není k dispozici",
+    "optional": "Volitelné",
+    "quote": "Citace",
+    "requesting": "Žádám...",
+    "required": "Povinné",
+    "searchOrPaste": "Hledat nebo vložit...",
+    "selectAll": "Vybrat vše",
+    "selectOption": "Vyberte možnost",
+    "skip": "Přeskočit",
+    "useInput": "Použít \"{{input}}\"",
+    "useThisProvider": "Použít tohoto poskytovatele",
+    "variables": "Dostupné proměnné",
+    "refresh": "Obnovit",
+    "time": {
+      "justNow": "Právě teď",
+      "minutesAgo": "Před {{count}} min",
+      "hoursAgo": "Před {{count}} h",
+      "daysAgo": "Před {{count}} dny"
+    },
+    "history": "Historie",
+    "latest": "Nejnovější",
+    "localInsertCopied": "Žádné vstupní pole není aktivní — výsledek zkopírován do schránky",
+    "insertBlocked": "{{app}} je na seznamu blokovaných pro vkládání — obsah zkopírován do schránky, vložte jej ručně",
+    "expand": "Rozbalit postranní panel",
+    "collapse": "Sbalit postranní panel",
+    "retry": "Zkusit znovu",
+    "unknown": "Neznámé",
+    "error": "Chyba"
   },
   "accessibility": {
     "permissionsRequired": "Vyžadována oprávnění usnadnění přístupu",
-    "permissionsDescription": "Handy potřebuje oprávnění usnadnění přístupu, aby mohlo psát přepsaný text.",
+    "permissionsDescription": "Votype potřebuje oprávnění usnadnění přístupu, aby mohlo psát přepsaný text.",
     "openSettings": "Otevřít Nastavení systému",
-    "dismiss": "Zavřít"
+    "dismiss": "Zavřít",
+    "verify": "Ověřit"
   },
   "errors": {
-    "loadDirectory": "Chyba při načítání adresáře: {{error}}"
+    "loadDirectory": "Chyba při načítání adresáře: {{error}}",
+    "noInputDeviceTitle": "Mikrofon není k dispozici",
+    "noInputDevice": "Nebylo nalezeno žádné vstupní zvukové zařízení. Zkontrolujte Nastavení systému > Zvuk > Vstup a zkuste to znovu.",
+    "recordingFailed": "Nahrávání se nezdařilo: {{error}}"
   },
   "appLanguage": {
     "title": "Jazyk aplikace",
-    "description": "Změňte jazyk rozhraní Handy"
+    "description": "Změňte jazyk rozhraní Votype"
   },
   "overlay": {
+    "error": {
+      "appleIntelligenceFailed": "Apple Intelligence selhalo. Zkontrolujte systém.",
+      "appleIntelligenceUnavailable": "Apple Intelligence není k dispozici.",
+      "llmInitFailed": "Inicializace LLM se nezdařila. Zkontrolujte klíče/URL.",
+      "llmRequestFailed": "Požadavek LLM se nezdařil. Zkontrolujte síť/API.",
+      "llmNetworkError": "Chyba sítě, zkouším znovu...",
+      "llmRateLimited": "Překročen limit, počkejte prosím",
+      "llmAuthFailed": "Neplatný API klíč, zkontrolujte nastavení",
+      "llmBadRequest": "Model odmítl parametry požadavku (např. min_p/top_k), zkontrolujte parametry modelu",
+      "llmModelNotFound": "Model nenalezen nebo není zapnutý, zkontrolujte ID modelu",
+      "llmApiError": "Chyba služby API",
+      "llmParseError": "Nepodařilo se zpracovat odpověď modelu",
+      "transcriptionFailedSaved": "Přepis se nezdařil (uloženo)"
+    },
+    "skillConfirmation": {
+      "confirmUse": "na vybraný text?",
+      "detectedSelection": "Použít ",
+      "prompt": "Použít tuto dovednost?",
+      "charCount": "{{count}} znaků"
+    },
+    "status": {
+      "inserting": "Vkládám...",
+      "llm": "Následné zpracování...",
+      "recording": "Nahrávám...",
+      "translation": "Překládám...",
+      "transcribing": "Přepisuji...",
+      "review": "Kontrola...",
+      "rewrite": "Zpracovávám…",
+      "success": "Vloženo",
+      "translationSuccess": "Překlad úspěšný"
+    },
+    "rewriteOperation": {
+      "rewrite": "Přepsáno",
+      "expand": "Rozšířeno",
+      "format": "Naformátováno",
+      "translate": "Přeloženo",
+      "polish": "Vylepšeno",
+      "append": "Připojeno",
+      "unknown": "Hotovo"
+    },
+    "timeout": {
+      "title": "Online přepis vypršel",
+      "continue": "Pokračovat",
+      "retry": "Zkusit znovu",
+      "cancel": "Zrušit"
+    },
+    "ruleSuggestion": {
+      "message": "Použili jste '{{promptName}}' {{count}}krát v {{appName}} ({{title}}). Přidat pravidlo pro toto okno?",
+      "accept": "Přidat pravidlo",
+      "dismiss": "Teď ne",
+      "never": "Nikdy se neptat"
+    }
+  },
+  "dashboard": {
+    "actions": {
+      "edit": "Upravit",
+      "editDescription": "Upravit přepsaný text tohoto záznamu historie",
+      "editPlaceholder": "Zadejte upravený text...",
+      "editTitle": "Upravit výsledek rozpoznávání",
+      "openRecordings": "Nahrávky",
+      "quickInsert": "Vložit do {{app}}",
+      "quickInsertEmpty": "Nebyla zjištěna žádná nedávná externí aplikace",
+      "quickInsertErrorFocus": "Nepodařilo se aktivovat cílové okno",
+      "quickInsertErrorNoTarget": "Žádná cílová aplikace pro vložení",
+      "quickInsertErrorPaste": "Vložení se nezdařilo",
+      "reprocessFailed": "Opětovné AI zpracování se nezdařilo",
+      "retranscribe": "Přepsat znovu z audia",
+      "rejectPolish": "Odmítnout výsledek vylepšení",
+      "retranscribeFailed": "Opětovný přepis se nezdařil",
+      "retranscribing": "Přepisuji znovu..."
+    },
+    "activity": {
+      "entries": "{{count}} záznamů",
+      "subtitle": "Posledních 40 dní",
+      "title": "Využití"
+    },
+    "cards": {
+      "allTime": "Celkem",
+      "recent": "Posledních {{days}} dní",
+      "today": "Dnes"
+    },
+    "dateLabels": {
+      "today": "Dnes",
+      "yesterday": "Včera"
+    },
+    "errorIndicator": {
+      "errorTypeLabel": {
+        "asr_empty": "ASR prázdný výsledek",
+        "llm_api_error": "Poskytovatel vrátil chybu",
+        "llm_auth_failed": "Ověření se nezdařilo",
+        "llm_bad_request": "Neplatný požadavek",
+        "llm_config_error": "Chyba konfigurace modelu/poskytovatele",
+        "llm_empty_result": "Prázdná odpověď",
+        "llm_init_failed": "Inicializace klienta se nezdařila",
+        "llm_model_not_found": "Model nenalezen (404)",
+        "llm_network_error": "Chyba sítě",
+        "llm_parse_error": "Zpracování odpovědi se nezdařilo",
+        "llm_rate_limited": "Překročen limit (429)",
+        "llm_timeout": "Vypršel časový limit (10 s)",
+        "llm_unknown": "Neznámá chyba LLM",
+        "pipeline_timeout": "Vypršel časový limit pipeline (20 s)"
+      },
+      "errorsOnlyToggle": "Pouze selhání",
+      "panelDetail": "Detail",
+      "panelErrorType": "Typ chyby",
+      "panelModel": "Model",
+      "panelProvider": "Poskytovatel",
+      "panelTimestamp": "Časové razítko",
+      "stageAsr": "ASR",
+      "stagePolish": "Vylepšení",
+      "tooltipAsrEmpty": "ASR vrátil prázdný výsledek",
+      "tooltipPolishFailed": "Vylepšení se nezdařilo",
+      "tooltipPolishProviderError": "Vylepšení se nezdařilo ({{status}})",
+      "tooltipPolishTimeout": "Vypršel časový limit vylepšení"
+    },
+    "details": {
+      "audioRemoved": "Nahrávka odebrána",
+      "cancelled": "Zrušeno",
+      "count": "{{count}} záznamů",
+      "empty": "Žádná data",
+      "emptyHint": "Spusťte první přepis pomocí klávesové zkratky",
+      "loadMore": "Načíst další",
+      "meta": {
+        "chars": "{{value}} znaků"
+      },
+      "recordCount": "{{count}} záznamů",
+      "title": "Historie"
+    },
+    "metrics": {
+      "characters": "Znaky",
+      "duration": "Čas audia",
+      "entries": "Přepisy",
+      "postProcessed": "Po zpracování",
+      "saved": "Uloženo"
+    },
+    "range": {
+      "allTime": "Celkem",
+      "buttons": {
+        "allTime": "Celkem",
+        "last30Days": "Posledních 30 dní",
+        "last40Days": "Posledních 40 dní",
+        "last7Days": "Posledních 7 dní"
+      },
+      "lastNDays": "Posledních {{days}} dní",
+      "today": "Dnes"
+    },
+    "summary": {
+      "apps": {
+        "empty": "Žádná data o aplikacích",
+        "title": "Top 3 nejpoužívanější aplikace",
+        "top3": "Top 3"
+      },
+      "llm": {
+        "calls": "{{count}} volání modelu",
+        "title": "Využití LLM",
+        "unknownApp": "Neznámé"
+      },
+      "recording": {
+        "count": "{{count}} přepisů",
+        "title": "Celkový hlasový vstup"
+      },
+      "transcription": {
+        "speed": "Průměrně {{rate}}/min",
+        "title": "Vygenerovaný text"
+      }
+    },
+    "title": "Přehled"
+  },
+  "models": {
+    "large": {
+      "description": "Dobrá přesnost, ale pomalý.",
+      "name": "Whisper Large"
+    },
+    "medium": {
+      "description": "Dobrá přesnost, střední rychlost",
+      "name": "Whisper Medium"
+    },
+    "parakeet-tdt-0.6b-v2": {
+      "description": "Pouze angličtina. Nejlepší model pro anglicky mluvící.",
+      "name": "Parakeet V2"
+    },
+    "parakeet-tdt-0.6b-v3": {
+      "description": "Rychlý a přesný",
+      "name": "Parakeet V3"
+    },
+    "punct-zh-en-ct-transformer-2024-04-12": {
+      "description": "Přidává interpunkci a dělení vět pro smíšený text zh+en. Větší model; přesnější, ale pomalejší. Aktualizováno 2024-04-12.",
+      "name": "Interpunkce (čínština + angličtina) – velká"
+    },
+    "punct-zh-en-ct-transformer-2024-04-12-int8": {
+      "description": "Přidává interpunkci a dělení vět pro smíšený text zh+en. Int8; rychlý a malý. Aktualizováno 2024-04-12.",
+      "name": "Interpunkce (čínština + angličtina)"
+    },
+    "small": {
+      "description": "Rychlý a poměrně přesný.",
+      "name": "Whisper Small"
+    },
+    "turbo": {
+      "description": "Vyvážená přesnost a rychlost.",
+      "name": "Whisper Turbo"
+    }
+  },
+  "inline": {
+    "listening": "Poslouchám...",
     "transcribing": "Přepisuji...",
-    "processing": "Zpracovávám..."
+    "polishing": "Vylepšuji...",
+    "executing": "Provádím...",
+    "complete": "Hotovo",
+    "modeToggle": "Režim úprav",
+    "closeConfirmTitle": "Neuložené změny",
+    "closeConfirmMessage": "Obsah byl upraven. Potvrdit zavření?",
+    "closeConfirmOk": "Zavřít",
+    "closeConfirmCancel": "Zrušit",
+    "sectionTitle": "Výsledek přepisu",
+    "undo": "Zpět",
+    "redo": "Vpřed",
+    "placeholder": "Stisknutím zkratky spustíte diktování..."
+  },
+  "soundPicker": {
+    "custom": "Vlastní",
+    "marimba": "Marimba",
+    "pop": "Pop",
+    "chime": "Zvonek",
+    "switch": "Přepínač",
+    "pluck": "Trhnutí",
+    "toggle": "Přepnutí",
+    "twotone": "Dvoutón",
+    "pep": "Pep",
+    "power": "Power",
+    "zap": "Zap",
+    "blip": "Blip",
+    "mouse": "Kliknutí myší",
+    "wood": "Klepnutí na dřevo",
+    "preview": "Náhled"
+  },
+  "summary": {
+    "periodSelector": {
+      "title": "Časové rozmezí",
+      "day": "Dnes",
+      "week": "Týden",
+      "month": "Měsíc"
+    },
+    "stats": {
+      "entries": "Záznamy",
+      "chars": "Znaky",
+      "duration": "Trvání",
+      "aiCalls": "Volání AI",
+      "noApps": "Žádná data o aplikacích",
+      "appDistribution": "Rozložení aplikací",
+      "timeDistribution": "Rozložení v čase"
+    },
+    "recap": {
+      "title": "Denní rekapitulace",
+      "empty": "V tomto rozmezí není dostatek aktivity pro vytvoření rekapitulace.",
+      "progress": "Klíčový pokrok",
+      "friction": "Tření",
+      "nextFocus": "Další zaměření",
+      "blockers": "Překážky",
+      "nextStep": "Navrhovaný další krok",
+      "records": "záznamů"
+    },
+    "timeline": {
+      "title": "Historie",
+      "days": "Dny",
+      "weeks": "Týdny",
+      "months": "Měsíce",
+      "empty": "Zatím žádné souhrny"
+    },
+    "actions": {
+      "export": "Exportovat"
+    },
+    "export": {
+      "markdown": "Exportovat jako Markdown",
+      "json": "Exportovat jako JSON"
+    },
+    "aiAnalysis": {
+      "title": "AI analýza",
+      "generate": "Vygenerovat",
+      "generating": "Generuji...",
+      "view": "Zobrazit",
+      "selectModel": "Vybrat model",
+      "provider": "Poskytovatel",
+      "modelUsed": "Použitý model",
+      "clickToGenerate": "Kliknutím vygenerujete AI analýzu vašich aktivit",
+      "communicationStyle": "Styl komunikace",
+      "reflection": "Reflexe a návrhy",
+      "empty": "Kliknutím na 'Vygenerovat' získáte AI poznatky o svých aktivitách.",
+      "updateProfile": "Aktualizovat profil"
+    },
+    "userProfile": {
+      "currentStyle": "Profil aktuálního stylu"
+    }
+  },
+  "theme": {
+    "accentColor": {
+      "amber": "Jantarová",
+      "blue": "Modrá",
+      "bronze": "Bronzová",
+      "brown": "Hnědá",
+      "crimson": "Karmínová",
+      "current": "Aktuální: {{color}}",
+      "cyan": "Tyrkysová",
+      "description": "Vyberte barvu zvýraznění používanou v celé aplikaci",
+      "gold": "Zlatá",
+      "grass": "Trávová",
+      "gray": "Šedá",
+      "green": "Zelená",
+      "indigo": "Indigová",
+      "iris": "Irisová",
+      "jade": "Nefritová",
+      "lime": "Limetková",
+      "mint": "Mátová",
+      "orange": "Oranžová",
+      "pink": "Růžová",
+      "plum": "Švestková",
+      "purple": "Fialová",
+      "red": "Červená",
+      "ruby": "Rubínová",
+      "sky": "Nebeská",
+      "teal": "Modrozelená",
+      "title": "Barva zvýraznění",
+      "tomato": "Rajčatová",
+      "violet": "Violetová",
+      "yellow": "Žlutá"
+    },
+    "compactMode": {
+      "description": "Zobrazovat popisy jako tipy",
+      "title": "Kompaktní režim"
+    },
+    "cornerRadius": {
+      "capsule": "Kapsle",
+      "capsuleDesc": "Zcela zakulacené rohy",
+      "default": "Výchozí",
+      "defaultDesc": "Standardní zakulacení rohů",
+      "description": "Upravte zakulacení rohů",
+      "rounded": "Zakulacené",
+      "roundedDesc": "Více zakulacené rohy",
+      "sharp": "Ostré",
+      "sharpDesc": "Bez zakulacení rohů",
+      "soft": "Jemné",
+      "softDesc": "Mírně zakulacené rohy",
+      "title": "Zakulacení rohů"
+    },
+    "panelStyle": {
+      "description": "Vyberte mezi průsvitnými nebo plnými panely",
+      "solid": "Plný",
+      "solidDesc": "Neprůhledné panely",
+      "title": "Styl panelu",
+      "translucent": "Průsvitný",
+      "translucentDesc": "Efekt matného skla"
+    },
+    "scaling": {
+      "current": "Aktuální: {{scale}}",
+      "description": "Upravte měřítko rozhraní",
+      "title": "Měřítko"
+    },
+    "themeMode": {
+      "dark": "Tmavý",
+      "darkDesc": "Vždy používat tmavý motiv",
+      "description": "Zvolte vzhled Votype",
+      "light": "Světlý",
+      "lightDesc": "Vždy používat světlý motiv",
+      "system": "Systém",
+      "systemDesc": "Podle motivu systému",
+      "title": "Režim motivu"
+    },
+    "title": "Motiv"
+  },
+  "transcription": {
+    "review": {
+      "aiResponse": "Odpověď AI",
+      "change": "Změna",
+      "confidence": "Spolehlivost",
+      "confirm": "Potvrdit a vložit",
+      "description": "Přepis může obsahovat chyby. Zkontrolujte jej a případně upravte.",
+      "final": "Konečný výstup",
+      "generationTitle": "Odpověď AI asistenta",
+      "highlightHint": "Zvýrazněná slova označují úpravy od LLM.",
+      "hint": "⌘/Ctrl + Enter pro potvrzení, Escape pro zrušení",
+      "insert": "Vložit",
+      "insertCode": "Vložit kód",
+      "insertOriginal": "Vložit původní (Tab)",
+      "insertStabilityHint": "Zkratka: {{shortcut}}\nPokud je vkládání nestabilní, můžete tuto funkci dočasně vypnout.",
+      "instruction": "Instrukce",
+      "placeholder": "Upravit přepis...",
+      "source": "Živý přepis",
+      "title": "Zkontrolovat přepis",
+      "skipPostProcess": "Přeskočit následné zpracování",
+      "hideDiff": "Skrýt rozdíly",
+      "showDiff": "Zobrazit rozdíly",
+      "translateText": "Přeložit",
+      "translationResult": "Výsledek překladu",
+      "translationPreview": "Náhled v angličtině",
+      "translationPreviewLangLabel": "ANGLIČTINA",
+      "translationModeAuto": "AUTO",
+      "translationModeManual": "RUČNĚ",
+      "translationUpdating": "Překládám...",
+      "translationWaiting": "Aktualizuje se automaticky 1 s po úpravách",
+      "translationFailedFallback": "Překlad se nezdařil, vloží se původní text",
+      "translationReady": "Aktualizováno",
+      "analysisTitle": "Analýza:",
+      "deviationNone": "Dokonalá shoda",
+      "deviationMinor": "Menší změny",
+      "deviationMajor": "Významné změny",
+      "insertTranslation": "Vložit překlad",
+      "insertPolished": "Vložit vylepšené",
+      "insertEnglish": "Vložit angličtinu",
+      "resizeGrip": "Tažením změníte velikost, dvojklikem automaticky přizpůsobíte",
+      "multiModel": "Výsledky více modelů",
+      "processing": "Zpracovávám...",
+      "restoreOrder": "Obnovit původní pořadí",
+      "sortBySpeed": "Seřadit podle rychlosti odpovědi",
+      "speedSorted": "Nejrychlejší první",
+      "sortBySpeedShort": "Podle rychlosti",
+      "rankCount": "#{{rank}} ({{count}}krát)",
+      "sortByChange": "Seřadit podle velikosti změny",
+      "changeSorted": "Změna první",
+      "sortLabel": "Seřadit",
+      "pressEscAgain": "Obsah upraven, zavřete dalším stiskem ESC",
+      "speedHistoryAvg": "Historický průměr: {{speed}} ({{count}} volání)",
+      "speedThisRun": "Toto spuštění: {{speed}} ({{diff}})"
+    }
+  },
+  "secureInput": {
+    "blockedWithCulprit_one": "{{name}} může blokovat 1 zkratku",
+    "blockedWithCulprit_other": "{{name}} může blokovat {{count}} zkratek",
+    "blockedNoCulprit_one": "macOS dočasně blokuje 1 zkratku",
+    "blockedNoCulprit_other": "macOS dočasně blokuje {{count}} zkratek",
+    "recorderBlockedWithCulprit": "{{name}} může blokovat změny zkratek",
+    "recorderBlockedNoCulprit": "macOS dočasně blokuje změny zkratek",
+    "learnMore": "Jak opravit",
+    "recorderBlocked": "Momentálně nelze nahrávat zkratky — macOS Secure Input blokuje události kláves. Nejprve vyřešte upozornění na Secure Input.",
+    "dismiss": "Zavřít"
+  },
+  "ruleSuggestion": {
+    "title": "Přidat pravidlo pro toto okno?",
+    "app": "Aplikace",
+    "window": "Okno",
+    "prompt": "Prompt",
+    "used": "Použito",
+    "times": "{{count}}krát",
+    "description": "Po přidání se tento prompt automaticky použije při příštím nahrávání v tomto okně.",
+    "dismiss": "Tentokrát ne",
+    "neverAgain": "Už se neptat",
+    "addRule": "Přidat pravidlo"
+  },
+  "hotword": {
+    "addBar": {
+      "placeholder": "Zadejte hotwordy (oddělte čárkou pro hromadné přidání)...",
+      "words": "{{count}} slov",
+      "add": "Přidat",
+      "addCount": "Přidat ({{count}})"
+    },
+    "source": {
+      "manual": "Ruční",
+      "autoLearned": "Automaticky naučené",
+      "aiExtracted": "Extrahováno AI"
+    },
+    "scenario": {
+      "work": "Práce",
+      "casual": "Neformální"
+    },
+    "tagCloud": {
+      "add": "Přidat",
+      "import": "Importovat",
+      "export": "Exportovat",
+      "sortByWeight": "Seřadit podle váhy",
+      "sortByAlpha": "Seřadit abecedně",
+      "searchPlaceholder": "Hledat hotwordy...",
+      "aiSuggestions": "Návrhy AI ({{count}})",
+      "acceptAll": "Přijmout vše",
+      "dismissAll": "Zamítnout vše",
+      "contextFrequent": "Časté v kontextu",
+      "acceptSuggestion": "Přijmout návrh",
+      "dismissSuggestion": "Zamítnout návrh",
+      "empty": "Zatím žádné hotwordy. Kliknutím na \"Přidat\" vytvoříte první.",
+      "noMatch": "Žádné hotwordy neodpovídají \"{{query}}\"",
+      "dropHere": "Přetáhněte sem"
+    },
+    "editPanel": {
+      "addAlias": "Přidat slovo {{label}}",
+      "duplicate": "\"{{target}}\" již existuje",
+      "saveFailed": "Uložení se nezdařilo",
+      "targetPlaceholder": "Cílové slovo",
+      "decreaseWeight": "Snížit váhu",
+      "increaseWeight": "Zvýšit váhu",
+      "falsePositive": "{{count}} falešných pozitiv",
+      "deleteHotword": "Smazat hotword",
+      "category": "Kategorie",
+      "scenario": "Scénář",
+      "correction": "Oprava",
+      "correctionDesc": "Používá se jako reference pro opravu a vkládá se do promptu LLM. Přetažením aliasu do \"Vynutit\" z něj vytvoříte přímou lokální náhradu.",
+      "correctionPlaceholder": "Přidat slovo pro opravu",
+      "force": "Vynutit",
+      "forceDesc": "Pouze lokální přesná náhrada, nikdy se neposílá do LLM. Přetažením aliasu zpět do \"Oprava\" obnovíte referenci pro AI.",
+      "forcePlaceholder": "Přidat slovo pro vynucení",
+      "none": "Žádné",
+      "confirmDeleteTitle": "Potvrdit smazání",
+      "confirmDeleteDesc": "Smazat hotword \"{{target}}\"?"
+    },
+    "categoryDialog": {
+      "colors": {
+        "gray": "Šedá",
+        "green": "Zelená",
+        "orange": "Oranžová",
+        "blue": "Modrá",
+        "purple": "Fialová",
+        "red": "Červená",
+        "cyan": "Tyrkysová",
+        "amber": "Jantarová",
+        "teal": "Modrozelená",
+        "pink": "Růžová"
+      },
+      "idInvalid": "ID mohou obsahovat pouze písmena, číslice a pomlčky",
+      "idDuplicate": "ID kategorie \"{{id}}\" již existuje",
+      "addFailed": "Přidání se nezdařilo",
+      "saveFailed": "Uložení se nezdařilo",
+      "deleteFailed": "Smazání se nezdařilo",
+      "manageTooltip": "Spravovat kategorie",
+      "title": "Spravovat kategorie hotwordů",
+      "description": "Přizpůsobte název, barvu a ikonu každé kategorie. Vestavěné kategorie nelze smazat.",
+      "namePlaceholder": "Název kategorie",
+      "builtin": "Vestavěné",
+      "deleteTooltip": "Smazat (hotwordy se přesunou do Termínů)",
+      "idPlaceholder": "ID (např. medical)",
+      "labelPlaceholder": "Název (např. Medical)",
+      "idInvalidDetail": "ID mohou obsahovat pouze písmena, číslice a pomlčky (-)",
+      "addCategory": "Přidat kategorii"
+    }
   }
 }

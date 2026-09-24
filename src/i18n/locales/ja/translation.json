@@ -2,12 +2,12 @@
   "accessibility": {
     "dismiss": "閉じる",
     "openSettings": "システム設定を開く",
-    "permissionsDescription": "Handyが文字起こしテキストを入力するには、アクセシビリティ権限が必要です。",
+    "permissionsDescription": "Votypeが文字起こしテキストを入力するには、アクセシビリティ権限が必要です。",
     "permissionsRequired": "アクセシビリティ権限が必要です",
     "verify": "Verify"
   },
   "appLanguage": {
-    "description": "Handyインターフェースの言語を変更",
+    "description": "Votypeインターフェースの言語を変更",
     "title": "アプリケーション言語"
   },
   "common": {
@@ -53,11 +53,55 @@
     "code": "コード",
     "link": "リンク",
     "fullscreen": "全画面",
-    "exitFullscreen": "戻す"
+    "exitFullscreen": "戻す",
+    "locale": "ja",
+    "active": "アクティブ",
+    "aiOptimizationFailed": "AI 修正に失敗しました。設定を確認してください",
+    "authorize": "許可",
+    "confirm": "確認",
+    "granted": "許可済み",
+    "id": "ID",
+    "next": "次へ",
+    "optional": "任意",
+    "requesting": "要求中...",
+    "required": "必須",
+    "selectAll": "すべて選択",
+    "useThisProvider": "このプロバイダーを使用",
+    "variables": "使用可能な変数",
+    "refresh": "更新",
+    "time": {
+      "justNow": "たった今",
+      "minutesAgo": "{{count}}分前",
+      "hoursAgo": "{{count}}時間前",
+      "daysAgo": "{{count}}日前"
+    },
+    "history": "履歴",
+    "latest": "最新",
+    "localInsertCopied": "入力欄がフォーカスされていません — 結果をクリップボードにコピーしました",
+    "insertBlocked": "{{app}}は挿入ブラックリストに登録されています — 内容をクリップボードにコピーしました。手動で貼り付けてください",
+    "expand": "サイドバーを展開",
+    "collapse": "サイドバーを折りたたむ",
+    "retry": "再試行",
+    "unknown": "不明",
+    "error": "エラー"
   },
   "dashboard": {
     "actions": {
-      "openRecordings": "録音"
+      "openRecordings": "録音",
+      "edit": "編集",
+      "editDescription": "この履歴エントリの文字起こしテキストを編集",
+      "editPlaceholder": "修正後のテキストを入力...",
+      "editTitle": "認識結果を編集",
+      "quickInsert": "{{app}}に挿入",
+      "quickInsertEmpty": "最近の外部アプリが見つかりません",
+      "quickInsertErrorFocus": "対象ウィンドウのアクティブ化に失敗しました",
+      "quickInsertErrorNoTarget": "挿入先のアプリがありません",
+      "quickInsertErrorPaste": "貼り付けに失敗しました",
+      "reprocessFailed": "AI再処理に失敗しました",
+      "retranscribe": "音声から再文字起こし",
+      "rejectPolish": "整形結果を破棄",
+      "retranscribeFailed": "再文字起こしに失敗しました",
+      "retranscribing": "再文字起こし中..."
     },
     "activity": {
       "entries": "合 {{count}} 件",
@@ -77,7 +121,10 @@
       "meta": {
         "chars": "{{value}} 文字"
       },
-      "title": "履歴"
+      "title": "履歴",
+      "cancelled": "キャンセル済み",
+      "emptyHint": "ショートカットキーで最初の文字起こしを開始しましょう",
+      "recordCount": "{{count}}件"
     },
     "metrics": {
       "characters": "文字数",
@@ -91,7 +138,8 @@
       "buttons": {
         "allTime": "全期間",
         "last30Days": "直近30日",
-        "last7Days": "直近7日"
+        "last7Days": "直近7日",
+        "last40Days": "直近40日"
       },
       "lastNDays": "直近{{days}}日",
       "today": "今日"
@@ -103,9 +151,9 @@
         "top3": "Top 3"
       },
       "llm": {
-        "details": "命中率: {{hitRate}}",
         "title": "LLM 利用状況",
-        "unknownApp": "不明"
+        "unknownApp": "不明",
+        "calls": "{{count}}回のモデル呼び出し"
       },
       "recording": {
         "count": "{{count}} 回の文字起こし",
@@ -116,10 +164,47 @@
         "title": "生成テキスト"
       }
     },
-    "title": "ダッシュボード"
+    "title": "ダッシュボード",
+    "dateLabels": {
+      "today": "今日",
+      "yesterday": "昨日"
+    },
+    "errorIndicator": {
+      "errorTypeLabel": {
+        "asr_empty": "ASRが空の結果",
+        "llm_api_error": "プロバイダーがエラーを返しました",
+        "llm_auth_failed": "認証に失敗しました",
+        "llm_bad_request": "不正なリクエスト",
+        "llm_config_error": "モデル/プロバイダー設定エラー",
+        "llm_empty_result": "空の応答",
+        "llm_init_failed": "クライアントの初期化に失敗",
+        "llm_model_not_found": "モデルが見つかりません (404)",
+        "llm_network_error": "ネットワークエラー",
+        "llm_parse_error": "応答の解析に失敗",
+        "llm_rate_limited": "レート制限 (429)",
+        "llm_timeout": "タイムアウト (10秒)",
+        "llm_unknown": "不明なLLMエラー",
+        "pipeline_timeout": "パイプラインタイムアウト (20秒)"
+      },
+      "errorsOnlyToggle": "失敗のみ",
+      "panelDetail": "詳細",
+      "panelErrorType": "エラータイプ",
+      "panelModel": "モデル",
+      "panelProvider": "プロバイダー",
+      "panelTimestamp": "タイムスタンプ",
+      "stageAsr": "ASR",
+      "stagePolish": "整形",
+      "tooltipAsrEmpty": "ASRが空の結果を返しました",
+      "tooltipPolishFailed": "整形に失敗しました",
+      "tooltipPolishProviderError": "整形に失敗しました ({{status}})",
+      "tooltipPolishTimeout": "整形がタイムアウトしました"
+    }
   },
   "errors": {
-    "loadDirectory": "ディレクトリの読み込みエラー: {{error}}"
+    "loadDirectory": "ディレクトリの読み込みエラー: {{error}}",
+    "noInputDeviceTitle": "マイクを利用できません",
+    "noInputDevice": "オーディオ入力デバイスが見つかりません。システム設定 > サウンド > 入力 を確認して、もう一度お試しください。",
+    "recordingFailed": "録音に失敗しました: {{error}}"
   },
   "footer": {
     "checkForUpdates": "アップデートを確認",
@@ -133,7 +218,16 @@
     "updateAvailable": "アップデートあり: {{version}}",
     "updateAvailableShort": "アップデートあり",
     "updateCheckingDisabled": "アップデート確認無効",
-    "upToDate": "最新です"
+    "upToDate": "最新です",
+    "postProcess": {
+      "title": "後処理",
+      "punctuation": "自動句読点",
+      "translate": "英語に翻訳",
+      "realtime": "リアルタイムプレビュー",
+      "llm": "LLM後処理",
+      "selectModel": "モデルを選択...",
+      "openSettings": "設定"
+    }
   },
   "models": {
     "large": {
@@ -198,10 +292,24 @@
     "onlineAsr": "オンラインASR",
     "onlineAsrActive": "オンラインASR有効",
     "onlineAsrModels": "オンラインASRモデル",
-    "realtimeModel": "リアルタイムモデル",
+    "realtimeModel": {
+      "empty": "利用可能なローカルモデルがありません。先にSherpaモデルをダウンロード（およびお気に入り登録）してください。",
+      "enabled": "有効",
+      "off": "オフ",
+      "offHint": "ローカルモデルではライブ字幕を表示する必要はありません（メモリを節約）",
+      "open": "リアルタイム文字起こしモデルを選択",
+      "selected": "リアルタイム: {{modelName}}",
+      "title": "リアルタイム文字起こしモデル"
+    },
     "searchPlaceholder": "モデルを検索…",
     "userAddedModel": "ユーザー追加モデル",
-    "welcome": "Handyへようこそ！"
+    "welcome": "Votypeへようこそ！",
+    "realtimeModelLabel": "リアルタイムモデル",
+    "asrFallback": {
+      "add": "+ バックアップ",
+      "label": "バックアップ",
+      "remove": "バックアップを削除"
+    }
   },
   "onboarding": {
     "download": "ダウンロード",
@@ -238,16 +346,117 @@
       "turbo": {
         "description": "精度と速度のバランスが良い。",
         "name": "Whisper Turbo"
-      }
+      },
+      "description": "開始するにはモデルを選択してください。おすすめのモデルはほとんどの用途に適しています。",
+      "showMore": "その他のモデル",
+      "title": "モデルを選択"
     },
     "recommended": "おすすめ",
-    "subtitle": "開始するには、文字起こしモデルを選択してください"
+    "subtitle": "開始するには、文字起こしモデルを選択してください",
+    "accessibility": {
+      "description": "この権限でテキストの自動貼り付けが可能になります",
+      "feature1": "文字起こし結果を現在のアプリに自動貼り付け",
+      "feature2": "オーバーレイ配置のためにカーソル位置を取得",
+      "feature3": "貼り付け用のキーボードショートカットをシミュレート",
+      "grant": "権限を許可",
+      "granted": "アクセシビリティ権限が許可されました ✓",
+      "noteImpact": "権限がない場合、結果はクリップボードにコピーされるだけです。",
+      "reason1": "文字起こしテキストをアクティブなアプリに自動貼り付け",
+      "reason2": "オーバーレイ配置のためにカーソル位置を取得",
+      "reason3": "よりスムーズな操作を提供",
+      "simpleDesc": "文字起こし結果を自動貼り付け。Cmd+Vは不要",
+      "skip": "このステップをスキップ",
+      "step1": "システム設定 → プライバシーとセキュリティ → アクセシビリティ を開く",
+      "step2": "すでに一覧にある場合はアプリを削除",
+      "step3": "+ をクリックして追加し、権限を有効にする",
+      "stepsTitle": "うまくいかない場合",
+      "title": "アクセシビリティ権限",
+      "whyTitle": "なぜ必要なのか？",
+      "without1": "アプリは通常どおり動作します",
+      "without2": "文字起こしテキストはクリップボードにコピーされます",
+      "without3": "手動で貼り付ける必要があります (Cmd+V)",
+      "withoutTitle": "この権限がない場合:"
+    },
+    "microphone": {
+      "denied": "音声を録音するにはマイク権限が必要です。システム設定で権限を許可してください。",
+      "description": "Votypeは音声を録音するためにマイクへのアクセスが必要です",
+      "devModeHint": "開発モード: 権限チェックは利用できません",
+      "error": "権限の要求に失敗しました。もう一度お試しいただくか、システム設定で手動で許可してください。",
+      "grant": "マイクへのアクセスを許可",
+      "granted": "マイクへのアクセスが許可されました ✓",
+      "grantFirst": "続行するにはマイク権限を許可してください",
+      "reason1": "文字起こしのために音声を録音",
+      "reason2": "すべての処理はローカルで実行されます",
+      "reason3": "音声データがデバイスから外部に出ることはありません",
+      "shortDesc": "文字起こし用の音声録音に使用",
+      "skipDev": "スキップ (開発モード)",
+      "title": "マイク",
+      "whyTitle": "なぜ必要なのか？"
+    },
+    "welcome": {
+      "continue": "続行",
+      "description": "ローカル・オンライン・ハイブリッドに対応した音声入力方式です。",
+      "feature1": "完全オフラインの音声文字起こし",
+      "feature2": "プライバシー最優先。データがデバイスから外部に出ることはありません",
+      "feature3": "ホットキーで起動、押して話すだけ",
+      "permissionsTitle": "権限の設定",
+      "skipDev": "スキップ (開発モード)",
+      "start": "始める",
+      "title": "ようこそ"
+    }
   },
   "overlay": {
     "status": {
       "llm": "後処理中...",
       "recording": "録音中...",
-      "transcribing": "文字起こし中..."
+      "transcribing": "文字起こし中...",
+      "inserting": "挿入中...",
+      "translation": "翻訳中...",
+      "review": "確認中...",
+      "rewrite": "処理中…",
+      "success": "挿入しました",
+      "translationSuccess": "翻訳に成功しました"
+    },
+    "error": {
+      "appleIntelligenceFailed": "Apple Intelligenceに失敗しました。システムを確認してください。",
+      "appleIntelligenceUnavailable": "Apple Intelligenceは利用できません。",
+      "llmInitFailed": "LLMの初期化に失敗しました。キー/URLを確認してください。",
+      "llmRequestFailed": "LLMリクエストに失敗しました。ネットワーク/APIを確認してください。",
+      "llmNetworkError": "ネットワークエラー、再試行中...",
+      "llmRateLimited": "レート制限中です。しばらくお待ちください",
+      "llmAuthFailed": "APIキーが無効です。設定を確認してください",
+      "llmBadRequest": "モデルがリクエストパラメータ（min_p/top_kなど）を拒否しました。モデルパラメータを確認してください",
+      "llmModelNotFound": "モデルが見つからないか有効になっていません。モデルIDを確認してください",
+      "llmApiError": "APIサービスエラー",
+      "llmParseError": "モデル応答の解析に失敗しました",
+      "transcriptionFailedSaved": "文字起こしに失敗しました（保存済み）"
+    },
+    "skillConfirmation": {
+      "confirmUse": "を使用しますか？",
+      "detectedSelection": "選択範囲に",
+      "prompt": "このスキルを使用しますか？",
+      "charCount": "{{count}}文字"
+    },
+    "rewriteOperation": {
+      "rewrite": "書き換え済み",
+      "expand": "拡張済み",
+      "format": "整形済み",
+      "translate": "翻訳済み",
+      "polish": "推敲済み",
+      "append": "追記済み",
+      "unknown": "完了"
+    },
+    "timeout": {
+      "title": "オンライン文字起こしがタイムアウトしました",
+      "continue": "続行",
+      "retry": "再試行",
+      "cancel": "キャンセル"
+    },
+    "ruleSuggestion": {
+      "message": "{{appName}}（{{title}}）で「{{promptName}}」を{{count}}回使用しました。このウィンドウにルールを追加しますか？",
+      "accept": "ルールを追加",
+      "dismiss": "後で",
+      "never": "今後確認しない"
     }
   },
   "settings": {
@@ -256,12 +465,12 @@
         "title": "謝辞",
         "whisper": {
           "description": "OpenAIのWhisper自動音声認識モデルの高性能推論",
-          "details": "Handyは高速でローカルな音声からテキストへの変換にWhisper.cppを使用しています。Georgi Gerganov氏と貢献者の皆様の素晴らしい仕事に感謝します。",
+          "details": "Votypeは高速でローカルな音声からテキストへの変換にWhisper.cppを使用しています。Georgi Gerganov氏と貢献者の皆様の素晴らしい仕事に感謝します。",
           "title": "Whisper.cpp"
         }
       },
       "appDataDirectory": {
-        "description": "Handyがデータを保存する場所",
+        "description": "Votypeがデータを保存する場所",
         "title": "アプリデータディレクトリ"
       },
       "sourceCode": {
@@ -271,18 +480,27 @@
       },
       "supportDevelopment": {
         "button": "寄付する",
-        "description": "Handyの開発を支援してください",
+        "description": "Votypeの開発を支援してください",
         "title": "開発を支援"
       },
       "title": "概要",
       "version": {
-        "description": "Handyの現在のバージョン",
+        "description": "Votypeの現在のバージョン",
         "title": "バージョン"
+      },
+      "recordingsDirectory": {
+        "description": "音声録音が保存される場所",
+        "title": "録音ディレクトリ"
+      },
+      "upstream": {
+        "button": "アップストリームを表示",
+        "description": "VotypeはHandy v0.9.7をベースにしています",
+        "title": "アップストリームプロジェクト"
       }
     },
     "advanced": {
       "autostart": {
-        "description": "コンピューターにログインしたときにHandyを自動的に起動。",
+        "description": "コンピューターにログインしたときにVotypeを自動的に起動。",
         "label": "起動時に実行"
       },
       "clipboardHandling": {
@@ -367,6 +585,91 @@
         "descriptionNonWhisper": "翻訳は Whisper 系モデルでのみ動作します。現在: {{model}}",
         "descriptionUnknownModel": "現在のモデルの機能が不明です。ダウンロード済みのモデルを選択して翻訳を有効にしてください。",
         "label": "英語に翻訳"
+      },
+      "vocabularyCorrections": {
+        "allApps": "すべてのアプリ",
+        "delete": "この修正を削除",
+        "description": "編集履歴から学習した語彙修正",
+        "empty": "学習した修正はまだありません",
+        "global": "グローバル",
+        "removeGlobal": "グローバルを解除",
+        "scope": "適用範囲",
+        "setGlobal": "グローバルに設定",
+        "title": "語彙辞書"
+      },
+      "scope": {
+        "custom": "特定のアプリ",
+        "editDescription": "「{{original}}」→「{{corrected}}」の適用範囲を編集",
+        "editTitle": "修正の適用範囲",
+        "global": "グローバル",
+        "multiple": "{{count}}個のアプリ",
+        "none": "アプリなし",
+        "source": "ソースアプリ ({{app}})"
+      },
+      "groups": {
+        "dataManagement": "データ管理",
+        "debug": "デバッグオプション",
+        "inputOutput": "入力と出力",
+        "network": "ネットワーク",
+        "startup": "起動と動作",
+        "transcriptionOptimization": "文字起こしの最適化"
+      },
+      "proxy": {
+        "add": "プロキシを追加",
+        "server": "サーバー",
+        "username": "ユーザー名",
+        "usernamePlaceholder": "任意",
+        "password": "パスワード",
+        "passwordPlaceholder": "任意",
+        "enable": "有効にする",
+        "globalHint": "デフォルトですべてのプロバイダーに適用",
+        "testAndSave": "テストして保存",
+        "testSuccess": "プロキシ接続に成功しました",
+        "testFailed": "プロキシ接続に失敗しました: {{error}}",
+        "remove": "削除",
+        "removed": "プロキシを削除しました"
+      },
+      "insertBlacklist": {
+        "label": "挿入ブラックリスト",
+        "description": "ブラックリスト登録されたアプリ（ターミナル、パスワードマネージャーなど）が前面にある場合、文字起こしは自動入力・貼り付けされず、通知とともにクリップボードにコピーされます。"
+      },
+      "remoteRecord": {
+        "label": "リモート操作の録音キー",
+        "description": "Bluetooth音声リモコンの録音ボタン（通常のショートカットには認識されないmacOSのConsumerキー）を割り当てます。1回押すと録音開始、もう1回押すと停止します。"
+      },
+      "fillerWordRemoval": {
+        "label": "フィラーワードの除去",
+        "description": "後処理の前に話し言葉のつなぎ言葉を除去します。信頼できるフィラーパターンがある言語にのみ適用されます。"
+      },
+      "vadBackend": {
+        "title": "音声アクティビティバックエンド",
+        "description": "無音を除外するために使用する検出器を選択します。Earshotは実験的です。音声が途切れるかノイズが残る場合はSileroに戻してください。",
+        "options": {
+          "silero": "Silero",
+          "earshot": "Earshot"
+        }
+      },
+      "localApi": {
+        "title": "ローカルAPI",
+        "enable": "OpenAI互換のローカルサーバーを有効にする",
+        "enableDescription": "デフォルトはオフです。オンにすると即座に反映され、再起動は不要です。localhostのみにバインドされるため、外部ツールは単一のURLとキーでモデルとASRを呼び出せます。",
+        "allowLan": "LANアクセスを許可",
+        "allowLanDescription": "有効にすると、同じLAN上の他のデバイスがこのマシンのIP経由でアクセスできます。変更を反映するにはアプリを再起動してください。",
+        "port": "ポート",
+        "endpoint": "エンドポイント",
+        "url": "URL",
+        "accessKey": "アクセスキー",
+        "restartToApply": "再起動で反映",
+        "copy": "コピー",
+        "random": "ランダム",
+        "localAccess": "ローカルアクセス:",
+        "lanAccess": "LANアクセス:",
+        "authHeader": "認証ヘッダー:",
+        "lanUrlHint": "http://<your-LAN-IP>:{{port}}{{path}}",
+        "copied": "{{label}}をコピーしました",
+        "copyFailed": "{{label}}のコピーに失敗しました",
+        "keyGenerated": "新しいアクセスキーを生成しました",
+        "keyPlaceholder": "your-key"
       }
     },
     "asrModels": {
@@ -386,7 +689,8 @@
         "language": "言語",
         "mode": "モード",
         "status": "ステータス",
-        "type": "タイプ"
+        "type": "タイプ",
+        "recommended": "おすすめ"
       },
       "groupBy": {
         "language": "言語",
@@ -395,14 +699,26 @@
       },
       "groups": {
         "multilingual": "多言語",
-        "offline": "オフライン",
         "punctuation": "句読点",
-        "streaming": "ストリーミング"
+        "asr": "ASRモデル"
       },
       "idLabel": "ID: {{id}}",
       "install": {
         "placeholder": "モデルURLを貼り付け…",
-        "tooltip": "URLからインストール"
+        "tooltip": "URLからインストール",
+        "addCustomTagButton": "追加",
+        "button": "カスタムモデルを追加",
+        "customTagPlaceholder": "カスタムタグ...",
+        "description": "モデルアーカイブのURL（tar.gz、tar.bz2など）を入力してください。",
+        "editDescription": "このモデルの名前またはタグを更新します。",
+        "editTitle": "カスタムモデルを編集",
+        "nameLabel": "名前（任意）",
+        "remove": "カスタムモデルを削除",
+        "removeConfirm": "このカスタムモデルを削除しますか？ダウンロード済みのファイルも削除されます。",
+        "tagsLabel": "タグ",
+        "title": "カスタムモデルを追加",
+        "urlLabel": "URL",
+        "edit": "カスタムモデルを編集"
       },
       "languages": {
         "de": "ドイツ語",
@@ -446,14 +762,30 @@
       "typeChips": {
         "other": "その他",
         "parakeet": "Parakeet",
-        "punctuation": "句読点",
-        "whisper": "Whisper"
+        "whisper": "Whisper",
+        "moonshine": "Moonshine",
+        "paraformer": "Paraformer",
+        "sensevoice": "SenseVoice",
+        "zipformer": "Zipformer"
       },
       "types": {
         "parakeet": "Parakeet",
         "punctuation": "句読点",
-        "whisper": "Whisper"
-      }
+        "whisper": "Whisper",
+        "moonshine": "Moonshine",
+        "paraformer": "Paraformer",
+        "sensevoice": "SenseVoice",
+        "zipformer": "Zipformer"
+      },
+      "modeChips": {
+        "asr": "ASR",
+        "punctuation": "句読点"
+      },
+      "specialChips": {
+        "streaming": "ストリーミング",
+        "new": "新着"
+      },
+      "autoDownloadingPunctuation": "句読点モデルを自動ダウンロード中..."
     },
     "debug": {
       "alwaysOnMicrophone": {
@@ -475,7 +807,7 @@
       },
       "logDirectory": {
         "description": "ログファイルの保存場所",
-        "error": "Error loading log directory: {{error}}",
+        "error": "ログディレクトリの読み込みに失敗しました: {{error}}",
         "title": "ログディレクトリ"
       },
       "logLevel": {
@@ -488,7 +820,7 @@
       },
       "paths": {
         "appData": "アプリデータ:",
-        "description": "Common filesystem paths Votype uses",
+        "description": "Votype が使用する一般的なファイルシステムのパス",
         "models": "モデル:",
         "settings": "設定:",
         "title": "Paths"
@@ -513,12 +845,43 @@
       },
       "title": "デバッグ",
       "updateChecks": {
-        "description": "Handyの新しいバージョンを自動的にチェック",
+        "description": "Votypeの新しいバージョンを自動的にチェック",
         "label": "アップデートを確認"
       },
       "wordCorrectionThreshold": {
         "description": "カスタム単語修正の感度",
         "title": "単語修正しきい値"
+      },
+      "destroySettingsWindowOnClose": {
+        "description": "設定ウィンドウを閉じるときに破棄します（リソースを解放）。トレイメニューから再度開けます。",
+        "label": "閉じるときに設定ウィンドウを破棄"
+      },
+      "groups": {
+        "audio": "音声と処理",
+        "data": "データ管理",
+        "system": "システムとログ",
+        "text": "テキスト処理"
+      },
+      "logChannels": {
+        "title": "ログチャンネル",
+        "postProcess": "後処理リクエスト",
+        "postProcessDesc": "テキスト整形（シングル/マルチモデル）のすべてのLLMプロンプトと応答を記録",
+        "skillRouting": "スキル/インテントルーティング",
+        "skillRoutingDesc": "スキルルーティングのプロンプトと応答を記録",
+        "routing": "ルーティングの決定",
+        "routingDesc": "SmartRouting、ModeRouting、パイプラインの決定を記録",
+        "transcription": "文字起こし出力",
+        "transcriptionDesc": "ASR結果とリアルタイムの途中結果を記録"
+      },
+      "offlineVadRealtime": {
+        "intervalDescription": "Nミリ秒ごとにリアルタイム更新を強制します（0で無効）。",
+        "intervalLabel": "オフラインリアルタイム間隔 (ms)",
+        "windowDescription": "音声の合計が30秒を超える場合、VADセグメントがないときはリアルタイムデコードに直近N秒を使用します。",
+        "windowLabel": "オフラインリアルタイムウィンドウ (秒)"
+      },
+      "reliablePaste": {
+        "title": "確実な貼り付け (ベータ)",
+        "description": "固定の遅延後ではなく、対象アプリが実際に文字起こしを読み取ってからクリップボードを復元します。システム負荷時に古いクリップボード内容が貼り付けられる問題を修正するためのものです。クリップボード貼り付け方式が必要で、macOSとWindowsのみ対応します。"
       }
     },
     "general": {
@@ -528,11 +891,11 @@
         "descriptionUnsupported": "Parakeetモデルは言語を自動的に検出します。手動選択は不要です。",
         "noResults": "言語が見つかりません",
         "searchPlaceholder": "言語を検索...",
-        "title": "言語"
-      },
-      "pushToTalk": {
-        "description": "押し続けて録音、離して停止",
-        "label": "プッシュトゥトーク"
+        "title": "言語",
+        "descriptionNoModel": "言語を設定するにはローカルモデルを選択してください。",
+        "descriptionSenseVoice": "SenseVoiceはモデルの読み込み時に言語を適用します。言語を変更したらモデルを再選択してください。",
+        "descriptionUnknownModel": "現在のモデルが不明なため、言語の選択は無効です。",
+        "descriptionUnsupportedEngine": "言語の選択はWhisperまたはSenseVoiceモデルにのみ適用されます。"
       },
       "shortcut": {
         "bindings": {
@@ -551,6 +914,10 @@
           "transcribe": {
             "description": "音声をテキストに変換します。",
             "name": "文字起こし"
+          },
+          "invoke_skill": {
+            "description": "インテリジェントなインテントルーティングでスキルモードの録音を開始します。",
+            "name": "スキルを呼び出す"
           }
         },
         "description": "音声録音を開始するキーボードショートカットを設定",
@@ -563,15 +930,44 @@
         "none": "ショートカットが設定されていません",
         "notFound": "ショートカットが見つかりません",
         "pressKeys": "キーを押してください...",
-        "title": "Handyショートカット"
+        "title": "Votypeショートカット"
       },
-      "title": "一般"
+      "title": "一般",
+      "audioInputAutoEnhance": {
+        "description": "録音中に小さい音声を自動的に持ち上げ、歪みを抑えます。再生音が変わる場合があります。",
+        "label": "マイクの自動補正"
+      },
+      "groups": {
+        "recording": "録音",
+        "transcription": "文字起こし言語"
+      },
+      "activationMode": {
+        "label": "起動モード",
+        "tooltip": {
+          "summary": "録音ショートカットの起動方法を選択"
+        },
+        "descriptions": {
+          "toggle": "押して開始、もう一度押して停止",
+          "hold": "押し続けて録音、離して停止",
+          "hold_or_toggle": "短押しで切り替え、300ms以上の長押しは離したときに停止"
+        },
+        "options": {
+          "toggle": "切り替え",
+          "hold": "長押し",
+          "holdOrToggle": "自動"
+        }
+      },
+      "holdThreshold": {
+        "label": "長押ししきい値",
+        "description": "自動モードのみ: ショートカットをタップではなく長押しと見なすまでの時間（ミリ秒）。短い長押しで録音が止まらない場合は下げ、意図的なタップが長押しと判定される場合は上げてください。"
+      }
     },
     "history": {
       "content": {
         "improved": "最適化済み",
         "original": "音声認識結果",
-        "streaming": "リアルタイム認識結果"
+        "streaming": "リアルタイム認識結果",
+        "chained": "チェーン処理"
       },
       "copyToClipboard": "文字起こしをクリップボードにコピー",
       "delete": "エントリーを削除",
@@ -620,7 +1016,15 @@
         },
         "provider": {
           "description": "OpenAI互換のプロバイダーを選択。",
-          "title": "プロバイダー"
+          "title": "プロバイダー",
+          "builtin": "組み込み",
+          "builtinTooltip": "組み込みプロバイダーは削除できません",
+          "deleteAction": "プロバイダーを削除",
+          "deleteConfirmation": "プロバイダー「{{name}}」を削除してもよろしいですか？この操作は元に戻せません。",
+          "deleteTitle": "プロバイダーを削除",
+          "editName": "プロバイダー名を編集",
+          "namePlaceholder": "プロバイダー名",
+          "newProvider": "新しいプロバイダー"
         },
         "providers": {
           "add": "プロバイダーを追加",
@@ -642,17 +1046,56 @@
             "modelsEndpoint": "モデルエンドポイント",
             "modelsEndpointPlaceholder": "/models",
             "name": "プロバイダー名",
-            "namePlaceholder": "My Provider"
+            "namePlaceholder": "My Provider",
+            "apiKey": "APIキー",
+            "getApiKey": "APIキーを取得",
+            "baseUrlHint": "OpenAI互換モード。通常は /v1 で終わります。「#」を末尾に付けると /v1 の自動追加を回避できます。",
+            "actualUrlPreview": "実際のAPI URLプレビュー",
+            "v1AutoAppended": "/v1 が自動的に追加されました",
+            "v1MissingWarning": "URLにバージョンパス（例: /v1）が欠けている可能性があります",
+            "addKey": "キーを追加"
           },
           "resetUrl": "URLをリセット",
-          "title": "プロバイダー"
+          "title": "プロバイダー",
+          "addCustom": "カスタムを追加",
+          "advancedSettings": "詳細設定",
+          "api": {
+            "model": {
+              "title": "使用モデル"
+            },
+            "testConnection": "モデル推論をテスト",
+            "testFailed": "テストに失敗しました: {{error}}",
+            "testing": "接続をテスト中...",
+            "testSuccess": "テスト成功: {{result}}"
+          },
+          "proxy": {
+            "useProxy": "プロキシ",
+            "noGlobalProxy": "先に詳細設定でプロキシを構成してください"
+          },
+          "group": {
+            "recommended": "おすすめ",
+            "cloud": "クラウドプロバイダー",
+            "local": "ローカルプロバイダー"
+          },
+          "testConnection": "接続をテスト",
+          "testFailed": "接続に失敗しました: {{error}}",
+          "testSuccess": "接続に成功しました"
         },
-        "title": "API（OpenAI互換）"
+        "title": "API（OpenAI互換）",
+        "modelCard": {
+          "errorRate": "{{count}}件の失敗呼び出し — エラー率{{rate}}%"
+        },
+        "models": {
+          "deleteConfirm": {
+            "description": "このモデルを削除してもよろしいですか？この操作は元に戻せません。",
+            "title": "モデルを削除しますか？"
+          }
+        }
       },
       "disabledNotice": "後処理は現在無効です。設定するにはデバッグ設定で有効にしてください。",
       "fusion": {
         "enabled": {
-          "description": "Provide a main transcript and a secondary realtime transcript to post-processing for comparison and disambiguation.",
+          "description": "メインの文字起こしと二次的なリアルタイム文字起こしを後処理に渡し、比較と曖昧性の解消を行います。",
           "label": "リアルタイム文字起こしを使用 (フュージョン)"
         },
         "secondaryModel": {
@@ -668,7 +1111,8 @@
         "description": "後処理に使用するモデルを追加・管理します。",
         "empty": {
           "description": "開始するにはモデルを追加してください。",
-          "title": "モデルが設定されていません"
+          "title": "モデルが設定されていません",
+          "noMatch": "検索に一致するモデルがありません。"
         },
         "modelTypes": {
           "asr": {
@@ -693,17 +1137,60 @@
           "placeholderEmpty": "利用可能なモデルがありません",
           "segmented": {
             "customModel": "カスタム",
-            "selectModel": "選択"
+            "selectModel": "選択",
+            "freeModels": "無料"
           },
           "title": "モデルを選択",
-          "usageTypeTitle": "使用タイプ"
+          "usageTypeTitle": "使用タイプ",
+          "addButton": "モデルを追加",
+          "noFreeModels": "このプロバイダーで利用可能な無料モデルはありません。",
+          "alreadyAdded": "追加済み",
+          "advancedOptions": "詳細オプション",
+          "customLabel": "カスタムラベル",
+          "extraParams": "追加パラメータ",
+          "manualLabel": "手動ラベル",
+          "selectLabel": "ラベルを選択",
+          "sourceBuiltin": "組み込みの無料モデル",
+          "sourceOfficial": "公式モデルリスト",
+          "sourceBuiltinHint": "厳選された無料モデル。API呼び出しは不要",
+          "sourceOfficialHint": "プロバイダーAPIからの完全なリスト"
         },
         "stats": {
           "asr": "ASR: {{count}}",
           "other": "その他: {{count}}",
           "text": "テキスト: {{count}}"
         },
-        "title": "モデル"
+        "title": "モデル",
+        "deleteConfirm": {
+          "description": "このモデルを削除してもよろしいですか？この操作は元に戻せません。",
+          "title": "モデルを削除しますか？"
+        },
+        "promptMessageRole": {
+          "label": "開発者モード"
+        },
+        "searchPlaceholder": "モデルを検索...",
+        "filter": {
+          "all": "すべて"
+        },
+        "sort": {
+          "provider": "プロバイダー",
+          "name": "名前",
+          "calls": "呼び出し回数",
+          "speed": "速度",
+          "group": "プロバイダーでグループ化"
+        },
+        "tabs": {
+          "local": "ローカルモデル",
+          "remote": "オンラインモデル"
+        },
+        "setAsDefault": "デフォルトに設定",
+        "invalidJson": "無効なJSON形式",
+        "addedCount": "{{count}}件のモデルを追加しました",
+        "customAdd": {
+          "title": "カスタムモデルを追加",
+          "modelId": "モデルID",
+          "duplicateWarning": "このプロバイダーには同じIDのモデルがすでに存在します。追加するとコピーが作成されます。"
+        }
       },
       "prompts": {
         "cancel": "キャンセル",
@@ -714,12 +1201,12 @@
         "enableConfidenceCheck": "Enable Confidence Check",
         "noPrompts": "プロンプトがありません",
         "promptInstructions": "プロンプトの指示",
-        "promptInstructionsPlaceholder": "Describe how the model should process the input text, what it may change, what it must not change, and what the final output should look like.",
+        "promptInstructionsPlaceholder": "モデルが入力テキストをどのように処理すべきか、何を変更してよいか、何を変更してはならないか、そして最終的な出力をどのような形にするかを記述してください。",
         "promptLabel": "プロンプト名",
         "promptLabelPlaceholder": "プロンプト名を入力",
         "promptTip": "Tip: You are editing the task body only. The system automatically injects the main input and supporting reference fields, so focus on the task, constraints, and output requirements.",
         "selectedPrompt": {
-          "description": "Choose the template used for post-processing, or create a new one. The system automatically injects the main input and supporting reference fields, so the prompt body only needs to describe the task, constraints, and output requirements.",
+          "description": "後処理に使用するテンプレートを選択するか、新しく作成してください。システムがメイン入力と補助的な参照フィールドを自動的に挿入するため、プロンプト本文にはタスク・制約・出力要件のみを記述すれば十分です。",
           "title": "選択したプロンプト"
         },
         "selectPrompt": "プロンプトを選択",
@@ -737,15 +1224,336 @@
         "varWindowTitleDesc": "現在のウィンドウタイトル。",
         "lockSkill": "Lock Skill",
         "unlockSkill": "Unlock Skill",
-        "skillLocked": "This skill is locked. Unlock to edit.",
-        "aiGeneratingWait": "AI is generating, please wait",
+        "skillLocked": "このスキルはロックされています。編集するにはロックを解除してください。",
+        "aiGeneratingWait": "AI が生成中です。お待ちください",
         "unsavedChanges": {
           "title": "Unsaved Changes",
-          "description": "Current prompt has unsaved changes. Switching will discard these modifications.",
+          "description": "現在のプロンプトには未保存の変更があります。切り替えるとこれらの変更は破棄されます。",
           "discard": "Discard Changes"
+        },
+        "activeSet": "デフォルトプロンプトに設定",
+        "advancedSettings": "詳細設定",
+        "createSuccess": "プロンプトを作成しました",
+        "deleteConfirm": {
+          "description": "このプロンプトを削除してもよろしいですか？この操作は元に戻せません。",
+          "title": "プロンプトを削除"
+        },
+        "createFailed": "スキルの作成に失敗しました",
+        "nameAndContentRequired": "名前と内容は空にできません",
+        "fillNameAndInstructionsFirst": "AIがより良い要約を生成できるよう、先に名前と指示を入力してください。",
+        "userOwnedPrompts": "マイプロンプト",
+        "deleteFailed": "削除に失敗しました",
+        "deleteSuccess": "プロンプトを削除しました",
+        "resetToDefault": "デフォルトにリセット",
+        "resetConfirm": {
+          "description": "スキルを元の組み込み内容に復元します。カスタマイズ内容は失われます。",
+          "title": "デフォルトにリセット"
+        },
+        "resetSuccess": "スキルをデフォルトにリセットしました",
+        "resetFailed": "スキルのリセットに失敗しました",
+        "description": "説明（スマートルーティング用）",
+        "descriptionPlaceholder": "このスキルの役割と、いつ起動すべきかを簡潔に説明してください",
+        "editPrompt": "プロンプトを編集",
+        "enabledToggle": "このスキルを有効/無効にする",
+        "generationDescription": "認識テキストをプロンプトとして新しい内容を生成します（例: 翻訳、要約）。",
+        "globalConfigTitle": "グローバル設定",
+        "managementTitle": "プロンプト",
+        "newPromptName": "新しいプロンプト",
+        "outputMode": {
+          "chat": "AIチャット",
+          "label": "出力モード",
+          "polish": "テキスト整形"
+        },
+        "promptBody": "タスク本文",
+        "promptBodyPlaceholder": "モデルが入力テキストをどのように処理するか、変更してよい点、変更してはいけない点、最終出力の形式を説明してください。",
+        "refinementDescription": "認識テキストを自動的に修正・整形します。",
+        "reviewThreshold": "確認しきい値",
+        "setAsActive": "デフォルトに設定",
+        "updateFailed": "更新に失敗しました",
+        "updateSuccess": "プロンプトを更新しました",
+        "inlineVarsLabel": "参照フィールド",
+        "autoInjectedNote": "システムはメイン入力と補助参照フィールドを自動的に注入します。より細かく制御したい場合は、タスク本文で明示的に参照できます。",
+        "primaryFieldsLabel": "主要フィールド",
+        "referenceFieldsLabel": "参照フィールド",
+        "explicitReferenceNote": "上記のフィールドを明示的に参照した場合、システムは同じフィールドをプロンプトの後半で再度付加しません。",
+        "inlineVarsSecondaryLabel": "メタデータ変数",
+        "fieldAutocompleteTitle": "フィールドのオートコンプリート",
+        "fieldAutocompleteEmpty": "一致するフィールドがありません",
+        "fieldInputTextDesc": "処理対象となる唯一の主要テキスト",
+        "fieldAsrReferenceDesc": "修正と曖昧さ解消に使用する補助的なASR参照",
+        "fieldSelectedTextDesc": "弱いコンテキストとして使用する選択テキスト",
+        "fieldPersonNamesDesc": "既知の人名",
+        "fieldProductNamesDesc": "既知の製品名、ブランド名、組織名",
+        "fieldDomainTermsDesc": "専門用語、略語、技術用語",
+        "fieldHotwordsDesc": "その他の優先ホットワード",
+        "fieldHistoryHintsDesc": "用語の一貫性と弱い曖昧さ解消にのみ使用する履歴ヒント",
+        "varAppCategoryDesc": "アプリのカテゴリ（CodeEditor、Emailなど）。",
+        "autoGenerate": {
+          "title": "音声からスキル",
+          "description": "やりたいことを自然言語で説明してください。AIが完全なスキルを生成します。",
+          "shortcutHint": "ヒント: 押す",
+          "placeholder": "例: テキストを整えて、文法を直して、もっとプロフェッショナルにして...",
+          "step1": "プロンプト指示を最適化中",
+          "step2": "名前とアイコンを生成中",
+          "step3": "説明を生成中",
+          "emptyInput": "このスキルの役割を説明してください",
+          "start": "生成",
+          "menuItem": "音声入力",
+          "success": "スキルを作成しました"
+        },
+        "templates": {
+          "template_polish": "デフォルト整形",
+          "template_translate": "翻訳",
+          "template_summary": "要約",
+          "template_chat": "AIチャット",
+          "template_blank": "空のスキル"
+        },
+        "aliasDuplicate": "エイリアスはすでに存在します",
+        "aliasLabel": "エイリアス",
+        "aliasPlaceholder": "例: /translate",
+        "commandPrefixDescription": "このプロンプトを起動するコマンドプレフィックス",
+        "commandPrefixPlaceholder": "例: /",
+        "commandPrefixTitle": "コマンドプレフィックス",
+        "noAliases": "エイリアスが設定されていません",
+        "noPrefixes": "プレフィックスが設定されていません",
+        "prefixesSaved": "プレフィックスを保存しました",
+        "blankSkill": "空のスキル",
+        "polishCategory": "整形",
+        "skillCategory": "スキル",
+        "references": {
+          "title": "シーン参照",
+          "add": "追加",
+          "empty": "シーン参照はまだありません。参照を追加してアプリごとに動作を適応させましょう。",
+          "createFirst": "最初の参照を作成",
+          "createTitle": "シーン参照を作成",
+          "editTitle": "シーン参照を編集",
+          "matchType": "マッチタイプ",
+          "typeAlways": "一般ルール（常に有効）",
+          "typeApp": "アプリ名で指定",
+          "typeCategory": "アプリカテゴリで指定",
+          "alwaysName": "一般ルール",
+          "badgeAlways": "常に有効",
+          "appNamePlaceholder": "例: Slack、Obsidian、WeChat",
+          "contentPlaceholder": "このコンテキスト用のシーン固有のルールを入力...\n\n例:\n## IM/チャットのルール\n- 会話的な口調を保つ\n- 明らかな誤りだけ修正\n- 絵文字を保持",
+          "created": "参照を作成しました",
+          "saved": "参照を保存しました",
+          "deleted": "参照を削除しました",
+          "errorNoName": "名前を入力してください",
+          "errorSave": "保存に失敗しました",
+          "errorDelete": "削除に失敗しました",
+          "deleteTitle": "参照を削除",
+          "deleteConfirm": "「{{name}}」を削除してもよろしいですか？"
         }
       },
-      "title": "後処理"
+      "title": "後処理",
+      "intentModel": {
+        "defaultOption": "デフォルトモデルを使用",
+        "description": "スキルのインテント検出に使用するモデル。デフォルトのままにすると、メインの後処理モデルに従います。",
+        "hint": "スキルルーティング（使用するスキルの検出）とスマートルーティングのアクション分類に使用されます。ライトな整形では、同じ呼び出しで修正も行います。",
+        "placeholder": "インテントモデルを選択",
+        "title": "インテントモデル"
+      },
+      "translationModel": {
+        "hint": "挿入前翻訳機能で使用されます。空にすると、インテントモデル、次にデフォルトの後処理モデルにフォールバックします。",
+        "title": "翻訳モデル"
+      },
+      "inputInjection": {
+        "groupTitle": "自動入力",
+        "title": "自動入力",
+        "description": "後処理または翻訳リクエストに自動的に付加する補助入力を制御します。",
+        "summaryEnabled": "履歴コンテキストの注入が有効で、最大{{count}}件が付加されます。",
+        "summaryDisabled": "履歴コンテキストは自動的に付加されません。",
+        "moreOptions": "その他のオプション",
+        "basicOnly": "基本項目のみ",
+        "history": {
+          "enabled": "履歴コンテキストを注入",
+          "description": "現在のアプリの最近の文字起こしを後処理のコンテキストとして提供します。",
+          "limit": "履歴コンテキストの深さ",
+          "limitDesc": "後処理に直近{{count}}件までの履歴を付加します。"
+        },
+        "streaming": {
+          "enabled": "ストリーミング文字起こしを注入",
+          "description": "最終テキストと一緒にstreaming_outputを送信し、ASR結果の曖昧さを解消します。"
+        },
+        "hotwords": {
+          "enabled": "ホットワードと語彙を注入",
+          "description": "ホットワード、専門用語、よくある誤認識のマッピングを後処理に付加します。"
+        }
+      },
+      "appRules": {
+        "activeProfiles": "{{count}}件の有効なルール",
+        "addApp": "アプリを追加",
+        "addRuleHead": "ルールを手動で追加",
+        "addTitlePattern": "タイトルフィルターを追加",
+        "assignedApps": "アプリ",
+        "assignedAppsDescription": "以下にリストされたアプリケーションはこのプロファイル設定を使用します。",
+        "capture": "取得",
+        "captureTitle": "タイトルを取得",
+        "categoryDefaults": {
+          "title": "カテゴリのデフォルトポリシー",
+          "hint": "独自のプロファイルを持つアプリはカテゴリポリシーの影響を受けません（提案を承認したときに自動作成されたプロファイルを含む）。",
+          "inheritGlobal": "グローバルを継承",
+          "categories": {
+            "CodeEditor": "コードエディタ",
+            "Terminal": "ターミナル",
+            "InstantMessaging": "インスタントメッセージ",
+            "Email": "メール",
+            "Notes": "メモ",
+            "Browser": "ブラウザ",
+            "Other": "その他"
+          }
+        },
+        "context": {
+          "description": "LLMが現在のアプリケーションの最近の履歴を参照し、文字起こしと修正の精度を向上させます。",
+          "enabled": "コンテキスト参照を有効化",
+          "limit": "コンテキスト履歴の深さ",
+          "limitDesc": "モデルはこのアプリの直近{{count}}件をコンテキストとして参照します。",
+          "title": "コンテキスト対応処理"
+        },
+        "createPromptHint": "アプリケーションルールを追加して開始しましょう",
+        "default": "デフォルト",
+        "newProfileName": "新しいプロファイル名...",
+        "noAppsAssigned": "このプロファイルにマッピングされたアプリはまだありません。",
+        "noProfiles": "ルールはまだありません",
+        "noProfilesShort": "クリックして設定",
+        "policy": {
+          "always": "常に確認",
+          "auto": "自動",
+          "label": "確認ポリシー",
+          "never": "直接挿入"
+        },
+        "policyDesc": {
+          "always": "このプロファイルのアプリでは常に確認ウィンドウを表示します。",
+          "auto": "テキストが大きく変化した場合に確認をトリガーします（しきい値に基づく）。",
+          "never": "このプロファイルのアプリでは確認ウィンドウを表示しません。"
+        },
+        "policyHeader": "確認トリガーポリシー",
+        "profilesDescription": "プロファイルを作成して、アプリのグループごとに特定の処理ロジックやプロンプトを適用します。",
+        "profilesTitle": "アプリケーションプロファイル",
+        "promptDescription": "このプロファイルの文字起こしに使用するカスタムプロンプトを選択します。",
+        "promptHeader": "LLMプロンプトを上書き",
+        "selectionClipboardFallback": {
+          "description": "無効にすると、このアプリの選択テキストはアクセシビリティAPIのみを使用し、シミュレートされたコピーによるクリップボードフォールバックをスキップします。",
+          "label": "クリップボードフォールバック"
+        },
+        "translateToEnglishOnInsert": {
+          "description": "このアプリでは、挿入直前に英語へのLLM翻訳を1回追加で実行します。翻訳に失敗した場合は元のテキストにフォールバックします。",
+          "label": "挿入前に翻訳"
+        },
+        "selectPrompt": "サイドバーからプロファイルを選択して編集",
+        "skipPostProcess": "後処理をスキップ",
+        "shortcuts": {
+          "description": "キーボードショートカットで特定のプロファイルを起動したり、ルールを管理したりできます。",
+          "dialog": "ダイアログの確認または閉じる",
+          "dialogKeys": "Enter / Esc",
+          "nav": "設定タブ間の移動",
+          "navKeys": "⌘ + 1-8",
+          "title": "ショートカットと使い方"
+        },
+        "matchType": {
+          "exact": "完全一致"
+        },
+        "testMatch": "マッチをテスト",
+        "title": "アプリケーションルール",
+        "titlePattern": "タイトル (正規表現)",
+        "allApps": "すべてのアプリ",
+        "appNotInstalled": "このアプリはインストールされていません",
+        "recentApps": "最近",
+        "refresh": "インストール済みアプリを再スキャン",
+        "searchApps": "アプリを検索..."
+      },
+      "confidenceCheck": {
+        "description": "確認が有効なプロンプトの感度を調整します。値が高いほど確認ウィンドウが表示される頻度が低くなります。",
+        "threshold": "感度しきい値",
+        "thresholdHint": "この値より高いスコアで確認ウィンドウが表示されます。",
+        "title": "自動確認の感度"
+      },
+      "textModelMode": {
+        "title": "後処理モード",
+        "single": "シングルモデル",
+        "singleHint": "すべてのテキストに1つのモデル",
+        "length": "スマート",
+        "lengthHint": "テキストの長さでモデルを自動選択",
+        "multi": "マルチモデル",
+        "multiHint": "並列比較",
+        "defaultModelDescription": "デフォルトモデル",
+        "noModelSelected": "モデルが選択されていません",
+        "multiDescription": "並列比較するモデルを下のリストから選択してください",
+        "multiStrategy": "マルチモデル戦略",
+        "multiStrategyManual": "手動",
+        "multiStrategyManualHint": "すべての候補を表示して手動で選択",
+        "multiStrategyRace": "超高速",
+        "multiStrategyRaceShort": "超高速",
+        "multiStrategyRaceHint": "最初に利用可能な結果を使用",
+        "multiStrategyLazy": "遅延",
+        "multiStrategyLazyShort": "遅延",
+        "multiStrategyLazyHint": "優先モデルを3秒待ち、タイムアウトで自動選択",
+        "preferredModel": "優先モデル",
+        "setAsPreferred": "優先モデルに設定",
+        "selectModelsTitle": "モデルを選択",
+        "selectModelsDescription": "並列処理するモデルを選択します。星をクリックして優先モデルを設定してください。",
+        "selectedCount": "{{count}}件選択中",
+        "noneSelected": "モデルが選択されていません",
+        "models": "モデル",
+        "modelSelection": "モデル"
+      },
+      "lengthRouting": {
+        "enableLabel": "テキストの長さでモデルを自動選択",
+        "enableDescription": "短いテキストには高速モデル、長いテキストには高性能モデルを使用",
+        "thresholdLabel": "文字数のしきい値",
+        "thresholdDescription": "Unicode文字数基準（漢字1文字=1、英字1文字=1）",
+        "thresholdValue": "{{count}}文字",
+        "shortModelLabel": "短いテキスト",
+        "longModelLabel": "長いテキスト",
+        "characters": " 文字",
+        "useDefault": "デフォルトを使用"
+      },
+      "smartRouting": {
+        "title": "スマートルーティング",
+        "hint": "同一テキストの前回結果を自動的に再利用し、軽量モデルで短いテキストに整形が必要かを判断します。トークンコストと遅延を削減します。",
+        "shortText": "短いテキスト",
+        "longText": "長いテキスト",
+        "fastModel": "高速モデル",
+        "fastModelHint": "短いテキスト用の軽量または高速なモデル。シンプルな内容のトークンを節約し、遅延を削減します。",
+        "modelSelection": "モデル",
+        "description": "インテントを自動検出し、履歴を再利用してトークンコストを削減"
+      },
+      "modelChain": {
+        "primary": "プライマリ",
+        "fallback": "フォールバック",
+        "leftClickHint": "左クリックでプライマリモデルを選択",
+        "rightClickHint": "右クリックでフォールバックモデルを選択",
+        "strategy": "戦略",
+        "serial": "直列",
+        "staggered": "段階的",
+        "race": "競合",
+        "serialHint": "プライマリ失敗後にフォールバックを試行",
+        "staggeredHint": "プライマリが遅いときにフォールバックを開始",
+        "raceHint": "両方を呼び出し、最速のものを使用",
+        "noModel": "モデルが選択されていません",
+        "selectModel": "モデルを選択"
+      },
+      "providerModels": {
+        "totalCalls": "回",
+        "avgSpeed": "tokens/sec"
+      },
+      "skills": {
+        "advancedSkills": "詳細スキル",
+        "createHint": "~/.votype/skills/ に .md ファイルを作成してカスタムスキルを追加",
+        "enabledInFile": "スキルは常に有効です（ファイルで設定）",
+        "helpText": "スキルフォルダにYAMLフロントマター付きの.mdファイルを作成してください。自動的に読み込まれ、使用可能になります。",
+        "noExternalSkills": "外部スキルが見つかりません",
+        "openFolder": "フォルダを開く",
+        "quickCommands": "クイックコマンド",
+        "refresh": "更新",
+        "sourceBuiltin": "組み込み",
+        "sourceFile": "ファイル",
+        "sourceUser": "ユーザー"
+      },
+      "modelCard": {
+        "errorRate": "{{count}}件の失敗呼び出し — エラー率{{rate}}%",
+        "lastError": "最新のエラー{{when}}: {{error}}"
+      }
     },
     "shortcuts": {
       "title": "ショートカット"
@@ -772,6 +1580,20 @@
         "description": "音声フィードバックの音量を調整",
         "title": "音量"
       }
+    },
+    "vocabulary": {
+      "hotWords": {
+        "description": "よく聞き間違えられる単語を追加します。システムが自動的に修正します。",
+        "empty": "ホットワードはまだありません",
+        "placeholder": "単語を追加...",
+        "title": "ホットワード",
+        "word": "単語"
+      },
+      "import": "インポート",
+      "deleteConfirm": {
+        "title": "削除の確認",
+        "hotwordMessage": "このホットワードを削除してもよろしいですか？"
+      }
     }
   },
   "sidebar": {
@@ -785,13 +1607,30 @@
     "models": "モデル",
     "postProcessing": "後処理",
     "prompts": "プロンプト",
-    "shortcuts": "ショートカット"
+    "shortcuts": "ショートカット",
+    "appProfiles": "アプリプロファイル",
+    "expertMode": "エキスパートモード",
+    "expertModeHint": "詳細設定オプションを表示",
+    "summary": "サマリー",
+    "vocabulary": "語彙",
+    "dailyVocabulary": "デイリー語彙"
   },
   "soundPicker": {
     "custom": "カスタム",
     "marimba": "Marimba",
     "pop": "Pop",
-    "preview": "プレビュー"
+    "preview": "プレビュー",
+    "chime": "チャイム",
+    "switch": "スイッチ",
+    "pluck": "プルック",
+    "toggle": "トグル",
+    "twotone": "ツートーン",
+    "pep": "ペップ",
+    "power": "パワー",
+    "zap": "ザップ",
+    "blip": "ブリップ",
+    "mouse": "マウスクリック",
+    "wood": "ウッドタップ"
   },
   "theme": {
     "accentColor": {
@@ -862,6 +1701,246 @@
       "systemDesc": "システムのテーマに合わせる",
       "title": "テーマモード"
     },
-    "title": "テーマ"
+    "title": "テーマ",
+    "compactMode": {
+      "description": "説明をツールチップとして表示",
+      "title": "コンパクトモード"
+    }
+  },
+  "inline": {
+    "listening": "聞き取り中...",
+    "transcribing": "文字起こし中...",
+    "polishing": "整形中...",
+    "executing": "実行中...",
+    "complete": "完了",
+    "modeToggle": "編集モード",
+    "closeConfirmTitle": "未保存の変更",
+    "closeConfirmMessage": "内容が変更されています。閉じてもよろしいですか？",
+    "closeConfirmOk": "閉じる",
+    "closeConfirmCancel": "キャンセル",
+    "sectionTitle": "文字起こし結果",
+    "undo": "元に戻す",
+    "redo": "やり直す",
+    "placeholder": "ショートカットを押して口述を開始..."
+  },
+  "summary": {
+    "periodSelector": {
+      "title": "期間",
+      "day": "今日",
+      "week": "週",
+      "month": "月"
+    },
+    "stats": {
+      "entries": "件数",
+      "chars": "文字数",
+      "duration": "時間",
+      "aiCalls": "AI呼び出し",
+      "noApps": "アプリデータなし",
+      "appDistribution": "アプリ別分布",
+      "timeDistribution": "時間帯別分布"
+    },
+    "recap": {
+      "title": "デイリーレキャップ",
+      "empty": "この期間はアクティビティが少なく、まだレキャップを作成できません。",
+      "progress": "主な進捗",
+      "friction": "摩擦",
+      "nextFocus": "次の焦点",
+      "blockers": "ブロッカー",
+      "nextStep": "推奨される次のステップ",
+      "records": "件"
+    },
+    "timeline": {
+      "title": "履歴",
+      "days": "日",
+      "weeks": "週",
+      "months": "月",
+      "empty": "サマリーはまだありません"
+    },
+    "actions": {
+      "export": "エクスポート"
+    },
+    "export": {
+      "markdown": "Markdownとしてエクスポート",
+      "json": "JSONとしてエクスポート"
+    },
+    "aiAnalysis": {
+      "title": "AI分析",
+      "generate": "生成",
+      "generating": "生成中...",
+      "view": "表示",
+      "selectModel": "モデルを選択",
+      "provider": "プロバイダー",
+      "modelUsed": "使用モデル",
+      "clickToGenerate": "クリックしてアクティビティのAI分析を生成",
+      "communicationStyle": "コミュニケーションスタイル",
+      "reflection": "振り返りと提案",
+      "empty": "「生成」をクリックすると、アクティビティに関するAIのインサイトが得られます。",
+      "updateProfile": "プロファイルを更新"
+    },
+    "userProfile": {
+      "currentStyle": "現在のスタイルプロファイル"
+    }
+  },
+  "transcription": {
+    "review": {
+      "aiResponse": "AI応答",
+      "change": "変更",
+      "confidence": "信頼度",
+      "confirm": "確定して挿入",
+      "description": "文字起こしに誤りが含まれる可能性があります。確認し、必要に応じて編集してください。",
+      "final": "最終出力",
+      "generationTitle": "AIアシスタントの応答",
+      "highlightHint": "ハイライトされた単語はLLMによる編集を示します。",
+      "hint": "⌘/Ctrl + Enter で確定、Escapeでキャンセル",
+      "insert": "挿入",
+      "insertCode": "コードを挿入",
+      "insertOriginal": "元のテキストを挿入 (Tab)",
+      "insertStabilityHint": "ショートカット: {{shortcut}}\n挿入が不安定な場合は、この機能を一時的に無効にできます。",
+      "instruction": "指示",
+      "placeholder": "文字起こしを編集...",
+      "source": "ライブ文字起こし",
+      "title": "文字起こしを確認",
+      "skipPostProcess": "後処理をスキップ",
+      "hideDiff": "差分を非表示",
+      "showDiff": "差分を表示",
+      "translateText": "翻訳",
+      "translationResult": "翻訳結果",
+      "translationPreview": "英語プレビュー",
+      "translationPreviewLangLabel": "英語",
+      "translationModeAuto": "自動",
+      "translationModeManual": "手動",
+      "translationUpdating": "翻訳中...",
+      "translationWaiting": "編集後1秒で自動更新",
+      "translationFailedFallback": "翻訳に失敗しました。元のテキストを挿入します",
+      "translationReady": "更新済み",
+      "analysisTitle": "分析:",
+      "deviationNone": "完全一致",
+      "deviationMinor": "軽微な変更",
+      "deviationMajor": "大きな変更",
+      "insertTranslation": "翻訳を挿入",
+      "insertPolished": "整形済みを挿入",
+      "insertEnglish": "英語を挿入",
+      "resizeGrip": "ドラッグでサイズ変更、ダブルクリックで自動調整",
+      "multiModel": "マルチモデル結果",
+      "processing": "処理中...",
+      "restoreOrder": "元の順序に戻す",
+      "sortBySpeed": "応答速度で並べ替え",
+      "speedSorted": "速度優先",
+      "sortBySpeedShort": "速度順",
+      "rankCount": "#{{rank}} ({{count}}回)",
+      "sortByChange": "変更量で並べ替え",
+      "changeSorted": "変更優先",
+      "sortLabel": "並べ替え",
+      "pressEscAgain": "内容が変更されています。もう一度ESCで閉じます",
+      "speedHistoryAvg": "過去平均: {{speed}} ({{count}}回)",
+      "speedThisRun": "今回: {{speed}} ({{diff}})"
+    }
+  },
+  "secureInput": {
+    "blockedWithCulprit_one": "{{name}}が1つのショートカットをブロックしている可能性があります",
+    "blockedWithCulprit_other": "{{name}}が{{count}}個のショートカットをブロックしている可能性があります",
+    "blockedNoCulprit_one": "macOSが一時的に1つのショートカットをブロックしています",
+    "blockedNoCulprit_other": "macOSが一時的に{{count}}個のショートカットをブロックしています",
+    "recorderBlockedWithCulprit": "{{name}}がショートカットの変更をブロックしている可能性があります",
+    "recorderBlockedNoCulprit": "macOSが一時的にショートカットの変更をブロックしています",
+    "learnMore": "解決方法",
+    "recorderBlocked": "現在ショートカットを記録できません — macOSのセキュア入力がキーイベントをブロックしています。先にセキュア入力の警告を解決してください。",
+    "dismiss": "閉じる"
+  },
+  "ruleSuggestion": {
+    "title": "このウィンドウにルールを追加しますか？",
+    "app": "アプリ",
+    "window": "ウィンドウ",
+    "prompt": "プロンプト",
+    "used": "使用回数",
+    "times": "{{count}}回",
+    "description": "追加すると、次回このウィンドウで録音したときにこのプロンプトが自動的に適用されます。",
+    "dismiss": "今回はしない",
+    "neverAgain": "今後確認しない",
+    "addRule": "ルールを追加"
+  },
+  "hotword": {
+    "addBar": {
+      "placeholder": "ホットワードを入力（カンマ区切りで一括追加）...",
+      "words": "{{count}}語",
+      "add": "追加",
+      "addCount": "追加 ({{count}})"
+    },
+    "source": {
+      "manual": "手動",
+      "autoLearned": "自動学習",
+      "aiExtracted": "AI抽出"
+    },
+    "scenario": {
+      "work": "仕事",
+      "casual": "カジュアル"
+    },
+    "tagCloud": {
+      "add": "追加",
+      "import": "インポート",
+      "export": "エクスポート",
+      "sortByWeight": "重みで並べ替え",
+      "sortByAlpha": "アルファベット順で並べ替え",
+      "searchPlaceholder": "ホットワードを検索...",
+      "aiSuggestions": "AIの提案 ({{count}})",
+      "acceptAll": "すべて承認",
+      "dismissAll": "すべて却下",
+      "contextFrequent": "コンテキスト内で頻出",
+      "acceptSuggestion": "提案を承認",
+      "dismissSuggestion": "提案を却下",
+      "empty": "ホットワードはまだありません。「追加」をクリックして最初の1つを作成しましょう。",
+      "noMatch": "「{{query}}」に一致するホットワードがありません",
+      "dropHere": "ここにドロップ"
+    },
+    "editPanel": {
+      "addAlias": "{{label}}単語を追加",
+      "duplicate": "「{{target}}」はすでに存在します",
+      "saveFailed": "保存に失敗しました",
+      "targetPlaceholder": "対象の単語",
+      "decreaseWeight": "重みを下げる",
+      "increaseWeight": "重みを上げる",
+      "falsePositive": "{{count}}件の誤検出",
+      "deleteHotword": "ホットワードを削除",
+      "category": "カテゴリ",
+      "scenario": "シーン",
+      "correction": "修正",
+      "correctionDesc": "修正の参照として使用され、LLMプロンプトに注入されます。エイリアスを「強制」にドラッグすると、ローカルでの直接置換になります。",
+      "correctionPlaceholder": "修正単語を追加",
+      "force": "強制",
+      "forceDesc": "ローカルでの完全一致置換のみで、LLMには送信されません。エイリアスを「修正」に戻すとAI参照が復元されます。",
+      "forcePlaceholder": "強制単語を追加",
+      "none": "なし",
+      "confirmDeleteTitle": "削除の確認",
+      "confirmDeleteDesc": "ホットワード「{{target}}」を削除しますか？"
+    },
+    "categoryDialog": {
+      "colors": {
+        "gray": "グレー",
+        "green": "グリーン",
+        "orange": "オレンジ",
+        "blue": "ブルー",
+        "purple": "パープル",
+        "red": "レッド",
+        "cyan": "シアン",
+        "amber": "アンバー",
+        "teal": "ティール",
+        "pink": "ピンク"
+      },
+      "idInvalid": "IDには英字、数字、ハイフンのみ使用できます",
+      "idDuplicate": "カテゴリID「{{id}}」はすでに存在します",
+      "addFailed": "追加に失敗しました",
+      "saveFailed": "保存に失敗しました",
+      "deleteFailed": "削除に失敗しました",
+      "manageTooltip": "カテゴリを管理",
+      "title": "ホットワードカテゴリを管理",
+      "description": "各カテゴリの名前、色、アイコンをカスタマイズします。組み込みカテゴリは削除できません。",
+      "namePlaceholder": "カテゴリ名",
+      "builtin": "組み込み",
+      "deleteTooltip": "削除（ホットワードは用語に移動）",
+      "idPlaceholder": "ID（例: medical）",
+      "labelPlaceholder": "名前（例: 医療）",
+      "idInvalidDetail": "IDには英字、数字、ハイフン (-) のみ使用できます",
+      "addCategory": "カテゴリを追加"
+    }
   }
 }

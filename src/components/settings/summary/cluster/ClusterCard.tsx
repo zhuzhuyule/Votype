@@ -17,6 +17,7 @@ import {
   IconTrash,
   IconX,
 } from "@tabler/icons-react";
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { Card } from "../../../ui/Card";
 import type { TaskCluster } from "../summaryTypes";
@@ -36,13 +37,22 @@ interface ClusterCardProps {
   detailSlot?: React.ReactNode;
 }
 
-const STATUS_OPTIONS = ["进行中", "完成", "卡住", "已搁置"];
+// Status values are the canonical data keys stored on the cluster; the display
+// label is resolved via i18n (see STATUS_LABEL_KEYS). i18n-ignore: data values.
+const STATUS_OPTIONS = ["进行中", "完成", "卡住", "已搁置"]; // i18n-ignore
 
 const STATUS_COLORS: Record<string, "blue" | "green" | "amber" | "gray"> = {
-  进行中: "blue",
-  完成: "green",
-  卡住: "amber",
-  已搁置: "gray",
+  进行中: "blue", // i18n-ignore
+  完成: "green", // i18n-ignore
+  卡住: "amber", // i18n-ignore
+  已搁置: "gray", // i18n-ignore
+};
+
+const STATUS_LABEL_KEYS: Record<string, string> = {
+  进行中: "settings.summary.cluster.status.inProgress", // i18n-ignore (backend status enum value)
+  完成: "settings.summary.cluster.status.done", // i18n-ignore (backend status enum value)
+  卡住: "settings.summary.cluster.status.blocked", // i18n-ignore (backend status enum value)
+  已搁置: "settings.summary.cluster.status.shelved", // i18n-ignore (backend status enum value)
 };
 
 function formatDuration(ms: number): string {
@@ -63,6 +73,7 @@ export function ClusterCard({
   onOpenDelete,
   detailSlot,
 }: ClusterCardProps) {
+  const { t } = useTranslation();
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(cluster.title);
   const [editingNextStep, setEditingNextStep] = useState(false);
@@ -97,7 +108,7 @@ export function ClusterCard({
             size="1"
             variant="ghost"
             onClick={onToggleExpanded}
-            aria-label="展开"
+            aria-label={t("common.expand")}
           >
             {expanded ? (
               <IconChevronDown size={16} />
@@ -148,13 +159,19 @@ export function ClusterCard({
           >
             <Select.Trigger variant="ghost">
               <Badge color={STATUS_COLORS[cluster.status] ?? "gray"} size="1">
-                {cluster.status}
+                {t(
+                  STATUS_LABEL_KEYS[cluster.status] ??
+                    "settings.summary.cluster.status.unknown",
+                )}
               </Badge>
             </Select.Trigger>
             <Select.Content>
               {STATUS_OPTIONS.map((s) => (
                 <Select.Item key={s} value={s}>
-                  {s}
+                  {t(
+                    STATUS_LABEL_KEYS[s] ??
+                      "settings.summary.cluster.status.unknown",
+                  )}
                 </Select.Item>
               ))}
             </Select.Content>
@@ -165,7 +182,7 @@ export function ClusterCard({
           </Text>
           {cluster.is_user_modified && (
             <Badge color="violet" size="1" variant="soft">
-              已编辑
+              {t("settings.summary.cluster.edited")}
             </Badge>
           )}
         </Flex>
@@ -245,7 +262,7 @@ export function ClusterCard({
               className="inline-flex items-center gap-1 text-xs text-gray-600 hover:text-gray-900"
             >
               <IconArrowsSplit size={12} />
-              拆分
+              {t("settings.summary.cluster.split")}
             </button>
             <button
               type="button"
@@ -253,7 +270,7 @@ export function ClusterCard({
               className="inline-flex items-center gap-1 text-xs text-gray-600 hover:text-gray-900"
             >
               <IconArrowMerge size={12} />
-              合并
+              {t("settings.summary.cluster.merge")}
             </button>
             <button
               type="button"
@@ -261,7 +278,7 @@ export function ClusterCard({
               className="inline-flex items-center gap-1 text-xs text-gray-600 hover:text-red-600"
             >
               <IconTrash size={12} />
-              删除
+              {t("common.delete")}
             </button>
           </Flex>
           <ClusterFeedbackButtons clusterId={cluster.id} />

@@ -1,12 +1,4 @@
 {
-  "tray": {
-    "settings": "Ayarlar...",
-    "checkUpdates": "Güncellemeleri Kontrol Et...",
-    "copyLastTranscript": "Son transkripti kopyala",
-    "unloadModel": "Modeli boşalt",
-    "quit": "Çıkış",
-    "cancel": "İptal"
-  },
   "sidebar": {
     "general": "Genel",
     "models": "Modeller",
@@ -14,15 +6,23 @@
     "postProcessing": "Son İşlem",
     "history": "Geçmiş",
     "debug": "Hata Ayıklama",
-    "about": "Hakkında"
+    "about": "Hakkında",
+    "appProfiles": "Uygulama Profilleri",
+    "dashboard": "Kontrol Paneli",
+    "expertMode": "Uzman Modu",
+    "expertModeHint": "Gelişmiş ayar seçeneklerini göster",
+    "prompts": "İstemler",
+    "shortcuts": "Kısayollar",
+    "summary": "Özet",
+    "vocabulary": "Sözlük",
+    "asrModels": "ASR Modelleri",
+    "dailyVocabulary": "Günlük Sözlük"
   },
   "onboarding": {
     "subtitle": "Başlamak için bir transkripsiyon modeli seçin",
     "recommended": "Önerilen",
     "download": "İndir",
     "downloading": "İndiriliyor...",
-    "customModelDescription": "Resmi olarak desteklenmiyor",
-    "downloadFailed": "İndirme başarısız oldu. Lütfen tekrar deneyin.",
     "modelCard": {
       "accuracy": "doğruluk",
       "speed": "hız"
@@ -52,38 +52,67 @@
         "name": "Parakeet V3",
         "description": "Hızlı ve doğru."
       },
-      "moonshine-base": {
-        "name": "Moonshine Base",
-        "description": "Çok hızlı, yalnızca İngilizce. Aksanları iyi işler."
-      }
+      "description": "Başlamak için bir model seçin. Önerilen modeller çoğu kullanım durumu için iyi çalışır.",
+      "showMore": "Daha Fazla Model",
+      "title": "Model Seçin"
     },
     "errors": {
       "loadModels": "Mevcut modeller yüklenemedi",
       "downloadModel": "Model indirilemedi: {{error}}"
     },
-    "permissions": {
-      "title": "İzinler Gerekli",
-      "description": "Handy'nin düzgün çalışabilmesi için birkaç izne ihtiyacı var.",
-      "microphone": {
-        "title": "Mikrofon Erişimi",
-        "description": "Sesinizi transkripsiyon için alabilmek için gereklidir."
-      },
-      "accessibility": {
-        "title": "Erişilebilirlik Erişimi",
-        "description": "Transkribe edilen metni uygulamalarınıza yazabilmek için gereklidir."
-      },
+    "accessibility": {
+      "description": "Bu izin otomatik metin yapıştırmayı etkinleştirir",
+      "feature1": "Transkripsiyonu geçerli uygulamaya otomatik yapıştır",
+      "feature2": "Kaplama yerleşimi için imleç konumunu al",
+      "feature3": "Yapıştırma için klavye kısayollarını simüle et",
       "grant": "İzin Ver",
-      "granted": "Verildi",
-      "waiting": "Bekleniyor...",
-      "allGranted": "Her şey hazır!",
-      "errors": {
-        "checkFailed": "İzinler kontrol edilemedi. Lütfen tekrar deneyin.",
-        "requestFailed": "İzin isteği başarısız oldu. Lütfen tekrar deneyin."
-      }
+      "granted": "Erişilebilirlik izni verildi ✓",
+      "noteImpact": "İzin olmadan sonuçlar yalnızca panoya kopyalanır.",
+      "reason1": "Transkribe edilen metni etkin uygulamalara otomatik yapıştır",
+      "reason2": "Kaplama konumlandırması için imleç konumunu al",
+      "reason3": "Daha akıcı bir deneyim sun",
+      "simpleDesc": "Transkripsiyon sonuçlarını otomatik yapıştır, Cmd+V gerekmez",
+      "skip": "Bu Adımı Atla",
+      "step1": "Sistem Ayarları → Gizlilik ve Güvenlik → Erişilebilirlik'i açın",
+      "step2": "Uygulama zaten listedeyse kaldırın",
+      "step3": "İzni eklemek ve etkinleştirmek için + simgesine tıklayın",
+      "stepsTitle": "Sorun mu yaşıyorsunuz?",
+      "title": "Erişilebilirlik İzni",
+      "whyTitle": "Bu neden gerekli?",
+      "without1": "Uygulama yine de normal çalışır",
+      "without2": "Transkribe edilen metin panoya kopyalanır",
+      "without3": "Elle yapıştırmanız gerekir (Cmd+V)",
+      "withoutTitle": "Bu izin olmadan:"
+    },
+    "microphone": {
+      "denied": "Ses kaydetmek için mikrofon izni gerekir. Lütfen Sistem Ayarları'ndan izin verin.",
+      "description": "Votype'nin ses kaydetmek için mikrofonunuza erişmesi gerekir",
+      "devModeHint": "Geliştirici modu: izin kontrolü kullanılamıyor",
+      "error": "İzin isteği başarısız oldu. Lütfen tekrar deneyin veya Sistem Ayarları'ndan elle verin.",
+      "grant": "Mikrofon Erişimi Ver",
+      "granted": "Mikrofon erişimi verildi ✓",
+      "grantFirst": "Devam etmek için lütfen mikrofon izni verin",
+      "reason1": "Transkripsiyon için sesinizi kaydedin",
+      "reason2": "Tüm işlemler yerel olarak gerçekleşir",
+      "reason3": "Ses verileriniz cihazınızdan asla ayrılmaz",
+      "shortDesc": "Transkripsiyon için ses kaydetmeye yönelik",
+      "skipDev": "Atla (Geliştirici Modu)",
+      "title": "Mikrofon",
+      "whyTitle": "Bu neden gerekli?"
+    },
+    "welcome": {
+      "continue": "Devam",
+      "description": "Yerel, çevrimiçi veya karma modları destekleyen bir sesli giriş yöntemi.",
+      "feature1": "Konuşmadan metne, tamamen çevrimdışı",
+      "feature2": "Önce gizlilik, veriler cihazınızdan asla ayrılmaz",
+      "feature3": "Kısayol ile tetikleme, basın ve konuşun",
+      "permissionsTitle": "İzin Kurulumu",
+      "skipDev": "Atla (Geliştirici Modu)",
+      "start": "Başla",
+      "title": "Hoş Geldiniz"
     }
   },
   "modelSelector": {
-    "custom": "Özel",
     "active": "Aktif",
     "noModelsAvailable": "Kullanılabilir model yok",
     "extracting": "{{modelName}} çıkarılıyor...",
@@ -98,46 +127,44 @@
     "modelUnloaded": "Model Boşaltıldı",
     "noModelDownloadRequired": "Model Yok – İndirme Gerekli",
     "deleteModel": "{{modelName}} Sil",
-    "switching": "Değiştiriliyor...",
-    "downloadSpeed": "{{speed}} MB/s",
-    "capabilities": {
-      "languageSelection": "Birden fazla giriş dilini destekler",
-      "multiLanguage": "Çok dilli",
-      "translation": "İngilizce'ye çevirebilir",
-      "translate": "İngilizce'ye çevir",
-      "singleLanguage": "Yalnızca bu dili destekler",
-      "languageOnly": "Yalnızca {{language}}"
+    "addModelFromUrl": "URL'den ekle",
+    "addModelFromUrlPrompt": "Bir model indirme URL'si yapıştırın (örn. .tar.bz2):",
+    "availableModels": "Kullanılabilir Modeller",
+    "chooseModel": "Model Seçin",
+    "clickToEnableOnlineAsr": "Çevrimiçi ASR'yi etkinleştirmek için tıklayın",
+    "download": "İndir",
+    "downloadModels": "Modelleri İndir",
+    "downloadPrompt": "Transkripsiyona başlamak için aşağıdan bir model indirin.",
+    "downloadSize": "İndirme boyutu",
+    "local": "Yerel",
+    "online": "Çevrimiçi",
+    "onlineAsr": "Çevrimiçi ASR",
+    "onlineAsrActive": "Çevrimiçi ASR etkin",
+    "onlineAsrModels": "Çevrimiçi ASR Modelleri",
+    "realtimeModel": {
+      "empty": "Uygun yerel model yok. Önce bir Sherpa modeli indirin (ve favorilere ekleyin).",
+      "enabled": "Etkin",
+      "off": "Kapalı",
+      "offHint": "Yerel modeller için canlı altyazı göstermeye gerek yok (bellek tasarrufu sağlar)",
+      "open": "Gerçek zamanlı transkripsiyon modeli seç",
+      "selected": "Gerçek zamanlı: {{modelName}}",
+      "title": "Gerçek zamanlı transkripsiyon modeli"
     },
-    "cancel": "İptal",
-    "cancelDownload": "İndirmeyi iptal et"
+    "realtimeModelLabel": "Gerçek Zamanlı Model",
+    "searchPlaceholder": "Model ara…",
+    "userAddedModel": "Kullanıcı eklediği model",
+    "welcome": "Votype'a Hoş Geldiniz",
+    "asrFallback": {
+      "add": "+ Yedek",
+      "label": "Yedek",
+      "remove": "Yedeği kaldır"
+    }
   },
   "settings": {
-    "modelSettings": {
-      "title": "{{model}} Ayarları",
-      "noSettingsNeeded": "Bu model yapılandırma gerektirmeden otomatik olarak çalışır."
-    },
-    "models": {
-      "title": "Transkripsiyon Modelleri",
-      "description": "Bir transkripsiyon modeli seçin veya ek modeller indirin. Farklı modeller değişen doğruluk ve hız seviyeleri sunar.",
-      "downloaded": "İndirildi",
-      "available": "İndirilebilir",
-      "deleteConfirm": "{{modelName}} modelini silmek istediğinizden emin misiniz? Kullanmak için tekrar indirmeniz gerekecek.",
-      "deleteActiveConfirm": "{{modelName}} aktif modelinizdir. Silmek, yeni bir model seçene kadar transkripsiyonları durduracaktır. Emin misiniz?",
-      "deleteTitle": "Modeli Sil",
-      "filters": {
-        "all": "Tümü",
-        "multiLanguage": "Çok dilli",
-        "translation": "Çeviri",
-        "allLanguages": "Tüm Diller"
-      },
-      "noModelsMatch": "Bu filtreyle eşleşen model yok.",
-      "yourModels": "İndirilen modeller",
-      "availableModels": "İndirilebilir"
-    },
     "general": {
       "title": "Genel",
       "shortcut": {
-        "title": "Handy Kısayolları",
+        "title": "Votype Kısayolları",
         "description": "Sesle yazma kaydını başlatmak için klavye kısayollarını yapılandırın",
         "loading": "Kısayollar yükleniyor...",
         "none": "Kısayol yapılandırılmadı",
@@ -151,6 +178,18 @@
           "cancel": {
             "name": "İptal Kısayolu",
             "description": "Mevcut kaydı iptal etmek için klavye kısayolu."
+          },
+          "invoke_skill": {
+            "description": "Akıllı niyet yönlendirmesiyle Beceri modunda kaydı başlatır.",
+            "name": "Beceri Çağır"
+          },
+          "open_settings": {
+            "description": "Ayarlar penceresini açar.",
+            "name": "Ayarları Aç"
+          },
+          "paste_first_entry": {
+            "description": "İlk geçmiş kaydını etkin pencereye yapıştırır.",
+            "name": "İlk Kaydı Yapıştır"
           }
         },
         "errors": {
@@ -165,11 +204,39 @@
         "descriptionUnsupported": "Parakeet modeli dili otomatik algılar. Manuel seçim gerekmez.",
         "searchPlaceholder": "Dil ara...",
         "noResults": "Dil bulunamadı",
-        "auto": "Otomatik"
+        "auto": "Otomatik",
+        "descriptionNoModel": "Dili yapılandırmak için bir yerel model seçin.",
+        "descriptionSenseVoice": "SenseVoice, dili model yüklendiğinde uygular. Dili değiştirdikten sonra modeli yeniden seçin.",
+        "descriptionUnknownModel": "Geçerli model bilinmiyor; dil seçimi devre dışı.",
+        "descriptionUnsupportedEngine": "Dil seçimi yalnızca Whisper veya SenseVoice modelleri için geçerlidir."
       },
-      "pushToTalk": {
-        "label": "Bas Konuş",
-        "description": "Kaydetmek için basılı tutun, durdurmak için bırakın"
+      "audioInputAutoEnhance": {
+        "description": "Kayıt sırasında sessiz ses girişini otomatik olarak yükseltin ve bozulmayı sınırlayın. Oynatma sesini değiştirebilir.",
+        "label": "Mikrofon Otomatik İyileştirme"
+      },
+      "groups": {
+        "recording": "Kayıt",
+        "transcription": "Transkripsiyon Dili"
+      },
+      "activationMode": {
+        "label": "Etkinleştirme Modu",
+        "tooltip": {
+          "summary": "Kayıt kısayolunun nasıl tetikleneceğini seçin"
+        },
+        "descriptions": {
+          "toggle": "Başlatmak için basın, durdurmak için tekrar basın",
+          "hold": "Kaydetmek için basılı tutun, durdurmak için bırakın",
+          "hold_or_toggle": "Kısa basış değiştirir, 300 ms+ basılı tutunca bırakınca durur"
+        },
+        "options": {
+          "toggle": "Aç/Kapa",
+          "hold": "Basılı Tut",
+          "holdOrToggle": "Otomatik"
+        }
+      },
+      "holdThreshold": {
+        "label": "Basılı Tutma Eşiği",
+        "description": "Yalnızca otomatik mod: kısayolun kısa basış yerine basılı tutma sayılması için ne kadar (milisaniye) basılı tutulması gerektiği. Kısa basılı tutmalar kaydı açık bırakıyorsa düşürün; kısa basışlar basılı tutma sayılıyorsa yükseltin."
       }
     },
     "sound": {
@@ -198,15 +265,12 @@
     "advanced": {
       "title": "Gelişmiş",
       "groups": {
-        "app": "Uygulama",
-        "output": "Çıktı",
-        "transcription": "Transkripsiyon",
-        "history": "Geçmiş",
-        "experimental": "Deneysel"
-      },
-      "experimentalToggle": {
-        "label": "Deneysel Özellikler",
-        "description": "Hala geliştirme aşamasında olan deneysel özellikleri etkinleştir."
+        "dataManagement": "Veri Yönetimi",
+        "debug": "Hata Ayıklama Seçenekleri",
+        "inputOutput": "Giriş ve Çıkış",
+        "network": "Ağ",
+        "startup": "Başlangıç ve Davranış",
+        "transcriptionOptimization": "Transkripsiyon Optimizasyonu"
       },
       "startHidden": {
         "label": "Gizli Başlat",
@@ -214,11 +278,7 @@
       },
       "autostart": {
         "label": "Başlangıçta Çalıştır",
-        "description": "Bilgisayara giriş yaptığınızda Handy otomatik olarak başlatılır."
-      },
-      "showTrayIcon": {
-        "label": "Tepsi simgesini göster",
-        "description": "Handy simgesini sistem tepsisinde göster."
+        "description": "Bilgisayara giriş yaptığınızda Votype otomatik olarak başlatılır."
       },
       "overlay": {
         "title": "Overlay Konumu",
@@ -226,7 +286,8 @@
         "options": {
           "none": "Yok",
           "bottom": "Alt",
-          "top": "Üst"
+          "top": "Üst",
+          "follow": "İmleci Takip Et"
         }
       },
       "pasteMethod": {
@@ -262,7 +323,10 @@
       "translateToEnglish": {
         "label": "İngilizceye Çevir",
         "description": "Transkripsiyon sırasında diğer dillerden İngilizceye otomatik olarak çevirir.",
-        "descriptionUnsupported": "Çeviri {{model}} modeli tarafından desteklenmiyor."
+        "descriptionUnsupported": "Çeviri {{model}} modeli tarafından desteklenmiyor.",
+        "descriptionNoModel": "Çeviriyi etkinleştirmek için bir yerel model seçin.",
+        "descriptionNonWhisper": "Çeviri yalnızca Whisper modelleriyle çalışır. Geçerli: {{model}}",
+        "descriptionUnknownModel": "Bu modelin yetenekleri bilinmiyor. Çeviriyi etkinleştirmek için indirilmiş bir model seçin."
       },
       "modelUnload": {
         "title": "Modeli Boşalt",
@@ -284,24 +348,114 @@
         "placeholder": "Kelime ekle",
         "add": "Ekle",
         "remove": "{{word}} Kaldır"
+      },
+      "vocabularyCorrections": {
+        "allApps": "Tüm uygulamalar",
+        "delete": "Bu düzeltmeyi sil",
+        "description": "Düzenleme geçmişinizden öğrenilen sözlük düzeltmeleri",
+        "empty": "Henüz öğrenilmiş düzeltme yok",
+        "global": "Genel",
+        "removeGlobal": "Geneli kaldır",
+        "scope": "Kapsam",
+        "setGlobal": "Genel olarak ayarla",
+        "title": "Sözlük"
+      },
+      "scope": {
+        "custom": "Belirli Uygulamalar",
+        "editDescription": "\"{{original}}\" → \"{{corrected}}\" için kapsamı düzenle",
+        "editTitle": "Düzeltme Kapsamı",
+        "global": "Genel",
+        "multiple": "{{count}} uygulama",
+        "none": "Uygulama yok",
+        "source": "Kaynak Uygulama ({{app}})"
+      },
+      "proxy": {
+        "add": "Proxy ekle",
+        "server": "Sunucu",
+        "username": "Kullanıcı adı",
+        "usernamePlaceholder": "İsteğe bağlı",
+        "password": "Parola",
+        "passwordPlaceholder": "İsteğe bağlı",
+        "enable": "Etkinleştir",
+        "globalHint": "Varsayılan olarak tüm sağlayıcılara uygula",
+        "testAndSave": "Test Et ve Kaydet",
+        "testSuccess": "Proxy bağlantısı başarılı",
+        "testFailed": "Proxy bağlantısı başarısız: {{error}}",
+        "remove": "Kaldır",
+        "removed": "Proxy kaldırıldı"
+      },
+      "insertBlacklist": {
+        "label": "Ekleme Kara Listesi",
+        "description": "Kara listedeki bir uygulama (terminal, parola yöneticisi, ...) ön planda olduğunda, transkripsiyon otomatik yazılmak veya yapıştırılmak yerine bir bildirimle panoya kopyalanır."
+      },
+      "remoteRecord": {
+        "label": "Uzaktan Kontrol Kayıt Tuşu",
+        "description": "Bluetooth sesli kumandalarındaki kayıt düğmesini sahiplenin (normal kısayollarda görünmeyen bir macOS Consumer tuşu): kaydı başlatmak için bir kez, durdurmak için bir kez daha basın."
+      },
+      "punctuation": {
+        "description": "Nihai transkripte noktalama ekler ({{model}}).",
+        "label": "Noktalama Ekle",
+        "model": {
+          "description": "zh+en karışık metin için bir noktalama modeli seçin. Yalnızca nihai sonuca uygulanır.",
+          "notDownloaded": "Seçili model henüz indirilmedi.",
+          "title": "Noktalama Modeli"
+        }
+      },
+      "fillerWordRemoval": {
+        "label": "Dolgu Kelimesi Kaldırma",
+        "description": "Son işlemden önce konuşulan dolgu sözcüklerini kaldırır. Yalnızca güvenilir dolgu kalıpları olan diller için geçerlidir."
+      },
+      "vadBackend": {
+        "title": "Ses Etkinliği Arka Ucu",
+        "description": "Sessizliği filtrelemek için kullanılan algılayıcıyı seçin. Earshot deneyseldir; konuşma kesilirse veya gürültü kalırsa Silero'ya geri dönün.",
+        "options": {
+          "silero": "Silero",
+          "earshot": "Earshot"
+        }
+      },
+      "localApi": {
+        "title": "Yerel API",
+        "enable": "OpenAI uyumlu yerel sunucuyu etkinleştir",
+        "enableDescription": "Varsayılan olarak kapalı. Etkinleştirmek hemen geçerli olur, yeniden başlatma gerekmez. Yalnızca localhost'a bağlanır, böylece harici araçlar modelleri ve ASR'yi tek bir URL ve anahtarla çağırabilir.",
+        "allowLan": "LAN erişimine izin ver",
+        "allowLanDescription": "Etkinleştirildiğinde, LAN'ınızdaki diğer cihazlar makinenizin IP'si üzerinden erişebilir. Değişikliklerin geçerli olması için uygulamayı yeniden başlatın.",
+        "port": "Bağlantı noktası",
+        "endpoint": "Uç nokta",
+        "url": "URL",
+        "accessKey": "Erişim Anahtarı",
+        "restartToApply": "Uygulamak için yeniden başlatın",
+        "copy": "Kopyala",
+        "random": "Rastgele",
+        "localAccess": "Yerel erişim:",
+        "lanAccess": "LAN erişimi:",
+        "authHeader": "Kimlik doğrulama başlığı:",
+        "lanUrlHint": "http://<LAN-IP-adresiniz>:{{port}}{{path}}",
+        "copied": "{{label}} kopyalandı",
+        "copyFailed": "{{label}} kopyalanamadı",
+        "keyGenerated": "Yeni erişim anahtarı oluşturuldu",
+        "keyPlaceholder": "your-key"
       }
     },
     "postProcessing": {
       "title": "Son İşlem",
-      "hotkey": {
-        "title": "Kısayol Tuşu"
-      },
       "api": {
         "title": "API (OpenAI Uyumlu)",
         "provider": {
           "title": "Sağlayıcı",
-          "description": "OpenAI uyumlu bir sağlayıcı seçin."
+          "description": "OpenAI uyumlu bir sağlayıcı seçin.",
+          "builtin": "Yerleşik",
+          "builtinTooltip": "Yerleşik sağlayıcı, silinemez",
+          "deleteAction": "Sağlayıcıyı Sil",
+          "deleteConfirmation": "\"{{name}}\" sağlayıcısını silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.",
+          "deleteTitle": "Sağlayıcıyı Sil",
+          "editName": "Sağlayıcı Adını Düzenle",
+          "namePlaceholder": "Sağlayıcı Adı",
+          "newProvider": "Yeni Sağlayıcı"
         },
         "appleIntelligence": {
           "title": "Apple Intelligence",
           "description": "Tamamen cihaz üzerinde çalışır. API anahtarı veya ağ erişimi gerekmez.",
-          "requirements": "macOS Tahoe (26.0) veya üzeri çalıştıran bir Apple Silicon Mac gerektirir. Sistem Ayarları'nda Apple Intelligence etkin olmalıdır.",
-          "unavailable": "Apple Intelligence bu cihazda kullanılamıyor. macOS Tahoe (26.0) veya üzeri ve Sistem Ayarları'nda Apple Intelligence etkin olan bir Apple Silicon Mac gerektirir."
+          "requirements": "macOS Tahoe (26.0) veya üzeri çalıştıran bir Apple Silicon Mac gerektirir. Sistem Ayarları'nda Apple Intelligence etkin olmalıdır."
         },
         "baseUrl": {
           "title": "Temel URL",
@@ -322,13 +476,78 @@
           "placeholderWithOptions": "Model ara veya seç",
           "placeholderNoOptions": "Model adı yazın",
           "refreshModels": "Modelleri Yenile"
+        },
+        "manageProviders": "Sağlayıcıları Yönet",
+        "modelCard": {
+          "errorRate": "{{count}} başarısız çağrı — %{{rate}} hata oranı"
+        },
+        "models": {
+          "deleteConfirm": {
+            "description": "Bu modeli silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.",
+            "title": "Model Silinsin mi?"
+          }
+        },
+        "providers": {
+          "add": "Sağlayıcı Ekle",
+          "addCustom": "Özel Ekle",
+          "advancedSettings": "Gelişmiş Ayarlar",
+          "api": {
+            "model": {
+              "title": "Kullanılan Model"
+            },
+            "testConnection": "Model Çıkarımını Test Et",
+            "testFailed": "Test başarısız: {{error}}",
+            "testing": "Bağlantı test ediliyor...",
+            "testSuccess": "Test başarılı: {{result}}"
+          },
+          "builtInBadge": "Yerleşik",
+          "deleteConfirm": {
+            "description": "Bu, sağlayıcıyı ve ilgili tüm modelleri kaldırır.",
+            "title": "Sağlayıcı silinsin mi?"
+          },
+          "dialog": {
+            "createTitle": "Sağlayıcı Oluştur",
+            "editTitle": "Sağlayıcıyı Düzenle"
+          },
+          "empty": {
+            "description": "Başlamak için bir sağlayıcı ekleyin.",
+            "title": "Sağlayıcı yok"
+          },
+          "fields": {
+            "apiKey": "API Anahtarı",
+            "getApiKey": "API Anahtarı Al",
+            "baseUrl": "Temel URL",
+            "baseUrlHint": "OpenAI uyumlu mod, genellikle /v1 ile biter. /v1 otomatik eklemesini atlamak için '#' son ekini kullanın.",
+            "actualUrlPreview": "Gerçek API URL Önizlemesi",
+            "modelsEndpoint": "Modeller Uç Noktası",
+            "modelsEndpointPlaceholder": "/models veya https://...",
+            "name": "Sağlayıcı Adı",
+            "namePlaceholder": "Sağlayıcım",
+            "v1AutoAppended": "/v1 otomatik olarak eklendi",
+            "v1MissingWarning": "URL'de sürüm yolu eksik olabilir (örn. /v1)",
+            "addKey": "Anahtar Ekle"
+          },
+          "proxy": {
+            "useProxy": "Proxy",
+            "noGlobalProxy": "Önce Gelişmiş ayarlardan proxy yapılandırın"
+          },
+          "group": {
+            "recommended": "Önerilen",
+            "cloud": "Bulut Sağlayıcıları",
+            "local": "Yerel Sağlayıcılar"
+          },
+          "resetUrl": "URL'yi Sıfırla",
+          "testConnection": "Bağlantıyı Test Et",
+          "testFailed": "Bağlantı başarısız: {{error}}",
+          "testSuccess": "Bağlantı başarılı",
+          "title": "Sağlayıcılar"
         }
       },
       "prompts": {
         "title": "Prompt",
         "selectedPrompt": {
           "title": "Seçili Prompt",
-          "description": "Choose the template used for post-processing, or create a new one. The system automatically injects the main input and supporting reference fields, so the prompt body only needs to describe the task, constraints, and output requirements."
+          "description": "Son işlem için kullanılacak şablonu seçin veya yeni bir tane oluşturun. Sistem ana girdiyi ve destekleyici referans alanlarını otomatik olarak ekler, bu yüzden istem gövdesinde yalnızca görevi, kısıtları ve çıktı gereksinimlerini açıklamanız yeterlidir."
         },
         "noPrompts": "Kullanılabilir prompt yok",
         "selectPrompt": "Prompt Seç",
@@ -336,7 +555,7 @@
         "promptLabel": "Prompt Etiketi",
         "promptLabelPlaceholder": "Prompt adı girin",
         "promptInstructions": "Prompt Talimatları",
-        "promptInstructionsPlaceholder": "Describe how the model should process the input text, what it may change, what it must not change, and what the final output should look like.",
+        "promptInstructionsPlaceholder": "Modelin giriş metnini nasıl işlemesi gerektiğini, neleri değiştirebileceğini, neleri değiştirmemesi gerektiğini ve nihai çıktının nasıl görünmesi gerektiğini açıklayın.",
         "promptTip": "Tip: You are editing the task body only. The system automatically injects the main input and supporting reference fields, so focus on the task, constraints, and output requirements.",
         "updatePrompt": "Promptu Güncelle",
         "deletePrompt": "Promptu Sil",
@@ -349,13 +568,441 @@
         "varWindowTitleDesc": "Geçerli pencere başlığı.",
         "lockSkill": "Lock Skill",
         "unlockSkill": "Unlock Skill",
-        "skillLocked": "This skill is locked. Unlock to edit.",
-        "aiGeneratingWait": "AI is generating, please wait",
+        "skillLocked": "Bu beceri kilitli. Düzenlemek için kilidi açın.",
+        "aiGeneratingWait": "Yapay zekâ oluşturuyor, lütfen bekleyin",
         "unsavedChanges": {
           "title": "Unsaved Changes",
-          "description": "Current prompt has unsaved changes. Switching will discard these modifications.",
+          "description": "Mevcut istemde kaydedilmemiş değişiklikler var. Geçiş yaparsanız bu değişiklikler silinecek.",
           "discard": "Discard Changes"
+        },
+        "activeSet": "Varsayılan istem olarak ayarla",
+        "advancedSettings": "Gelişmiş Ayarlar",
+        "createSuccess": "İstem başarıyla oluşturuldu",
+        "deleteConfirm": {
+          "description": "Bu istemi silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.",
+          "title": "İstemi Sil"
+        },
+        "createFailed": "Beceri oluşturulamadı",
+        "nameAndContentRequired": "Ad ve içerik boş olamaz",
+        "fillNameAndInstructionsFirst": "AI'nin daha iyi bir özet oluşturabilmesi için lütfen önce adı ve talimatları doldurun.",
+        "userOwnedPrompts": "İstemlerim",
+        "deleteFailed": "Silme başarısız",
+        "deleteSuccess": "İstem başarıyla silindi",
+        "resetToDefault": "Varsayılana Sıfırla",
+        "resetConfirm": {
+          "description": "Bu, beceriyi özgün yerleşik içeriğine döndürür. Tüm özelleştirmeler kaybolur.",
+          "title": "Varsayılana Sıfırla"
+        },
+        "resetSuccess": "Beceri varsayılana sıfırlandı",
+        "resetFailed": "Beceri sıfırlanamadı",
+        "description": "Açıklama (akıllı yönlendirme için)",
+        "descriptionPlaceholder": "Bu Becerinin ne yaptığını ve ne zaman tetiklenmesi gerektiğini kısaca açıklayın",
+        "editPrompt": "İstemi Düzenle",
+        "enabledToggle": "Bu Beceriyi Etkinleştir/Devre Dışı Bırak",
+        "enableConfidenceCheck": "Güven Kontrolünü Etkinleştir",
+        "generationDescription": "Tanınan metne dayalı olarak istem göreviyle yeni içerik üretir (örn. çeviri, özetleme).",
+        "globalConfigTitle": "Genel Yapılandırma",
+        "managementTitle": "İstemler",
+        "newPromptName": "Yeni İstem",
+        "outputMode": {
+          "chat": "AI Sohbeti",
+          "label": "Çıktı Modu",
+          "polish": "Metin Düzeltme"
+        },
+        "promptBody": "Görev Gövdesi",
+        "promptBodyPlaceholder": "Modelin giriş metnini nasıl işleyeceğini, neleri değiştirebileceğini, neleri değiştirmemesi gerektiğini ve nihai çıktının nasıl görünmesi gerektiğini açıklayın.",
+        "refinementDescription": "Tanınan metni otomatik olarak düzeltir ve biçimlendirir.",
+        "reviewThreshold": "İnceleme Eşiği",
+        "setAsActive": "Varsayılan Olarak Ayarla",
+        "updateFailed": "Güncelleme başarısız",
+        "updateSuccess": "İstem başarıyla güncellendi",
+        "inlineVarsLabel": "Başvuru Alanları",
+        "autoInjectedNote": "Sistem, ana girişi ve destekleyici başvuru alanlarını otomatik olarak ekler. Daha hassas kontrol gerekiyorsa bunlara görev gövdesinde açıkça başvurabilirsiniz.",
+        "primaryFieldsLabel": "Temel alanlar",
+        "referenceFieldsLabel": "Başvuru alanları",
+        "explicitReferenceNote": "Yukarıdaki bir alana açıkça başvurursanız, sistem aynı alanı istemde daha sonra tekrar eklemez.",
+        "inlineVarsSecondaryLabel": "Meta veri değişkenleri",
+        "fieldAutocompleteTitle": "Alan otomatik tamamlama",
+        "fieldAutocompleteEmpty": "Eşleşen alan yok",
+        "fieldInputTextDesc": "İşlenmesi gereken tek birincil metin",
+        "fieldAsrReferenceDesc": "Düzeltme ve netleştirme için kullanılan yardımcı ASR referansı",
+        "fieldSelectedTextDesc": "Zayıf bağlam olarak kullanılan seçili metin",
+        "fieldPersonNamesDesc": "Bilinen kişi adları",
+        "fieldProductNamesDesc": "Bilinen ürün, marka veya kuruluş adları",
+        "fieldDomainTermsDesc": "Alan terimleri, kısaltmalar veya teknik terimler",
+        "fieldHotwordsDesc": "Diğer öncelikli sıcak kelimeler",
+        "fieldHistoryHintsDesc": "Yalnızca terim tutarlılığı ve zayıf netleştirme için kullanılan geçmiş ipuçları",
+        "varAppCategoryDesc": "Uygulama kategorisi (CodeEditor, Email vb.).",
+        "varContextDesc": "Etkin pencereden alınan geçmiş bağlam.",
+        "varOutputDesc": "Nihai transkribe edilmiş metin.",
+        "varPromptDesc": "Geçerli istem şemasının görünen adı.",
+        "varRawInputDesc": "Tam özgün transkripsiyon.",
+        "varSelectDesc": "Kayıt bittiğinde seçili olan metin.",
+        "varStreamingDesc": "Gerçek zamanlı transkripsiyon sırasındaki ara metin.",
+        "autoGenerate": {
+          "title": "Sesten Beceriye",
+          "description": "Ne istediğinizi doğal dilde açıklayın. AI sizin için eksiksiz bir Beceri oluşturacak.",
+          "shortcutHint": "İpucu: Basın",
+          "placeholder": "örn. Metni düzeltmeme, dilbilgisini düzeltmeme ve daha profesyonel yapmama yardım et...",
+          "step1": "İstem talimatları optimize ediliyor",
+          "step2": "Ad ve simge oluşturuluyor",
+          "step3": "Açıklama oluşturuluyor",
+          "emptyInput": "Lütfen bu Becerinin ne yapması gerektiğini açıklayın",
+          "start": "Oluştur",
+          "menuItem": "Sesli Giriş",
+          "success": "Beceri başarıyla oluşturuldu"
+        },
+        "templates": {
+          "template_polish": "Varsayılan Düzeltme",
+          "template_translate": "Çeviri",
+          "template_summary": "Özet",
+          "template_chat": "AI Sohbeti",
+          "template_blank": "Boş Beceri"
+        },
+        "aliasDuplicate": "Takma ad zaten var",
+        "aliasLabel": "Takma ad",
+        "aliasPlaceholder": "örn. /translate",
+        "commandPrefixDescription": "Bu istemi tetiklemek için komut ön eki",
+        "commandPrefixPlaceholder": "örn. /",
+        "commandPrefixTitle": "Komut Ön Eki",
+        "noAliases": "Yapılandırılmış takma ad yok",
+        "noPrefixes": "Yapılandırılmış ön ek yok",
+        "prefixesSaved": "Ön ekler kaydedildi",
+        "blankSkill": "Boş Beceri",
+        "polishCategory": "Düzeltme",
+        "skillCategory": "Beceri",
+        "references": {
+          "title": "Sahne Başvuruları",
+          "add": "Ekle",
+          "empty": "Henüz sahne başvurusu yok. Uygulamaya göre davranışı uyarlamak için başvuru ekleyin.",
+          "createFirst": "İlk başvuruyu oluştur",
+          "createTitle": "Sahne Başvurusu Oluştur",
+          "editTitle": "Sahne Başvurusunu Düzenle",
+          "matchType": "Eşleşme Türü",
+          "typeAlways": "Genel Kurallar (her zaman etkin)",
+          "typeApp": "Uygulama Adına Göre",
+          "typeCategory": "Uygulama Kategorisine Göre",
+          "alwaysName": "Genel Kurallar",
+          "badgeAlways": "Her Zaman Etkin",
+          "appNamePlaceholder": "örn. Slack, Obsidian, WeChat",
+          "contentPlaceholder": "Bu bağlam için sahneye özel kuralları girin...\n\nÖrnek:\n## IM/Sohbet Kuralları\n- Konuşma tonunu koru\n- Yalnızca bariz hataları düzelt\n- Emoji'yi koru",
+          "created": "Başvuru oluşturuldu",
+          "saved": "Başvuru kaydedildi",
+          "deleted": "Başvuru silindi",
+          "errorNoName": "Lütfen bir ad girin",
+          "errorSave": "Kaydedilemedi",
+          "errorDelete": "Silinemedi",
+          "deleteTitle": "Başvuruyu Sil",
+          "deleteConfirm": "\"{{name}}\" öğesini silmek istediğinizden emin misiniz?"
         }
+      },
+      "intentModel": {
+        "defaultOption": "Varsayılan modeli kullan",
+        "description": "Beceri niyeti algılama için kullanılan model. Ana son işlem modelini izlemek için varsayılan olarak bırakın.",
+        "hint": "Beceri yönlendirme (hangi Becerinin kullanılacağını algılama) ve akıllı yönlendirme eylem sınıflandırması için kullanılır. Hafif düzeltme için düzeltmeyi aynı çağrıda yapar.",
+        "placeholder": "Bir niyet modeli seçin",
+        "title": "Niyet Modeli"
+      },
+      "translationModel": {
+        "hint": "Eklemeden önce çevir özelliği tarafından kullanılır. Niyet modeline, ardından varsayılan son işlem modeline geri dönmek için boş bırakın.",
+        "title": "Çeviri Modeli"
+      },
+      "inputInjection": {
+        "groupTitle": "Otomatik Girdiler",
+        "title": "Otomatik Girdiler",
+        "description": "Hangi yardımcı girdilerin son işlem veya çeviri isteklerine otomatik olarak ekleneceğini kontrol edin.",
+        "summaryEnabled": "Geçmiş bağlamı ekleme etkin, en fazla {{count}} kayıt eklenir.",
+        "summaryDisabled": "Hiçbir geçmiş bağlamı otomatik olarak eklenmez.",
+        "moreOptions": "Daha fazla seçenek",
+        "basicOnly": "Yalnızca temel öğe",
+        "history": {
+          "enabled": "Geçmiş bağlamı ekle",
+          "description": "Son işlem için bağlam olarak geçerli uygulamadan son transkripsiyonları sağlayın.",
+          "limit": "Geçmiş bağlam derinliği",
+          "limitDesc": "Son işleme en fazla son {{count}} geçmiş kaydını ekle."
+        },
+        "streaming": {
+          "enabled": "Akış transkriptini ekle",
+          "description": "ASR sonuçlarını netleştirmeye yardımcı olmak için son metnin yanında streaming_output gönderin."
+        },
+        "hotwords": {
+          "enabled": "Sıcak kelimeleri ve sözlüğü ekle",
+          "description": "Sıcak kelimeleri, terminolojiyi ve yaygın yanlış tanıma eşlemelerini son işleme ekleyin."
+        }
+      },
+      "appRules": {
+        "activeProfiles": "{{count}} etkin kural",
+        "addApp": "Uygulama Ekle",
+        "addRuleHead": "Elle Kural Ekle",
+        "addTitlePattern": "Başlık filtresi ekle",
+        "assignedApps": "Uygulamalar",
+        "assignedAppsDescription": "Aşağıda listelenen uygulamalar bu profil ayarlarını kullanır.",
+        "capture": "Yakala",
+        "captureTitle": "Başlığı Yakala",
+        "categoryDefaults": {
+          "title": "Kategori varsayılan ilkeleri",
+          "hint": "Kendi profili olan uygulamalar kategori ilkelerinden etkilenmez (bir öneriyi kabul ettiğinizde otomatik oluşturulan profiller dahil).",
+          "inheritGlobal": "Geneli devral",
+          "categories": {
+            "CodeEditor": "Kod Düzenleyiciler",
+            "Terminal": "Terminaller",
+            "InstantMessaging": "Anlık Mesajlaşma",
+            "Email": "E-posta",
+            "Notes": "Notlar",
+            "Browser": "Tarayıcılar",
+            "Other": "Diğer"
+          }
+        },
+        "context": {
+          "description": "LLM'lerin transkripsiyon ve düzeltme doğruluğunu artırmak için geçerli uygulamanın son geçmişine başvurmasına izin verin.",
+          "enabled": "Bağlam Başvurusunu Etkinleştir",
+          "limit": "Bağlam Geçmişi Derinliği",
+          "limitDesc": "Model, bağlam olarak bu uygulamadan son {{count}} kayda başvurur.",
+          "title": "Bağlama Duyarlı İşleme"
+        },
+        "createPromptHint": "Başlamak için bir uygulama kuralı ekleyin",
+        "default": "Varsayılan",
+        "newProfileName": "Yeni profil adı...",
+        "noAppsAssigned": "Bu profile henüz uygulama eşlenmedi.",
+        "noProfiles": "Henüz kural yok",
+        "noProfilesShort": "Yapılandırmak için tıklayın",
+        "policy": {
+          "always": "Her Zaman İncele",
+          "auto": "Otomatik",
+          "label": "İnceleme İlkesi",
+          "never": "Doğrudan Ekle"
+        },
+        "policyDesc": {
+          "always": "Bu profildeki uygulamalar için her zaman inceleme penceresini göster.",
+          "auto": "Metin önemli ölçüde değişirse (eşiğe göre) incelemeyi tetikler.",
+          "never": "Bu profildeki uygulamalar için inceleme penceresini asla gösterme."
+        },
+        "policyHeader": "İnceleme Tetikleme İlkesi",
+        "profilesDescription": "Farklı uygulama gruplarına belirli işleme mantığı veya istemleri uygulamak için profiller oluşturun.",
+        "profilesTitle": "Uygulama Profilleri",
+        "promptDescription": "Bu profildeki transkripsiyonlar için kullanılacak özel bir istem seçin.",
+        "promptHeader": "LLM İstemini Geçersiz Kıl",
+        "selectionClipboardFallback": {
+          "description": "Devre dışı bırakıldığında, bu uygulama için seçilen metin yalnızca Erişilebilirlik API'sini kullanır ve simüle edilmiş kopyalama panosu geri dönüşünü atlar.",
+          "label": "Pano Geri Dönüşü"
+        },
+        "translateToEnglishOnInsert": {
+          "description": "Bu uygulama için, eklemeden hemen önce İngilizceye bir ek LLM çevirisi çalıştırın. Çeviri başarısız olursa özgün metne geri dönün.",
+          "label": "Eklemeden önce çevir"
+        },
+        "selectPrompt": "Düzenlemek için kenar çubuğundan bir profil seçin",
+        "skipPostProcess": "Son İşlemi Atla",
+        "shortcuts": {
+          "description": "Belirli profilleri tetiklemek veya kuralları yönetmek için klavye kısayollarını kullanabilirsiniz.",
+          "dialog": "İletişim kutularını onayla veya kapat",
+          "dialogKeys": "Enter / Esc",
+          "nav": "Ayarlar sekmeleri arasında gezin",
+          "navKeys": "⌘ + 1-8",
+          "title": "Kısayollar ve Kullanım"
+        },
+        "matchType": {
+          "exact": "Tam"
+        },
+        "testMatch": "Eşleşmeyi Test Et",
+        "title": "Uygulama Kuralları",
+        "titlePattern": "Başlık (Regex)",
+        "allApps": "Tüm Uygulamalar",
+        "appNotInstalled": "Bu uygulama artık yüklü değil",
+        "recentApps": "Son Kullanılanlar",
+        "refresh": "Yüklü uygulamaları yeniden tara",
+        "searchApps": "Uygulama ara..."
+      },
+      "confidenceCheck": {
+        "description": "İncelemesi etkinleştirilmiş istemler için hassasiyeti ayarlayın. Daha yüksek değerler, inceleme penceresinin daha seyrek görünmesi anlamına gelir.",
+        "threshold": "Hassasiyet Eşiği",
+        "thresholdHint": "Bu değerin üzerindeki puanlar inceleme penceresini tetikler.",
+        "title": "Otomatik İnceleme Hassasiyeti"
+      },
+      "textModelMode": {
+        "title": "Son İşlem Modu",
+        "single": "Tek Model",
+        "singleHint": "Tüm metin için tek model",
+        "length": "Akıllı",
+        "lengthHint": "Metin uzunluğuna göre model seç",
+        "multi": "Çoklu Model",
+        "multiHint": "Paralel karşılaştırma",
+        "defaultModelDescription": "Varsayılan model",
+        "noModelSelected": "Model seçilmedi",
+        "multiDescription": "Paralel karşılaştırma için aşağıdaki listeden modelleri seçin",
+        "multiStrategy": "Çoklu Model Stratejisi",
+        "multiStrategyManual": "Manuel",
+        "multiStrategyManualHint": "Manuel seçim için tüm adayları göster",
+        "multiStrategyRace": "Ultra hızlı",
+        "multiStrategyRaceShort": "Ultra hızlı",
+        "multiStrategyRaceHint": "İlk kullanılabilir sonucu kullan",
+        "multiStrategyLazy": "Tembel",
+        "multiStrategyLazyShort": "Tembel",
+        "multiStrategyLazyHint": "Tercih edilen model için 3 sn bekle, zaman aşımında otomatik seç",
+        "preferredModel": "Tercih edilen model",
+        "setAsPreferred": "Tercih edilen model olarak ayarla",
+        "selectModelsTitle": "Model Seç",
+        "selectModelsDescription": "Paralel işleme için modelleri seçin. Tercih edilen modeli ayarlamak için yıldıza tıklayın.",
+        "selectedCount": "{{count}} seçili",
+        "noneSelected": "Model seçilmedi",
+        "models": "Modeller",
+        "modelSelection": "Model"
+      },
+      "lengthRouting": {
+        "enableLabel": "Metin uzunluğuna göre model otomatik seç",
+        "enableDescription": "Kısa metin için hızlı, uzun metin için gelişmiş model kullan",
+        "thresholdLabel": "Karakter eşiği",
+        "thresholdDescription": "Unicode karaktere göre (1 Çince karakter = 1, 1 İngilizce harf = 1)",
+        "thresholdValue": "{{count}} karakter",
+        "shortModelLabel": "Kısa metin",
+        "longModelLabel": "Uzun metin",
+        "characters": " karakter",
+        "useDefault": "Varsayılanı kullan"
+      },
+      "smartRouting": {
+        "title": "Akıllı Yönlendirme",
+        "hint": "Aynı metin için önceki sonuçları otomatik olarak yeniden kullanır ve kısa metnin düzeltme gerektirip gerektirmediğini belirlemek için hafif bir model kullanır — token maliyetini ve gecikmeyi azaltır.",
+        "shortText": "Kısa metin",
+        "longText": "Uzun metin",
+        "fastModel": "Hızlı model",
+        "fastModelHint": "Kısa metin için hafif veya hızlı bir model. Basit içerikte token tasarrufu sağlar ve gecikmeyi azaltır.",
+        "modelSelection": "Model",
+        "description": "Niyeti otomatik algıla, geçmişi yeniden kullan, token maliyetini azalt"
+      },
+      "modelChain": {
+        "primary": "Birincil",
+        "fallback": "Yedek",
+        "leftClickHint": "Birincil modeli seçmek için sol tıklayın",
+        "rightClickHint": "Yedek modeli seçmek için sağ tıklayın",
+        "strategy": "Strateji",
+        "serial": "Seri",
+        "staggered": "Kademeli",
+        "race": "Yarış",
+        "serialHint": "Birincil başarısız olursa yedeği dene",
+        "staggeredHint": "Birincil yavaşsa yedeği başlat",
+        "raceHint": "İkisini de çağır, en hızlısını kullan",
+        "noModel": "Model seçilmedi",
+        "selectModel": "Model seç"
+      },
+      "disabledNotice": "Son işlem şu anda devre dışı. Yapılandırmak için etkinleştirin.",
+      "fusion": {
+        "enabled": {
+          "description": "Karşılaştırma ve netleştirme için son işleme bir ana transkript ve bir ikincil gerçek zamanlı transkript sağlayın.",
+          "label": "Gerçek zamanlı transkript kullan (füzyon)"
+        },
+        "secondaryModel": {
+          "auto": "Otomatik",
+          "autoDescription": "Geçerli yerel modeli kullan",
+          "description": "Yalnızca Çevrimiçi ASR etkinleştirildiğinde kullanılır. Bu yerel model gerçek zamanlı altyazıları ve ikincil transkripti sağlar.",
+          "placeholder": "Model seç...",
+          "title": "Gerçek zamanlı transkripsiyon modeli (Çevrimiçi ASR)"
+        }
+      },
+      "models": {
+        "addModel": "Model Ekle",
+        "deleteConfirm": {
+          "description": "Bu modeli silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.",
+          "title": "Model Silinsin mi?"
+        },
+        "description": "Son işlem için kullanılan modelleri ekleyin ve yönetin.",
+        "empty": {
+          "description": "Başlamak için bir model ekleyin.",
+          "title": "Yapılandırılmış model yok",
+          "noMatch": "Aramanızla eşleşen model yok."
+        },
+        "promptMessageRole": {
+          "label": "Geliştirici Modu"
+        },
+        "modelTypes": {
+          "asr": {
+            "hint": "Konuşma tanıma",
+            "label": "ASR"
+          },
+          "other": {
+            "hint": "Özel kullanım",
+            "label": "Diğer"
+          },
+          "text": {
+            "hint": "Metin iyileştirme ve biçimlendirme",
+            "label": "Metin"
+          }
+        },
+        "selectModel": {
+          "addButton": "Model Ekle",
+          "customLabelPlaceholder": "Etiket girin...",
+          "customLabelTitle": "Özel Etiket",
+          "customModelPlaceholder": "Model kimliğini girin...",
+          "description": "Eklemek için bir model seçin veya elle girin.",
+          "placeholder": "Bir model seçin...",
+          "placeholderEmpty": "Kullanılabilir model yok",
+          "segmented": {
+            "customModel": "Özel",
+            "selectModel": "Seç",
+            "freeModels": "Ücretsiz"
+          },
+          "noFreeModels": "Bu sağlayıcı için ücretsiz model yok.",
+          "alreadyAdded": "Eklendi",
+          "title": "Model Seç",
+          "usageTypeTitle": "Kullanım Türü",
+          "advancedOptions": "Gelişmiş Seçenekler",
+          "customLabel": "Özel Etiket",
+          "extraParams": "Ek Parametreler",
+          "manualLabel": "Manuel Etiket",
+          "selectLabel": "Etiket Seç",
+          "sourceBuiltin": "Yerleşik Ücretsiz Modeller",
+          "sourceOfficial": "Resmi Model Listesi",
+          "sourceBuiltinHint": "Özenle seçilmiş ücretsiz modeller, API çağrısı gerekmez",
+          "sourceOfficialHint": "Sağlayıcı API'sinden tam liste"
+        },
+        "searchPlaceholder": "Model ara...",
+        "filter": {
+          "all": "Tümü"
+        },
+        "sort": {
+          "provider": "Sağlayıcı",
+          "name": "Ad",
+          "calls": "Çağrılar",
+          "speed": "Hız",
+          "group": "Sağlayıcıya göre grupla"
+        },
+        "stats": {
+          "asr": "ASR: {{count}}",
+          "other": "Diğer: {{count}}",
+          "text": "Metin: {{count}}"
+        },
+        "tabs": {
+          "local": "Yerel Modeller",
+          "remote": "Çevrimiçi Modeller"
+        },
+        "title": "Modeller",
+        "setAsDefault": "Varsayılan Olarak Ayarla",
+        "invalidJson": "Geçersiz JSON biçimi",
+        "addedCount": "{{count}} model eklendi",
+        "customAdd": {
+          "title": "Özel Model Ekle",
+          "modelId": "Model Kimliği",
+          "duplicateWarning": "Bu sağlayıcı için bu kimliğe sahip bir model zaten var. Eklemek bir kopya oluşturacak."
+        }
+      },
+      "providerModels": {
+        "totalCalls": "çağrı",
+        "avgSpeed": "tokens/sec"
+      },
+      "skills": {
+        "advancedSkills": "Gelişmiş Beceriler",
+        "createHint": "Özel beceriler eklemek için ~/.votype/skills/ içinde .md dosyaları oluşturun",
+        "enabledInFile": "Beceri her zaman etkin (dosyada yapılandırın)",
+        "helpText": "skills klasöründe YAML frontmatter içeren .md dosyaları oluşturun. Otomatik olarak yüklenecek ve kullanıma hazır olacak.",
+        "noExternalSkills": "Harici beceri bulunamadı",
+        "openFolder": "Klasörü Aç",
+        "quickCommands": "Hızlı Komutlar",
+        "refresh": "Yenile",
+        "sourceBuiltin": "Yerleşik",
+        "sourceFile": "Dosya",
+        "sourceUser": "Kullanıcı"
+      },
+      "modelCard": {
+        "errorRate": "{{count}} başarısız çağrı — %{{rate}} hata oranı",
+        "lastError": "Son hata{{when}}: {{error}}"
       }
     },
     "history": {
@@ -367,13 +1014,27 @@
       "save": "Transkripsiyonu kaydet",
       "unsave": "Kaydedilenlerden kaldır",
       "delete": "Kaydı sil",
-      "deleteError": "Kayıt silinemedi. Lütfen tekrar deneyin."
+      "deleteError": "Kayıt silinemedi. Lütfen tekrar deneyin.",
+      "content": {
+        "chained": "Zincirlenmiş işleme",
+        "improved": "İyileştirildi",
+        "original": "Konuşma Tanıma Sonucu",
+        "streaming": "Gerçek Zamanlı Tanıma Sonucu"
+      },
+      "searchPlaceholder": "Geçmişte ara...",
+      "timeline": {
+        "earlier": "Daha önce",
+        "thisWeek": "Bu Hafta",
+        "today": "Bugün",
+        "yesterday": "Dün"
+      }
     },
     "debug": {
       "title": "Hata Ayıklama",
       "logDirectory": {
         "title": "Log Dizini",
-        "description": "Log dosyalarının saklandığı konum"
+        "description": "Log dosyalarının saklandığı konum",
+        "error": "Günlük dizini yüklenirken hata: {{error}}"
       },
       "logLevel": {
         "title": "Log Seviyesi",
@@ -381,7 +1042,7 @@
       },
       "updateChecks": {
         "label": "Güncellemeleri Kontrol Et",
-        "description": "Handy için yeni sürümleri otomatik olarak kontrol eder"
+        "description": "Votype için yeni sürümleri otomatik olarak kontrol eder"
       },
       "soundTheme": {
         "label": "Ses Teması",
@@ -426,30 +1087,54 @@
         "label": "Sonuna Boşluk Ekle",
         "description": "Yapıştırılan transkripsiyondan sonra boşluk ekler"
       },
-      "keyboardImplementation": {
-        "title": "Keyboard Implementation",
-        "description": "Choose the keyboard shortcut backend.",
-        "bindingsReset": "Keyboard shortcuts were incompatible and reset to defaults"
-      },
       "paths": {
         "appData": "Uygulama Verileri:",
         "models": "Modeller:",
-        "settings": "Ayarlar:"
+        "settings": "Ayarlar:",
+        "description": "Votype'nin kullandığı yaygın dosya sistemi yolları",
+        "title": "Yollar"
       },
-      "pasteDelay": {
-        "title": "Yapıştırma gecikmesi",
-        "description": "Yapıştırma tuşu göndermeden önce gecikme (milisaniye cinsinden). Yanlış metin yapıştırılıyorsa artırın."
+      "destroySettingsWindowOnClose": {
+        "description": "Ayarlar penceresi kapatılırken yok edilir (kaynakları serbest bırakır). Tepsi menüsünden yeniden açın.",
+        "label": "Kapatınca Ayarlar Penceresini Yok Et"
+      },
+      "groups": {
+        "audio": "Ses ve İşleme",
+        "data": "Veri Yönetimi",
+        "system": "Sistem ve Günlük Kaydı",
+        "text": "Metin İşleme"
+      },
+      "logChannels": {
+        "title": "Günlük Kanalları",
+        "postProcess": "Son İşlem İstekleri",
+        "postProcessDesc": "Metin düzeltme için tüm LLM istemlerini ve yanıtlarını günlüğe kaydet (tekli ve çoklu model)",
+        "skillRouting": "Beceri/Niyet Yönlendirme",
+        "skillRoutingDesc": "Beceri yönlendirme istemlerini ve yanıtlarını günlüğe kaydet",
+        "routing": "Yönlendirme Kararları",
+        "routingDesc": "SmartRouting, ModeRouting ve işlem hattı kararlarını günlüğe kaydet",
+        "transcription": "Transkripsiyon Çıktısı",
+        "transcriptionDesc": "ASR sonuçlarını ve gerçek zamanlı kısmi sonuçları günlüğe kaydet"
+      },
+      "offlineVadRealtime": {
+        "intervalDescription": "Her N ms'de bir gerçek zamanlı yenilemeyi zorla (devre dışı bırakmak için 0).",
+        "intervalLabel": "Çevrimdışı gerçek zamanlı aralık (ms)",
+        "windowDescription": "Toplam ses 30 sn'yi aştığında, VAD bölümü yoksa gerçek zamanlı kod çözme son N saniyeyi kullanır.",
+        "windowLabel": "Çevrimdışı gerçek zamanlı pencere (sn)"
+      },
+      "reliablePaste": {
+        "title": "Güvenilir Yapıştırma (Beta)",
+        "description": "Panoyu, sabit bir gecikmeden sonra değil, yalnızca hedef uygulama transkripsiyonu gerçekten okuduktan sonra geri yükleyin. Sistem yükü altında eski pano içeriğinin yapıştırılmasını düzeltmeyi amaçlar. Bir pano yapıştırma yöntemi gerektirir; yalnızca macOS ve Windows."
       }
     },
     "about": {
       "title": "Hakkında",
       "version": {
         "title": "Sürüm",
-        "description": "Handy'nin mevcut sürümü"
+        "description": "Votype'nin mevcut sürümü"
       },
       "appDataDirectory": {
         "title": "Uygulama Veri Dizini",
-        "description": "Handy'nin verilerini sakladığı konum"
+        "description": "Votype'nin verilerini sakladığı konum"
       },
       "sourceCode": {
         "title": "Kaynak Kodu",
@@ -458,7 +1143,7 @@
       },
       "supportDevelopment": {
         "title": "Geliştirmeyi Destekle",
-        "description": "Handy'yi geliştirmeye devam etmemize yardımcı olun",
+        "description": "Votype'yi geliştirmeye devam etmemize yardımcı olun",
         "button": "Bağış Yap"
       },
       "acknowledgments": {
@@ -466,8 +1151,149 @@
         "whisper": {
           "title": "Whisper.cpp",
           "description": "OpenAI'nin Whisper otomatik konuşma tanıma modelinin yüksek performanslı çıkarımı",
-          "details": "Handy, hızlı ve yerel konuşmadan metne dönüştürme için Whisper.cpp kullanır. Georgi Gerganov ve katkıda bulunanların harika çalışmaları için teşekkür ederiz."
+          "details": "Votype, hızlı ve yerel konuşmadan metne dönüştürme için Whisper.cpp kullanır. Georgi Gerganov ve katkıda bulunanların harika çalışmaları için teşekkür ederiz."
         }
+      },
+      "recordingsDirectory": {
+        "description": "Ses kayıtlarının kaydedildiği konum",
+        "title": "Kayıt Dizini"
+      },
+      "upstream": {
+        "button": "Kaynağı Görüntüle",
+        "description": "Votype, Handy v0.9.7 tabanlıdır",
+        "title": "Kaynak Proje"
+      }
+    },
+    "asrModels": {
+      "addFromUrl": "Ekle ve İndir",
+      "addSection": {
+        "description": "Bir model URL'si yapıştırın. Uygulama, model türünü dosya adından çıkarır.",
+        "title": "Yükle"
+      },
+      "delete": "Sil",
+      "description": "Yerel transkripsiyon modellerini yönetin ve hızlı seçicide hangilerinin görüneceğini kontrol edin.",
+      "download": "İndir",
+      "favorite": "Favori",
+      "filters": {
+        "all": "Tümü",
+        "downloaded": "İndirildi",
+        "favorites": "Favoriler",
+        "language": "Dil",
+        "mode": "Mod",
+        "recommended": "Önerilen",
+        "status": "Durum",
+        "type": "Tür"
+      },
+      "groupBy": {
+        "language": "Dil",
+        "mode": "Mod",
+        "type": "Tür"
+      },
+      "groups": {
+        "asr": "ASR Modelleri",
+        "multilingual": "Çok Dilli",
+        "punctuation": "Noktalama Modelleri"
+      },
+      "idLabel": "id: {{id}}",
+      "install": {
+        "addCustomTagButton": "Ekle",
+        "button": "Özel Model Ekle",
+        "customTagPlaceholder": "Özel etiket...",
+        "description": "Model arşivinin URL'sini girin (tar.gz, tar.bz2 vb.).",
+        "editDescription": "Bu modelin adını veya etiketlerini güncelleyin.",
+        "editTitle": "Özel Modeli Düzenle",
+        "nameLabel": "Ad (İsteğe bağlı)",
+        "placeholder": "https://example.com/model.tar.gz",
+        "remove": "Özel modeli kaldır",
+        "removeConfirm": "Bu özel model kaldırılsın mı? İndirilen dosyalar da silinecek.",
+        "tagsLabel": "Etiketler",
+        "title": "Özel Model Ekle",
+        "tooltip": "URL'den model ekle",
+        "urlLabel": "URL",
+        "edit": "Özel modeli düzenle"
+      },
+      "languages": {
+        "de": "Almanca",
+        "en": "İngilizce",
+        "es": "İspanyolca",
+        "fr": "Fransızca",
+        "ja": "Japonca",
+        "ko": "Korece",
+        "multilingual": "Çok Dilli",
+        "other": "Diğer",
+        "ru": "Rusça",
+        "yue": "Kantonca",
+        "zh": "Çince"
+      },
+      "library": {
+        "count": "{{count}} model",
+        "description": "Hızlı seçicide göstermek için favorileri seçin.",
+        "searchPlaceholder": "Model ara…",
+        "title": "Kütüphane"
+      },
+      "modeChips": {
+        "asr": "ASR",
+        "punctuation": "Noktalama"
+      },
+      "specialChips": {
+        "streaming": "akış",
+        "new": "yeni"
+      },
+      "pipeline": {
+        "description": "Transkripsiyondan sonra otomatik olarak uygulanabilen genel son işlem.",
+        "itn": "ITN (SenseVoice)",
+        "itnHint": "Ters metin normalleştirme: temel biçimlendirme (örn. sayılar).",
+        "punctuation": "Otomatik noktalama",
+        "punctuationHint": "Cümle araları eklemek için seçili noktalama modelini kullanır.",
+        "punctuationModel": "Noktalama modeli",
+        "punctuationModelHint": "Hangi noktalama modelinin kullanılacağını seçin.",
+        "title": "İşlem Hattı"
+      },
+      "quickSettings": {
+        "description": "Bunlar genel olarak uygulanır. Noktalama modellerini aşağıdaki kütüphaneden silin.",
+        "title": "Hızlı Ayarlar"
+      },
+      "reset": "Sıfırla",
+      "status": {
+        "downloaded": "İndirildi",
+        "notDownloaded": "İndirilmedi"
+      },
+      "title": "Yerel Modeller",
+      "typeChips": {
+        "moonshine": "Moonshine",
+        "other": "Diğer",
+        "paraformer": "Paraformer",
+        "parakeet": "Parakeet",
+        "sensevoice": "SenseVoice",
+        "whisper": "Whisper",
+        "zipformer": "Zipformer"
+      },
+      "types": {
+        "moonshine": "Moonshine",
+        "paraformer": "Paraformer",
+        "parakeet": "Parakeet",
+        "punctuation": "Noktalama",
+        "sensevoice": "SenseVoice",
+        "whisper": "Whisper",
+        "zipformer": "Zipformer"
+      },
+      "autoDownloadingPunctuation": "Noktalama modeli otomatik indiriliyor..."
+    },
+    "shortcuts": {
+      "title": "Kısayollar"
+    },
+    "vocabulary": {
+      "hotWords": {
+        "description": "Sıkça yanlış duyulan kelimeleri ekleyin. Sistem otomatik olarak düzeltecek.",
+        "empty": "Henüz sıcak kelime yok",
+        "placeholder": "Kelime ekle...",
+        "title": "Sıcak Kelimeler",
+        "word": "Kelime"
+      },
+      "import": "İçe Aktar",
+      "deleteConfirm": {
+        "title": "Silmeyi Onayla",
+        "hotwordMessage": "Bu sıcak kelimeyi kaldırmak istediğinizden emin misiniz?"
       }
     }
   },
@@ -483,7 +1309,16 @@
     "downloading": "İndiriliyor... %{{progress}}",
     "installing": "Yükleniyor...",
     "preparing": "Hazırlanıyor...",
-    "checkForUpdates": "Güncellemeleri kontrol et"
+    "checkForUpdates": "Güncellemeleri kontrol et",
+    "postProcess": {
+      "title": "Son İşlem",
+      "punctuation": "Otomatik noktalama",
+      "translate": "İngilizceye çevir",
+      "realtime": "Gerçek Zamanlı Önizleme",
+      "llm": "LLM Son İşlem",
+      "selectModel": "Model seç...",
+      "openSettings": "Ayarlar"
+    }
   },
   "common": {
     "loading": "Yükleniyor...",
@@ -505,23 +1340,607 @@
     "off": "Kapalı",
     "yes": "Evet",
     "no": "Hayır",
-    "noOptionsFound": "Seçenek bulunamadı"
+    "noOptionsFound": "Seçenek bulunamadı",
+    "locale": "tr",
+    "active": "Aktif",
+    "addNewOption": "Yeni seçenek ekle",
+    "aiOptimizationFailed": "AI optimizasyonu başarısız oldu, lütfen yapılandırmayı kontrol edin",
+    "aiOptimizationSuccess": "AI optimizasyonu başarılı",
+    "aiOptimize": "AI Düzeltme",
+    "authorize": "Yetkilendir",
+    "bold": "Kalın",
+    "code": "Satır İçi Kod",
+    "confirm": "Onayla",
+    "copied": "Kopyalandı",
+    "copy": "Kopyala",
+    "done": "Tamam",
+    "exitFullscreen": "Geri Yükle",
+    "filterOptions": "Seçenekleri filtrele...",
+    "fullscreen": "Tam Ekran",
+    "granted": "Verildi",
+    "h1": "H1",
+    "id": "Kimlik",
+    "italic": "İtalik",
+    "link": "Bağlantı",
+    "list": "Liste",
+    "models": "Modeller",
+    "next": "İleri",
+    "noMatchingOptions": "Eşleşen seçenek yok",
+    "notAvailable": "Kullanılamıyor",
+    "optional": "İsteğe bağlı",
+    "quote": "Alıntı",
+    "requesting": "İsteniyor...",
+    "required": "Gerekli",
+    "searchOrPaste": "Ara veya yapıştır...",
+    "selectAll": "Tümünü Seç",
+    "selectOption": "Bir seçenek seçin",
+    "skip": "Atla",
+    "useInput": "\"{{input}}\" kullan",
+    "useThisProvider": "Bu Sağlayıcıyı Kullan",
+    "variables": "Kullanılabilir Değişkenler",
+    "refresh": "Yenile",
+    "time": {
+      "justNow": "Az önce",
+      "minutesAgo": "{{count}} dk önce",
+      "hoursAgo": "{{count}} sa önce",
+      "daysAgo": "{{count}} gün önce"
+    },
+    "history": "Geçmiş",
+    "latest": "En son",
+    "localInsertCopied": "Odaklanmış giriş alanı yok — sonuç panoya kopyalandı",
+    "insertBlocked": "{{app}} ekleme kara listesinde — içerik panoya kopyalandı, elle yapıştırın",
+    "expand": "Kenar çubuğunu genişlet",
+    "collapse": "Kenar çubuğunu daralt",
+    "retry": "Yeniden dene",
+    "unknown": "Bilinmiyor",
+    "error": "Hata"
   },
   "accessibility": {
     "permissionsRequired": "Erişilebilirlik İzinleri Gerekli",
-    "permissionsDescription": "Handy, transkribe edilen metni yazabilmek için erişilebilirlik izinlerine ihtiyaç duyar.",
+    "permissionsDescription": "Votype, transkribe edilen metni yazabilmek için erişilebilirlik izinlerine ihtiyaç duyar.",
     "openSettings": "Sistem Ayarlarını Aç",
-    "dismiss": "Yoksay"
+    "dismiss": "Yoksay",
+    "verify": "Doğrula"
   },
   "errors": {
-    "loadDirectory": "Dizin yüklenirken hata oluştu: {{error}}"
+    "loadDirectory": "Dizin yüklenirken hata oluştu: {{error}}",
+    "noInputDeviceTitle": "Mikrofon kullanılamıyor",
+    "noInputDevice": "Ses giriş cihazı bulunamadı. Sistem Ayarları > Ses > Giriş'i kontrol edip tekrar deneyin.",
+    "recordingFailed": "Kayıt başarısız: {{error}}"
   },
   "appLanguage": {
     "title": "Uygulama Dili",
-    "description": "Handy arayüzünün dilini değiştirin"
+    "description": "Votype arayüzünün dilini değiştirin"
   },
   "overlay": {
+    "error": {
+      "appleIntelligenceFailed": "Apple Intelligence Başarısız Oldu. Sistemi kontrol edin.",
+      "appleIntelligenceUnavailable": "Apple Intelligence Kullanılamıyor.",
+      "llmInitFailed": "LLM Başlatılamadı. Anahtarları/URL'yi kontrol edin.",
+      "llmRequestFailed": "LLM İsteği Başarısız Oldu. Ağı/API'yi kontrol edin.",
+      "llmNetworkError": "Ağ hatası, yeniden deneniyor...",
+      "llmRateLimited": "Hız sınırı, lütfen bekleyin",
+      "llmAuthFailed": "Geçersiz API anahtarı, ayarları kontrol edin",
+      "llmBadRequest": "Model istek parametrelerini reddetti (örn. min_p/top_k), model parametrelerini kontrol edin",
+      "llmModelNotFound": "Model bulunamadı veya etkin değil, model kimliğini kontrol edin",
+      "llmApiError": "API hizmet hatası",
+      "llmParseError": "Model yanıtı ayrıştırılamadı",
+      "transcriptionFailedSaved": "Transkripsiyon başarısız (kaydedildi)"
+    },
+    "skillConfirmation": {
+      "confirmUse": "seçim için mi?",
+      "detectedSelection": "Kullan ",
+      "prompt": "Bu beceri kullanılsın mı?",
+      "charCount": "{{count}} karakter"
+    },
+    "status": {
+      "inserting": "Ekleniyor...",
+      "llm": "Son İşleniyor...",
+      "recording": "Kaydediliyor...",
+      "translation": "Çevriliyor...",
+      "transcribing": "Transkribe ediliyor...",
+      "review": "İnceleniyor...",
+      "rewrite": "İşleniyor…",
+      "success": "Eklendi",
+      "translationSuccess": "Çeviri Başarılı"
+    },
+    "rewriteOperation": {
+      "rewrite": "Yeniden yazıldı",
+      "expand": "Genişletildi",
+      "format": "Biçimlendirildi",
+      "translate": "Çevrildi",
+      "polish": "Düzeltildi",
+      "append": "Eklendi",
+      "unknown": "Tamam"
+    },
+    "timeout": {
+      "title": "Çevrimiçi transkripsiyon zaman aşımına uğradı",
+      "continue": "Devam",
+      "retry": "Yeniden dene",
+      "cancel": "İptal"
+    },
+    "ruleSuggestion": {
+      "message": "{{appName}} uygulamasında '{{promptName}}' öğesini {{count}} kez kullandınız ({{title}}). Bu pencere için bir kural ekleyelim mi?",
+      "accept": "Kural ekle",
+      "dismiss": "Şimdi değil",
+      "never": "Hiç sorma"
+    }
+  },
+  "dashboard": {
+    "actions": {
+      "edit": "Düzenle",
+      "editDescription": "Bu geçmiş kaydının transkripsiyon metnini değiştirin",
+      "editPlaceholder": "Değiştirilmiş metni girin...",
+      "editTitle": "Tanıma Sonucunu Düzenle",
+      "openRecordings": "Kayıtlar",
+      "quickInsert": "{{app}} uygulamasına ekle",
+      "quickInsertEmpty": "Son kullanılan harici uygulama bulunamadı",
+      "quickInsertErrorFocus": "Hedef pencere etkinleştirilemedi",
+      "quickInsertErrorNoTarget": "Eklenecek hedef uygulama yok",
+      "quickInsertErrorPaste": "Yapıştırma başarısız",
+      "reprocessFailed": "AI yeniden işleme başarısız",
+      "retranscribe": "Sesi kullanarak yeniden transkribe et",
+      "rejectPolish": "Düzeltme sonucunu reddet",
+      "retranscribeFailed": "Yeniden transkripsiyon başarısız",
+      "retranscribing": "Yeniden transkribe ediliyor..."
+    },
+    "activity": {
+      "entries": "{{count}} kayıt",
+      "subtitle": "Son 40 gün",
+      "title": "Kullanım"
+    },
+    "cards": {
+      "allTime": "Tüm zamanlar",
+      "recent": "Son {{days}} gün",
+      "today": "Bugün"
+    },
+    "dateLabels": {
+      "today": "Bugün",
+      "yesterday": "Dün"
+    },
+    "errorIndicator": {
+      "errorTypeLabel": {
+        "asr_empty": "ASR boş sonuç",
+        "llm_api_error": "Sağlayıcı hata döndürdü",
+        "llm_auth_failed": "Kimlik doğrulama başarısız",
+        "llm_bad_request": "Geçersiz istek",
+        "llm_config_error": "Model/sağlayıcı yapılandırma hatası",
+        "llm_empty_result": "Boş yanıt",
+        "llm_init_failed": "İstemci başlatılamadı",
+        "llm_model_not_found": "Model bulunamadı (404)",
+        "llm_network_error": "Ağ hatası",
+        "llm_parse_error": "Yanıt ayrıştırılamadı",
+        "llm_rate_limited": "Hız sınırı (429)",
+        "llm_timeout": "Zaman aşımı (10 sn)",
+        "llm_unknown": "Bilinmeyen LLM hatası",
+        "pipeline_timeout": "İşlem hattı zaman aşımı (20 sn)"
+      },
+      "errorsOnlyToggle": "Yalnızca hatalar",
+      "panelDetail": "Ayrıntı",
+      "panelErrorType": "Hata türü",
+      "panelModel": "Model",
+      "panelProvider": "Sağlayıcı",
+      "panelTimestamp": "Zaman damgası",
+      "stageAsr": "ASR",
+      "stagePolish": "Düzeltme",
+      "tooltipAsrEmpty": "ASR boş sonuç döndürdü",
+      "tooltipPolishFailed": "Düzeltme başarısız",
+      "tooltipPolishProviderError": "Düzeltme başarısız ({{status}})",
+      "tooltipPolishTimeout": "Düzeltme zaman aşımına uğradı"
+    },
+    "details": {
+      "audioRemoved": "Kayıt kaldırıldı",
+      "cancelled": "İptal edildi",
+      "count": "{{count}} kayıt",
+      "empty": "Veri yok",
+      "emptyHint": "İlk transkripsiyonunuzu başlatmak için kısayol tuşunu kullanın",
+      "loadMore": "Daha fazla yükle",
+      "meta": {
+        "chars": "{{value}} karakter"
+      },
+      "recordCount": "{{count}} kayıt",
+      "title": "Geçmiş"
+    },
+    "metrics": {
+      "characters": "Karakter",
+      "duration": "Ses süresi",
+      "entries": "Transkripsiyon",
+      "postProcessed": "İşlenmiş",
+      "saved": "Kaydedildi"
+    },
+    "range": {
+      "allTime": "Tüm zamanlar",
+      "buttons": {
+        "allTime": "Tüm zamanlar",
+        "last30Days": "Son 30 gün",
+        "last40Days": "Son 40 gün",
+        "last7Days": "Son 7 gün"
+      },
+      "lastNDays": "Son {{days}} gün",
+      "today": "Bugün"
+    },
+    "summary": {
+      "apps": {
+        "empty": "Uygulama verisi yok",
+        "title": "En çok kullanılan 3 uygulama",
+        "top3": "İlk 3"
+      },
+      "llm": {
+        "calls": "{{count}} model çağrısı",
+        "title": "LLM kullanımı",
+        "unknownApp": "Bilinmiyor"
+      },
+      "recording": {
+        "count": "{{count}} transkripsiyon",
+        "title": "Toplam sesli giriş"
+      },
+      "transcription": {
+        "speed": "Ortalama {{rate}}/dk",
+        "title": "Oluşturulan metin"
+      }
+    },
+    "title": "Kontrol Paneli"
+  },
+  "models": {
+    "large": {
+      "description": "İyi doğruluk, ancak yavaş.",
+      "name": "Whisper Large"
+    },
+    "medium": {
+      "description": "İyi doğruluk, orta hız",
+      "name": "Whisper Medium"
+    },
+    "parakeet-tdt-0.6b-v2": {
+      "description": "Yalnızca İngilizce. İngilizce konuşanlar için en iyi model.",
+      "name": "Parakeet V2"
+    },
+    "parakeet-tdt-0.6b-v3": {
+      "description": "Hızlı ve doğru",
+      "name": "Parakeet V3"
+    },
+    "punct-zh-en-ct-transformer-2024-04-12": {
+      "description": "zh+en karışık metne noktalama ve cümle araları ekler. Daha büyük model; daha doğru ama daha yavaş. 2024-04-12 tarihinde güncellendi.",
+      "name": "Noktalama (Çince + İngilizce) Large"
+    },
+    "punct-zh-en-ct-transformer-2024-04-12-int8": {
+      "description": "zh+en karışık metne noktalama ve cümle araları ekler. Int8; hızlı ve küçük. 2024-04-12 tarihinde güncellendi.",
+      "name": "Noktalama (Çince + İngilizce)"
+    },
+    "small": {
+      "description": "Hızlı ve oldukça doğru.",
+      "name": "Whisper Small"
+    },
+    "turbo": {
+      "description": "Dengeli doğruluk ve hız.",
+      "name": "Whisper Turbo"
+    }
+  },
+  "inline": {
+    "listening": "Dinleniyor...",
     "transcribing": "Transkribe ediliyor...",
-    "processing": "İşleniyor..."
+    "polishing": "Düzeltiliyor...",
+    "executing": "Yürütülüyor...",
+    "complete": "Tamamlandı",
+    "modeToggle": "Düzenleme Modu",
+    "closeConfirmTitle": "Kaydedilmemiş Değişiklikler",
+    "closeConfirmMessage": "İçerik değiştirildi. Kapatılsın mı?",
+    "closeConfirmOk": "Kapat",
+    "closeConfirmCancel": "İptal",
+    "sectionTitle": "Transkripsiyon Sonucu",
+    "undo": "Geri al",
+    "redo": "Yinele",
+    "placeholder": "Dikteye başlamak için kısayola basın..."
+  },
+  "soundPicker": {
+    "custom": "Özel",
+    "marimba": "Marimba",
+    "pop": "Pop",
+    "chime": "Çan",
+    "switch": "Anahtar",
+    "pluck": "Tıngırtı",
+    "toggle": "Geçiş",
+    "twotone": "İki Ton",
+    "pep": "Canlı",
+    "power": "Güç",
+    "zap": "Zap",
+    "blip": "Bip",
+    "mouse": "Fare Tıklaması",
+    "wood": "Ahşap Vuruşu",
+    "preview": "Önizleme"
+  },
+  "summary": {
+    "periodSelector": {
+      "title": "Zaman Aralığı",
+      "day": "Bugün",
+      "week": "Hafta",
+      "month": "Ay"
+    },
+    "stats": {
+      "entries": "Kayıtlar",
+      "chars": "Karakterler",
+      "duration": "Süre",
+      "aiCalls": "AI Çağrıları",
+      "noApps": "Uygulama verisi yok",
+      "appDistribution": "Uygulama Dağılımı",
+      "timeDistribution": "Zaman Dağılımı"
+    },
+    "recap": {
+      "title": "Günlük Özet",
+      "empty": "Bu aralıkta bir özet oluşturmak için henüz yeterli etkinlik yok.",
+      "progress": "Önemli İlerleme",
+      "friction": "Sürtünme",
+      "nextFocus": "Sonraki Odak",
+      "blockers": "Engeller",
+      "nextStep": "Önerilen Sonraki Adım",
+      "records": "kayıt"
+    },
+    "timeline": {
+      "title": "Geçmiş",
+      "days": "Günler",
+      "weeks": "Haftalar",
+      "months": "Aylar",
+      "empty": "Henüz özet yok"
+    },
+    "actions": {
+      "export": "Dışa Aktar"
+    },
+    "export": {
+      "markdown": "Markdown olarak dışa aktar",
+      "json": "JSON olarak dışa aktar"
+    },
+    "aiAnalysis": {
+      "title": "AI Analizi",
+      "generate": "Oluştur",
+      "generating": "Oluşturuluyor...",
+      "view": "Görüntüle",
+      "selectModel": "Model Seç",
+      "provider": "Sağlayıcı",
+      "modelUsed": "Kullanılan model",
+      "clickToGenerate": "Etkinliklerinizin AI analizini oluşturmak için tıklayın",
+      "communicationStyle": "İletişim Tarzı",
+      "reflection": "Yansıma ve Öneriler",
+      "empty": "Etkinlikleriniz hakkında AI destekli içgörüler için 'Oluştur' seçeneğine tıklayın.",
+      "updateProfile": "Profili Güncelle"
+    },
+    "userProfile": {
+      "currentStyle": "Geçerli Tarz Profili"
+    }
+  },
+  "theme": {
+    "accentColor": {
+      "amber": "Amber",
+      "blue": "Mavi",
+      "bronze": "Bronz",
+      "brown": "Kahverengi",
+      "crimson": "Kızıl",
+      "current": "Geçerli: {{color}}",
+      "cyan": "Camgöbeği",
+      "description": "Uygulama genelinde kullanılan vurgu rengini seçin",
+      "gold": "Altın",
+      "grass": "Çim",
+      "gray": "Gri",
+      "green": "Yeşil",
+      "indigo": "Çivit",
+      "iris": "İris",
+      "jade": "Yeşim",
+      "lime": "Misket Limonu",
+      "mint": "Nane",
+      "orange": "Turuncu",
+      "pink": "Pembe",
+      "plum": "Erik",
+      "purple": "Mor",
+      "red": "Kırmızı",
+      "ruby": "Yakut",
+      "sky": "Gökyüzü",
+      "teal": "Deniz Mavisi",
+      "title": "Vurgu Rengi",
+      "tomato": "Domates",
+      "violet": "Menekşe",
+      "yellow": "Sarı"
+    },
+    "compactMode": {
+      "description": "Açıklamaları araç ipucu olarak göster",
+      "title": "Kompakt Mod"
+    },
+    "cornerRadius": {
+      "capsule": "Kapsül",
+      "capsuleDesc": "Tamamen yuvarlatılmış köşeler",
+      "default": "Varsayılan",
+      "defaultDesc": "Standart köşe yuvarlatma",
+      "description": "Köşelerin yuvarlaklığını ayarlayın",
+      "rounded": "Yuvarlatılmış",
+      "roundedDesc": "Daha yuvarlak köşeler",
+      "sharp": "Keskin",
+      "sharpDesc": "Köşe yuvarlatma yok",
+      "soft": "Yumuşak",
+      "softDesc": "Hafif yuvarlatılmış köşeler",
+      "title": "Köşe Yarıçapı"
+    },
+    "panelStyle": {
+      "description": "Yarı saydam veya opak paneller arasında seçim yapın",
+      "solid": "Opak",
+      "solidDesc": "Opak paneller",
+      "title": "Panel Stili",
+      "translucent": "Yarı Saydam",
+      "translucentDesc": "Buzlu cam efekti"
+    },
+    "scaling": {
+      "current": "Geçerli: {{scale}}",
+      "description": "Arayüz ölçeğini ayarlayın",
+      "title": "Ölçekleme"
+    },
+    "themeMode": {
+      "dark": "Koyu",
+      "darkDesc": "Her zaman koyu temayı kullan",
+      "description": "Votype'un nasıl görüneceğini seçin",
+      "light": "Açık",
+      "lightDesc": "Her zaman açık temayı kullan",
+      "system": "Sistem",
+      "systemDesc": "Sistem temanızla eşleştir",
+      "title": "Tema Modu"
+    },
+    "title": "Tema"
+  },
+  "transcription": {
+    "review": {
+      "aiResponse": "AI Yanıtı",
+      "change": "Değişiklik",
+      "confidence": "Güven",
+      "confirm": "Onayla ve Ekle",
+      "description": "Transkripsiyon hatalar içerebilir. Lütfen inceleyin ve gerekirse düzenleyin.",
+      "final": "Nihai çıktı",
+      "generationTitle": "AI Asistan Yanıtı",
+      "highlightHint": "Vurgulanan kelimeler LLM düzenlemelerini gösterir.",
+      "hint": "Onaylamak için ⌘/Ctrl + Enter, iptal etmek için Escape",
+      "insert": "Ekle",
+      "insertCode": "Kod Ekle",
+      "insertOriginal": "Özgünü Ekle (Tab)",
+      "insertStabilityHint": "Kısayol: {{shortcut}}\nEkleme kararsızsa bu özelliği geçici olarak devre dışı bırakabilirsiniz.",
+      "instruction": "Talimat",
+      "placeholder": "Transkripsiyonu düzenle...",
+      "source": "Canlı transkript",
+      "title": "Transkripsiyonu İncele",
+      "skipPostProcess": "Son İşlemi Atla",
+      "hideDiff": "Farkı Gizle",
+      "showDiff": "Farkı Göster",
+      "translateText": "Çevir",
+      "translationResult": "Çeviri Sonucu",
+      "translationPreview": "İngilizce Önizleme",
+      "translationPreviewLangLabel": "İNGİLİZCE",
+      "translationModeAuto": "OTOMATİK",
+      "translationModeManual": "MANUEL",
+      "translationUpdating": "Çevriliyor...",
+      "translationWaiting": "Düzenlemelerden 1 sn sonra otomatik güncellenir",
+      "translationFailedFallback": "Çeviri başarısız, özgün metin eklenecek",
+      "translationReady": "Güncellendi",
+      "analysisTitle": "Analiz:",
+      "deviationNone": "Tam Eşleşme",
+      "deviationMinor": "Küçük Değişiklikler",
+      "deviationMajor": "Önemli Değişiklikler",
+      "insertTranslation": "Çeviriyi ekle",
+      "insertPolished": "Düzeltilmişi Ekle",
+      "insertEnglish": "İngilizcesini Ekle",
+      "resizeGrip": "Yeniden boyutlandırmak için sürükleyin, otomatik sığdırmak için çift tıklayın",
+      "multiModel": "Çoklu Model Sonuçları",
+      "processing": "İşleniyor...",
+      "restoreOrder": "Özgün Sırayı Geri Yükle",
+      "sortBySpeed": "Yanıt Hızına Göre Sırala",
+      "speedSorted": "Önce Hız",
+      "sortBySpeedShort": "Hıza Göre",
+      "rankCount": "#{{rank}} ({{count}} kez)",
+      "sortByChange": "Değişiklik büyüklüğüne göre sırala",
+      "changeSorted": "Önce değişiklik",
+      "sortLabel": "Sırala",
+      "pressEscAgain": "İçerik değiştirildi, kapatmak için tekrar ESC'ye basın",
+      "speedHistoryAvg": "Geçmiş ort.: {{speed}} ({{count}} çağrı)",
+      "speedThisRun": "Bu çalıştırma: {{speed}} ({{diff}})"
+    }
+  },
+  "secureInput": {
+    "blockedWithCulprit_one": "{{name}} 1 kısayolu engelliyor olabilir",
+    "blockedWithCulprit_other": "{{name}} {{count}} kısayolu engelliyor olabilir",
+    "blockedNoCulprit_one": "macOS geçici olarak 1 kısayolu engelliyor",
+    "blockedNoCulprit_other": "macOS geçici olarak {{count}} kısayolu engelliyor",
+    "recorderBlockedWithCulprit": "{{name}} kısayol değişikliklerini engelliyor olabilir",
+    "recorderBlockedNoCulprit": "macOS geçici olarak kısayol değişikliklerini engelliyor",
+    "learnMore": "Nasıl düzeltilir",
+    "recorderBlocked": "Şu anda kısayol kaydedilemiyor — macOS Güvenli Giriş tuş olaylarını engelliyor. Önce Güvenli Giriş uyarısını çözün.",
+    "dismiss": "Yoksay"
+  },
+  "ruleSuggestion": {
+    "title": "Bu pencere için bir kural eklensin mi?",
+    "app": "Uygulama",
+    "window": "Pencere",
+    "prompt": "İstem",
+    "used": "Kullanıldı",
+    "times": "{{count}} kez",
+    "description": "Eklendikten sonra, bu pencerede bir sonraki kaydınızda bu istem otomatik olarak uygulanır.",
+    "dismiss": "Bu sefer değil",
+    "neverAgain": "Bir daha sorma",
+    "addRule": "Kural ekle"
+  },
+  "hotword": {
+    "addBar": {
+      "placeholder": "Sıcak kelimeleri girin (toplu eklemek için virgülle ayırın)...",
+      "words": "{{count}} kelime",
+      "add": "Ekle",
+      "addCount": "Ekle ({{count}})"
+    },
+    "source": {
+      "manual": "Manuel",
+      "autoLearned": "Otomatik öğrenildi",
+      "aiExtracted": "AI çıkardı"
+    },
+    "scenario": {
+      "work": "İş",
+      "casual": "Günlük"
+    },
+    "tagCloud": {
+      "add": "Ekle",
+      "import": "İçe Aktar",
+      "export": "Dışa Aktar",
+      "sortByWeight": "Ağırlığa göre sırala",
+      "sortByAlpha": "Alfabetik sırala",
+      "searchPlaceholder": "Sıcak kelime ara...",
+      "aiSuggestions": "AI önerileri ({{count}})",
+      "acceptAll": "Tümünü kabul et",
+      "dismissAll": "Tümünü yoksay",
+      "contextFrequent": "Bağlamda sık",
+      "acceptSuggestion": "Öneriyi kabul et",
+      "dismissSuggestion": "Öneriyi yoksay",
+      "empty": "Henüz sıcak kelime yok. İlkini oluşturmak için \"Ekle\" seçeneğine tıklayın.",
+      "noMatch": "\"{{query}}\" ile eşleşen sıcak kelime yok",
+      "dropHere": "Buraya bırak"
+    },
+    "editPanel": {
+      "addAlias": "{{label}} kelimesi ekle",
+      "duplicate": "\"{{target}}\" zaten var",
+      "saveFailed": "Kaydedilemedi",
+      "targetPlaceholder": "Hedef kelime",
+      "decreaseWeight": "Ağırlığı azalt",
+      "increaseWeight": "Ağırlığı artır",
+      "falsePositive": "{{count}} yanlış pozitif",
+      "deleteHotword": "Sıcak kelimeyi sil",
+      "category": "Kategori",
+      "scenario": "Senaryo",
+      "correction": "Düzelt",
+      "correctionDesc": "Düzeltme referansı olarak kullanılır ve LLM istemine eklenir. Bir takma adı \"Zorla\"ya sürükleyerek doğrudan yerel değiştirmeye dönüştürün.",
+      "correctionPlaceholder": "Düzeltme kelimesi ekle",
+      "force": "Zorla",
+      "forceDesc": "Yalnızca yerel tam değiştirme, asla LLM'ye gönderilmez. AI referansını geri yüklemek için bir takma adı \"Düzelt\"e geri sürükleyin.",
+      "forcePlaceholder": "Zorlama kelimesi ekle",
+      "none": "Yok",
+      "confirmDeleteTitle": "Silmeyi onayla",
+      "confirmDeleteDesc": "\"{{target}}\" sıcak kelimesi silinsin mi?"
+    },
+    "categoryDialog": {
+      "colors": {
+        "gray": "Gri",
+        "green": "Yeşil",
+        "orange": "Turuncu",
+        "blue": "Mavi",
+        "purple": "Mor",
+        "red": "Kırmızı",
+        "cyan": "Camgöbeği",
+        "amber": "Amber",
+        "teal": "Deniz Mavisi",
+        "pink": "Pembe"
+      },
+      "idInvalid": "Kimlikler yalnızca harf, sayı ve tire içerebilir",
+      "idDuplicate": "\"{{id}}\" kategori kimliği zaten var",
+      "addFailed": "Eklenemedi",
+      "saveFailed": "Kaydedilemedi",
+      "deleteFailed": "Silinemedi",
+      "manageTooltip": "Kategorileri yönet",
+      "title": "Sıcak kelime kategorilerini yönet",
+      "description": "Her kategorinin adını, rengini ve simgesini özelleştirin. Yerleşik kategoriler silinemez.",
+      "namePlaceholder": "Kategori adı",
+      "builtin": "Yerleşik",
+      "deleteTooltip": "Sil (sıcak kelimeler Terimler'e taşınır)",
+      "idPlaceholder": "Kimlik (örn. medical)",
+      "labelPlaceholder": "Ad (örn. Tıbbi)",
+      "idInvalidDetail": "Kimlikler yalnızca harf, sayı ve tire (-) içerebilir",
+      "addCategory": "Kategori ekle"
+    }
   }
 }

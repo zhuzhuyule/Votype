@@ -151,7 +151,11 @@ const CollapsibleTips: React.FC<{ tipKey: string; t: any }> = ({
       >
         <Text size="1" color="gray" className="font-medium">
           {isExpanded ? "▼" : "▶"}{" "}
-          {t("settings.postProcessing.prompts.inlineVarsLabel", "可引用字段")}:
+          {t(
+            "settings.postProcessing.prompts.inlineVarsLabel",
+            "Reference Fields",
+          )}
+          :
         </Text>
         {!isExpanded && (
           <Text size="1" color="gray" className="font-mono opacity-70">
@@ -177,7 +181,7 @@ const CollapsibleTips: React.FC<{ tipKey: string; t: any }> = ({
             <Text size="1" color="gray" className="block font-medium">
               {t(
                 "settings.postProcessing.prompts.primaryFieldsLabel",
-                "关键信息",
+                "Key fields",
               )}
             </Text>
             {KEY_FIELDS.map((v) => (
@@ -204,7 +208,7 @@ const CollapsibleTips: React.FC<{ tipKey: string; t: any }> = ({
             <Text size="1" color="gray" className="block font-medium">
               {t(
                 "settings.postProcessing.prompts.referenceFieldsLabel",
-                "参考信息",
+                "Reference fields",
               )}
             </Text>
             {REFERENCE_FIELDS.map((v) => (
@@ -568,7 +572,7 @@ export const ResizableEditor: React.FC<ResizableEditorProps> = ({
       {
         title: t(
           "settings.postProcessing.prompts.primaryFieldsLabel",
-          "关键信息",
+          "Key fields",
         ),
         items: filteredSuggestions.filter((field) =>
           KEY_FIELDS.some((candidate) => candidate.name === field.name),
@@ -577,7 +581,7 @@ export const ResizableEditor: React.FC<ResizableEditorProps> = ({
       {
         title: t(
           "settings.postProcessing.prompts.referenceFieldsLabel",
-          "参考信息",
+          "Reference fields",
         ),
         items: filteredSuggestions.filter((field) =>
           REFERENCE_FIELDS.some((candidate) => candidate.name === field.name),
@@ -586,7 +590,7 @@ export const ResizableEditor: React.FC<ResizableEditorProps> = ({
       {
         title: t(
           "settings.postProcessing.prompts.inlineVarsSecondaryLabel",
-          "元数据变量",
+          "Metadata variables",
         ),
         items: filteredSuggestions.filter((field) =>
           INLINE_VARS.some((candidate) => candidate.name === field.name),
@@ -599,7 +603,7 @@ export const ResizableEditor: React.FC<ResizableEditorProps> = ({
         <Text size="1" color="gray" className="block px-2 pb-2 font-medium">
           {t(
             "settings.postProcessing.prompts.fieldAutocompleteTitle",
-            "字段补全",
+            "Field autocomplete",
           )}
         </Text>
         <Box className="max-h-72 overflow-auto">
@@ -607,7 +611,7 @@ export const ResizableEditor: React.FC<ResizableEditorProps> = ({
             <Text size="1" color="gray" className="block px-2 py-2">
               {t(
                 "settings.postProcessing.prompts.fieldAutocompleteEmpty",
-                "没有匹配的字段",
+                "No matching fields",
               )}
             </Text>
           ) : (

@@ -96,4 +96,23 @@ const initSystemLocale = async () => {
 // Run async locale detection
 initSystemLocale();
 
+// Apply RTL/LTR direction + lang attribute to the document root so that
+// right-to-left languages (currently Arabic) render with correct text flow
+// and native input alignment. LTR languages are set explicitly to "ltr".
+// NOTE: this handles document direction only. Full layout mirroring of
+// Tailwind physical utilities (ml-*/mr-*, left-*/right-*, flex-row,
+// text-left/right) is a larger, deferred effort tracked separately.
+const RTL_LANGS = new Set(["ar", "he", "fa", "ur"]);
+
+function applyDocumentDirection(lang: string) {
+  if (typeof document === "undefined") return;
+  const code = lang.split("-")[0].toLowerCase();
+  const root = document.documentElement;
+  root.dir = RTL_LANGS.has(code) ? "rtl" : "ltr";
+  root.lang = code;
+}
+
+applyDocumentDirection(i18n.language);
+i18n.on("languageChanged", (lang) => applyDocumentDirection(lang));
+
 export default i18n;

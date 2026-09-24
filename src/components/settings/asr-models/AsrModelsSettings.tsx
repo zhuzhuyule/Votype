@@ -123,7 +123,7 @@ export const AsrModelsSettings: React.FC<AsrModelsSettingsProps> = ({
             <Text size="2" color="blue">
               {t(
                 "settings.asrModels.autoDownloadingPunctuation",
-                "正在自动下载标点模型...",
+                "Auto-downloading punctuation model...",
               )}
             </Text>
           </Box>

@@ -1,5 +1,4 @@
 {
-  "_comment": "Vietnamese translation for Votype.",
   "accessibility": {
     "dismiss": "Bỏ qua",
     "openSettings": "Mở Cài đặt Hệ thống",
@@ -55,11 +54,54 @@
     "code": "Mã",
     "link": "Liên kết",
     "fullscreen": "Toàn màn hình",
-    "exitFullscreen": "Thu nhỏ"
+    "exitFullscreen": "Thu nhỏ",
+    "locale": "vi",
+    "active": "Đang hoạt động",
+    "aiOptimizationFailed": "Tối ưu hóa AI thất bại, vui lòng kiểm tra cấu hình",
+    "authorize": "Cấp quyền",
+    "confirm": "Xác nhận",
+    "granted": "Đã cấp quyền",
+    "id": "ID",
+    "next": "Tiếp theo",
+    "optional": "Không bắt buộc",
+    "requesting": "Đang yêu cầu...",
+    "required": "Bắt buộc",
+    "useThisProvider": "Dùng nhà cung cấp này",
+    "variables": "Biến khả dụng",
+    "refresh": "Làm mới",
+    "time": {
+      "justNow": "Vừa xong",
+      "minutesAgo": "{{count}} phút trước",
+      "hoursAgo": "{{count}} giờ trước",
+      "daysAgo": "{{count}} ngày trước"
+    },
+    "history": "Lịch sử",
+    "latest": "Mới nhất",
+    "localInsertCopied": "Không có ô nhập nào được chọn — đã sao chép kết quả vào clipboard",
+    "insertBlocked": "{{app}} nằm trong danh sách chặn chèn — đã sao chép nội dung vào clipboard, hãy dán thủ công",
+    "expand": "Mở rộng thanh bên",
+    "collapse": "Thu gọn thanh bên",
+    "retry": "Thử lại",
+    "unknown": "Không rõ",
+    "error": "Lỗi"
   },
   "dashboard": {
     "actions": {
-      "openRecordings": "Bản ghi âm"
+      "openRecordings": "Bản ghi âm",
+      "edit": "Chỉnh sửa",
+      "editDescription": "Sửa văn bản đã chuyển đổi cho mục lịch sử này",
+      "editPlaceholder": "Nhập văn bản đã sửa...",
+      "editTitle": "Chỉnh sửa kết quả nhận dạng",
+      "quickInsert": "Chèn vào {{app}}",
+      "quickInsertEmpty": "Không phát hiện ứng dụng bên ngoài nào gần đây",
+      "quickInsertErrorFocus": "Không thể kích hoạt cửa sổ đích",
+      "quickInsertErrorNoTarget": "Không có ứng dụng đích để chèn",
+      "quickInsertErrorPaste": "Dán thất bại",
+      "reprocessFailed": "Xử lý lại bằng AI thất bại",
+      "retranscribe": "Chuyển đổi lại bằng âm thanh",
+      "rejectPolish": "Từ chối kết quả tinh chỉnh",
+      "retranscribeFailed": "Chuyển đổi lại thất bại",
+      "retranscribing": "Đang chuyển đổi lại..."
     },
     "activity": {
       "entries": "Tổng cộng {{count}} mục",
@@ -79,7 +121,10 @@
       "meta": {
         "chars": "{{value}} ký tự"
       },
-      "title": "Lịch sử"
+      "title": "Lịch sử",
+      "cancelled": "Đã hủy",
+      "emptyHint": "Dùng phím tắt để bắt đầu bản chuyển đổi đầu tiên",
+      "recordCount": "{{count}} bản ghi"
     },
     "metrics": {
       "characters": "Ký tự",
@@ -93,7 +138,8 @@
       "buttons": {
         "allTime": "Tất cả",
         "last30Days": "30 ngày qua",
-        "last7Days": "7 ngày qua"
+        "last7Days": "7 ngày qua",
+        "last40Days": "40 ngày qua"
       },
       "lastNDays": "{{days}} ngày qua",
       "today": "Hôm nay"
@@ -105,9 +151,9 @@
         "top3": "Top 3"
       },
       "llm": {
-        "details": "Tỷ lệ trúng: {{hitRate}}",
         "title": "Mức dùng LLM",
-        "unknownApp": "Không rõ"
+        "unknownApp": "Không rõ",
+        "calls": "{{count}} lần gọi mô hình"
       },
       "recording": {
         "count": "{{count}} lần chuyển đổi",
@@ -118,10 +164,47 @@
         "title": "Văn bản tạo ra"
       }
     },
-    "title": "Bảng điều khiển"
+    "title": "Bảng điều khiển",
+    "dateLabels": {
+      "today": "Hôm nay",
+      "yesterday": "Hôm qua"
+    },
+    "errorIndicator": {
+      "errorTypeLabel": {
+        "asr_empty": "ASR trả về kết quả rỗng",
+        "llm_api_error": "Nhà cung cấp trả về lỗi",
+        "llm_auth_failed": "Xác thực thất bại",
+        "llm_bad_request": "Yêu cầu không hợp lệ",
+        "llm_config_error": "Lỗi cấu hình mô hình/nhà cung cấp",
+        "llm_empty_result": "Phản hồi rỗng",
+        "llm_init_failed": "Khởi tạo client thất bại",
+        "llm_model_not_found": "Không tìm thấy mô hình (404)",
+        "llm_network_error": "Lỗi mạng",
+        "llm_parse_error": "Phân tích phản hồi thất bại",
+        "llm_rate_limited": "Bị giới hạn tần suất (429)",
+        "llm_timeout": "Hết thời gian chờ (10s)",
+        "llm_unknown": "Lỗi LLM không rõ",
+        "pipeline_timeout": "Đường ống hết thời gian chờ (20s)"
+      },
+      "errorsOnlyToggle": "Chỉ lỗi",
+      "panelDetail": "Chi tiết",
+      "panelErrorType": "Loại lỗi",
+      "panelModel": "Mô hình",
+      "panelProvider": "Nhà cung cấp",
+      "panelTimestamp": "Thời điểm",
+      "stageAsr": "ASR",
+      "stagePolish": "Tinh chỉnh",
+      "tooltipAsrEmpty": "ASR trả về kết quả rỗng",
+      "tooltipPolishFailed": "Tinh chỉnh thất bại",
+      "tooltipPolishProviderError": "Tinh chỉnh thất bại ({{status}})",
+      "tooltipPolishTimeout": "Tinh chỉnh quá thời gian"
+    }
   },
   "errors": {
-    "loadDirectory": "Lỗi khi tải thư mục: {{error}}"
+    "loadDirectory": "Lỗi khi tải thư mục: {{error}}",
+    "noInputDeviceTitle": "Không có micrô",
+    "noInputDevice": "Không tìm thấy thiết bị nhập âm thanh. Kiểm tra Cài đặt Hệ thống > Âm thanh > Đầu vào, rồi thử lại.",
+    "recordingFailed": "Ghi âm thất bại: {{error}}"
   },
   "footer": {
     "checkForUpdates": "Kiểm tra cập nhật",
@@ -135,7 +218,16 @@
     "updateAvailable": "Có bản cập nhật: {{version}}",
     "updateAvailableShort": "Có bản cập nhật",
     "updateCheckingDisabled": "Đã tắt kiểm tra cập nhật",
-    "upToDate": "Đã cập nhật"
+    "upToDate": "Đã cập nhật",
+    "postProcess": {
+      "title": "Xử lý sau",
+      "punctuation": "Tự động thêm dấu câu",
+      "translate": "Dịch sang tiếng Anh",
+      "realtime": "Xem trước thời gian thực",
+      "llm": "Xử lý sau bằng LLM",
+      "selectModel": "Chọn mô hình...",
+      "openSettings": "Cài đặt"
+    }
   },
   "models": {
     "large": {
@@ -200,10 +292,24 @@
     "onlineAsr": "ASR Trực tuyến",
     "onlineAsrActive": "ASR Trực tuyến đang hoạt động",
     "onlineAsrModels": "Các Mô hình ASR Trực tuyến",
-    "realtimeModel": "Mô hình thời gian thực",
+    "realtimeModel": {
+      "empty": "Không có mô hình cục bộ phù hợp. Hãy tải xuống (và đánh dấu yêu thích) một mô hình Sherpa trước.",
+      "enabled": "Đã bật",
+      "off": "Tắt",
+      "offHint": "Không cần hiển thị phụ đề trực tiếp cho mô hình cục bộ (tiết kiệm bộ nhớ)",
+      "open": "Chọn mô hình chuyển đổi thời gian thực",
+      "selected": "Thời gian thực: {{modelName}}",
+      "title": "Mô hình chuyển đổi thời gian thực"
+    },
     "searchPlaceholder": "Tìm kiếm mô hình…",
     "userAddedModel": "Mô hình do người dùng thêm",
-    "welcome": "Chào mừng đến với Votype!"
+    "welcome": "Chào mừng đến với Votype!",
+    "realtimeModelLabel": "Mô hình thời gian thực",
+    "asrFallback": {
+      "add": "+ Dự phòng",
+      "label": "Dự phòng",
+      "remove": "Xóa mô hình dự phòng"
+    }
   },
   "onboarding": {
     "download": "Tải xuống",
@@ -240,16 +346,117 @@
       "turbo": {
         "description": "Cân bằng giữa độ chính xác và tốc độ.",
         "name": "Whisper Turbo"
-      }
+      },
+      "description": "Chọn một mô hình để bắt đầu. Các mô hình đề xuất phù hợp với hầu hết nhu cầu.",
+      "showMore": "Thêm mô hình",
+      "title": "Chọn một mô hình"
     },
     "recommended": "Đề xuất",
-    "subtitle": "Để bắt đầu, hãy chọn một mô hình chuyển đổi giọng nói"
+    "subtitle": "Để bắt đầu, hãy chọn một mô hình chuyển đổi giọng nói",
+    "accessibility": {
+      "description": "Quyền này cho phép tự động dán văn bản",
+      "feature1": "Tự động dán bản chuyển đổi vào ứng dụng hiện tại",
+      "feature2": "Lấy vị trí con trỏ để đặt lớp phủ",
+      "feature3": "Mô phỏng phím tắt để dán",
+      "grant": "Cấp quyền",
+      "granted": "Đã cấp quyền trợ năng ✓",
+      "noteImpact": "Nếu không có quyền, kết quả chỉ được sao chép vào clipboard.",
+      "reason1": "Tự động dán văn bản đã chuyển đổi vào ứng dụng đang hoạt động",
+      "reason2": "Lấy vị trí con trỏ để định vị lớp phủ",
+      "reason3": "Mang lại trải nghiệm mượt mà hơn",
+      "simpleDesc": "Tự động dán kết quả chuyển đổi, không cần Cmd+V",
+      "skip": "Bỏ qua bước này",
+      "step1": "Mở Cài đặt Hệ thống → Quyền riêng tư & Bảo mật → Trợ năng",
+      "step2": "Xóa ứng dụng nếu đã có trong danh sách",
+      "step3": "Nhấn + để thêm và bật quyền",
+      "stepsTitle": "Gặp khó khăn?",
+      "title": "Quyền trợ năng",
+      "whyTitle": "Tại sao cần quyền này?",
+      "without1": "Ứng dụng vẫn hoạt động bình thường",
+      "without2": "Văn bản đã chuyển đổi được sao chép vào clipboard",
+      "without3": "Bạn sẽ phải dán thủ công (Cmd+V)",
+      "withoutTitle": "Nếu không có quyền này:"
+    },
+    "microphone": {
+      "denied": "Cần quyền truy cập micrô để ghi âm giọng nói. Vui lòng cấp quyền trong Cài đặt Hệ thống.",
+      "description": "Votype cần quyền truy cập micrô để ghi âm giọng nói",
+      "devModeHint": "Chế độ nhà phát triển: không thể kiểm tra quyền",
+      "error": "Không thể yêu cầu quyền. Vui lòng thử lại hoặc cấp thủ công trong Cài đặt Hệ thống.",
+      "grant": "Cấp quyền truy cập micrô",
+      "granted": "Đã cấp quyền truy cập micrô ✓",
+      "grantFirst": "Vui lòng cấp quyền micrô để tiếp tục",
+      "reason1": "Ghi âm giọng nói của bạn để chuyển đổi",
+      "reason2": "Mọi xử lý đều diễn ra cục bộ",
+      "reason3": "Dữ liệu giọng nói của bạn không bao giờ rời khỏi thiết bị",
+      "shortDesc": "Dùng để ghi âm giọng nói chuyển thành văn bản",
+      "skipDev": "Bỏ qua (Chế độ Dev)",
+      "title": "Micrô",
+      "whyTitle": "Tại sao cần quyền này?"
+    },
+    "welcome": {
+      "continue": "Tiếp tục",
+      "description": "Phương thức nhập liệu bằng giọng nói hỗ trợ chế độ cục bộ, trực tuyến hoặc kết hợp.",
+      "feature1": "Chuyển giọng nói thành văn bản, hoàn toàn ngoại tuyến",
+      "feature2": "Ưu tiên quyền riêng tư, dữ liệu không rời khỏi thiết bị",
+      "feature3": "Kích hoạt bằng phím tắt, nhấn là nói",
+      "permissionsTitle": "Thiết lập quyền",
+      "skipDev": "Bỏ qua (Chế độ Dev)",
+      "start": "Bắt đầu",
+      "title": "Chào mừng"
+    }
   },
   "overlay": {
     "status": {
       "llm": "Đang xử lý sau...",
       "recording": "Đang ghi âm...",
-      "transcribing": "Đang chuyển đổi..."
+      "transcribing": "Đang chuyển đổi...",
+      "inserting": "Đang chèn...",
+      "translation": "Đang dịch...",
+      "review": "Xem lại...",
+      "rewrite": "Đang xử lý…",
+      "success": "Đã chèn",
+      "translationSuccess": "Dịch thành công"
+    },
+    "error": {
+      "appleIntelligenceFailed": "Apple Intelligence gặp lỗi. Kiểm tra hệ thống.",
+      "appleIntelligenceUnavailable": "Apple Intelligence không khả dụng.",
+      "llmInitFailed": "Khởi tạo LLM thất bại. Kiểm tra khóa/URL.",
+      "llmRequestFailed": "Yêu cầu LLM thất bại. Kiểm tra mạng/API.",
+      "llmNetworkError": "Lỗi mạng, đang thử lại...",
+      "llmRateLimited": "Bị giới hạn tần suất, vui lòng đợi",
+      "llmAuthFailed": "Khóa API không hợp lệ, kiểm tra cài đặt",
+      "llmBadRequest": "Mô hình từ chối tham số yêu cầu (ví dụ min_p/top_k), kiểm tra tham số mô hình",
+      "llmModelNotFound": "Không tìm thấy mô hình hoặc mô hình chưa được bật, kiểm tra ID mô hình",
+      "llmApiError": "Lỗi dịch vụ API",
+      "llmParseError": "Không thể phân tích phản hồi của mô hình",
+      "transcriptionFailedSaved": "Chuyển đổi thất bại (đã lưu)"
+    },
+    "skillConfirmation": {
+      "confirmUse": "cho phần đã chọn?",
+      "detectedSelection": "Dùng ",
+      "prompt": "Dùng skill này?",
+      "charCount": "{{count}} ký tự"
+    },
+    "rewriteOperation": {
+      "rewrite": "Đã viết lại",
+      "expand": "Đã mở rộng",
+      "format": "Đã định dạng",
+      "translate": "Đã dịch",
+      "polish": "Đã tinh chỉnh",
+      "append": "Đã nối thêm",
+      "unknown": "Xong"
+    },
+    "timeout": {
+      "title": "Chuyển đổi trực tuyến quá thời gian",
+      "continue": "Tiếp tục",
+      "retry": "Thử lại",
+      "cancel": "Hủy"
+    },
+    "ruleSuggestion": {
+      "message": "Bạn đã dùng '{{promptName}}' {{count}} lần trong {{appName}} ({{title}}). Thêm quy tắc cho cửa sổ này?",
+      "accept": "Thêm quy tắc",
+      "dismiss": "Không phải bây giờ",
+      "never": "Không hỏi lại"
     }
   },
   "settings": {
@@ -280,6 +487,15 @@
       "version": {
         "description": "Phiên bản hiện tại của Votype",
         "title": "Phiên bản"
+      },
+      "recordingsDirectory": {
+        "description": "Vị trí lưu các bản ghi âm",
+        "title": "Thư mục ghi âm"
+      },
+      "upstream": {
+        "button": "Xem dự án gốc",
+        "description": "Votype dựa trên Handy v0.9.7",
+        "title": "Dự án gốc"
       }
     },
     "advanced": {
@@ -369,6 +585,91 @@
         "descriptionNonWhisper": "Dịch chỉ hoạt động với các mô hình Whisper. Hiện tại: {{model}}",
         "descriptionUnknownModel": "Không rõ khả năng của mô hình hiện tại. Chọn mô hình đã tải xuống để bật dịch.",
         "label": "Dịch sang tiếng Anh"
+      },
+      "vocabularyCorrections": {
+        "allApps": "Tất cả ứng dụng",
+        "delete": "Xóa chỉnh sửa này",
+        "description": "Các chỉnh sửa từ vựng được học từ lịch sử chỉnh sửa của bạn",
+        "empty": "Chưa có chỉnh sửa nào được học",
+        "global": "Toàn cục",
+        "removeGlobal": "Xóa toàn cục",
+        "scope": "Phạm vi",
+        "setGlobal": "Đặt làm toàn cục",
+        "title": "Từ điển từ vựng"
+      },
+      "scope": {
+        "custom": "Ứng dụng cụ thể",
+        "editDescription": "Chỉnh sửa phạm vi cho \"{{original}}\" → \"{{corrected}}\"",
+        "editTitle": "Phạm vi chỉnh sửa",
+        "global": "Toàn cục",
+        "multiple": "{{count}} ứng dụng",
+        "none": "Không có ứng dụng",
+        "source": "Ứng dụng nguồn ({{app}})"
+      },
+      "groups": {
+        "dataManagement": "Quản lý dữ liệu",
+        "debug": "Tùy chọn gỡ lỗi",
+        "inputOutput": "Đầu vào & Đầu ra",
+        "network": "Mạng",
+        "startup": "Khởi động & Hành vi",
+        "transcriptionOptimization": "Tối ưu chuyển đổi"
+      },
+      "proxy": {
+        "add": "Thêm proxy",
+        "server": "Máy chủ",
+        "username": "Tên đăng nhập",
+        "usernamePlaceholder": "Không bắt buộc",
+        "password": "Mật khẩu",
+        "passwordPlaceholder": "Không bắt buộc",
+        "enable": "Bật",
+        "globalHint": "Áp dụng cho tất cả nhà cung cấp theo mặc định",
+        "testAndSave": "Kiểm tra & Lưu",
+        "testSuccess": "Kết nối proxy thành công",
+        "testFailed": "Kết nối proxy thất bại: {{error}}",
+        "remove": "Xóa",
+        "removed": "Đã xóa proxy"
+      },
+      "insertBlacklist": {
+        "label": "Danh sách chặn chèn",
+        "description": "Khi một ứng dụng trong danh sách chặn (terminal, trình quản lý mật khẩu, ...) đang ở tiền cảnh, bản chuyển đổi sẽ được sao chép vào clipboard kèm thông báo thay vì được gõ hoặc dán tự động."
+      },
+      "remoteRecord": {
+        "label": "Phím ghi âm điều khiển từ xa",
+        "description": "Chiếm nút ghi âm trên điều khiển giọng nói Bluetooth (một phím Consumer của macOS mà phím tắt thông thường không thấy): nhấn một lần để bắt đầu ghi, nhấn lần nữa để dừng."
+      },
+      "fillerWordRemoval": {
+        "label": "Loại bỏ từ đệm",
+        "description": "Loại bỏ các từ đệm khi nói trước khi xử lý sau. Chỉ áp dụng cho ngôn ngữ có mẫu từ đệm đáng tin cậy."
+      },
+      "vadBackend": {
+        "title": "Bộ nhận diện hoạt động giọng nói",
+        "description": "Chọn bộ phát hiện dùng để lọc khoảng lặng. Earshot đang ở giai đoạn thử nghiệm; chuyển lại Silero nếu giọng nói bị cắt hoặc tạp âm bị giữ lại.",
+        "options": {
+          "silero": "Silero",
+          "earshot": "Earshot"
+        }
+      },
+      "localApi": {
+        "title": "API Cục bộ",
+        "enable": "Bật máy chủ cục bộ tương thích OpenAI",
+        "enableDescription": "Mặc định tắt. Bật lên có hiệu lực ngay, không cần khởi động lại. Máy chủ chỉ liên kết với localhost, nên công cụ bên ngoài có thể gọi mô hình và ASR qua một URL và khóa duy nhất.",
+        "allowLan": "Cho phép truy cập LAN",
+        "allowLanDescription": "Khi bật, các thiết bị khác trong LAN có thể truy cập qua địa chỉ IP của máy bạn. Khởi động lại ứng dụng để thay đổi có hiệu lực.",
+        "port": "Cổng",
+        "endpoint": "Điểm cuối",
+        "url": "URL",
+        "accessKey": "Khóa truy cập",
+        "restartToApply": "Khởi động lại để áp dụng",
+        "copy": "Sao chép",
+        "random": "Ngẫu nhiên",
+        "localAccess": "Truy cập cục bộ:",
+        "lanAccess": "Truy cập LAN:",
+        "authHeader": "Header xác thực:",
+        "lanUrlHint": "http://<your-LAN-IP>:{{port}}{{path}}",
+        "copied": "Đã sao chép {{label}}",
+        "copyFailed": "Không thể sao chép {{label}}",
+        "keyGenerated": "Đã tạo khóa truy cập mới",
+        "keyPlaceholder": "your-key"
       }
     },
     "asrModels": {
@@ -388,7 +689,8 @@
         "language": "Ngôn ngữ",
         "mode": "Chế độ",
         "status": "Trạng thái",
-        "type": "Loại"
+        "type": "Loại",
+        "recommended": "Đề xuất"
       },
       "groupBy": {
         "language": "Ngôn ngữ",
@@ -397,14 +699,26 @@
       },
       "groups": {
         "multilingual": "Đa ngôn ngữ",
-        "offline": "Ngoại tuyến",
         "punctuation": "Dấu câu",
-        "streaming": "Phát trực tuyến"
+        "asr": "Mô hình ASR"
       },
       "idLabel": "id: {{id}}",
       "install": {
         "placeholder": "Dán URL mô hình…",
-        "tooltip": "Cài đặt từ URL"
+        "tooltip": "Cài đặt từ URL",
+        "addCustomTagButton": "Thêm",
+        "button": "Thêm mô hình tùy chỉnh",
+        "customTagPlaceholder": "Thẻ tùy chỉnh...",
+        "description": "Nhập URL của tệp mô hình (tar.gz, tar.bz2, v.v.).",
+        "editDescription": "Cập nhật tên hoặc thẻ cho mô hình này.",
+        "editTitle": "Chỉnh sửa mô hình tùy chỉnh",
+        "nameLabel": "Tên (Không bắt buộc)",
+        "remove": "Xóa mô hình tùy chỉnh",
+        "removeConfirm": "Xóa mô hình tùy chỉnh này? Thao tác này cũng sẽ xóa mọi tệp đã tải xuống.",
+        "tagsLabel": "Thẻ",
+        "title": "Thêm mô hình tùy chỉnh",
+        "urlLabel": "URL",
+        "edit": "Chỉnh sửa mô hình tùy chỉnh"
       },
       "languages": {
         "de": "Tiếng Đức",
@@ -448,14 +762,30 @@
       "typeChips": {
         "other": "Khác",
         "parakeet": "Parakeet",
-        "punctuation": "Dấu câu",
-        "whisper": "Whisper"
+        "whisper": "Whisper",
+        "moonshine": "Moonshine",
+        "paraformer": "Paraformer",
+        "sensevoice": "SenseVoice",
+        "zipformer": "Zipformer"
       },
       "types": {
         "parakeet": "Parakeet",
         "punctuation": "Dấu câu",
-        "whisper": "Whisper"
-      }
+        "whisper": "Whisper",
+        "moonshine": "Moonshine",
+        "paraformer": "Paraformer",
+        "sensevoice": "SenseVoice",
+        "zipformer": "Zipformer"
+      },
+      "modeChips": {
+        "asr": "ASR",
+        "punctuation": "Dấu câu"
+      },
+      "specialChips": {
+        "streaming": "phát trực tuyến",
+        "new": "mới"
+      },
+      "autoDownloadingPunctuation": "Đang tự động tải mô hình dấu câu..."
     },
     "debug": {
       "alwaysOnMicrophone": {
@@ -477,7 +807,7 @@
       },
       "logDirectory": {
         "description": "Vị trí lưu trữ các tệp nhật ký",
-        "error": "Error loading log directory: {{error}}",
+        "error": "Lỗi khi tải thư mục nhật ký: {{error}}",
         "title": "Thư mục nhật ký"
       },
       "logLevel": {
@@ -490,7 +820,7 @@
       },
       "paths": {
         "appData": "Dữ liệu ứng dụng:",
-        "description": "Common filesystem paths Votype uses",
+        "description": "Các đường dẫn hệ thống tệp thường dùng của Votype",
         "models": "Mô hình:",
         "settings": "Cài đặt:",
         "title": "Paths"
@@ -521,6 +851,37 @@
       "wordCorrectionThreshold": {
         "description": "Độ nhạy cho việc sửa từ tùy chỉnh",
         "title": "Ngưỡng sửa từ"
+      },
+      "destroySettingsWindowOnClose": {
+        "description": "Khi đóng cửa sổ cài đặt, hủy nó (giải phóng tài nguyên). Mở lại từ menu khay.",
+        "label": "Hủy cửa sổ cài đặt khi đóng"
+      },
+      "groups": {
+        "audio": "Âm thanh & Xử lý",
+        "data": "Quản lý dữ liệu",
+        "system": "Hệ thống & Ghi nhật ký",
+        "text": "Xử lý văn bản"
+      },
+      "logChannels": {
+        "title": "Kênh nhật ký",
+        "postProcess": "Yêu cầu xử lý sau",
+        "postProcessDesc": "Ghi nhật ký tất cả prompt và phản hồi LLM cho việc tinh chỉnh văn bản (đơn và đa mô hình)",
+        "skillRouting": "Định tuyến Skill/Ý định",
+        "skillRoutingDesc": "Ghi nhật ký prompt và phản hồi định tuyến skill",
+        "routing": "Quyết định định tuyến",
+        "routingDesc": "Ghi nhật ký quyết định SmartRouting, ModeRouting và đường ống",
+        "transcription": "Kết quả chuyển đổi",
+        "transcriptionDesc": "Ghi nhật ký kết quả ASR và phần văn bản thời gian thực"
+      },
+      "offlineVadRealtime": {
+        "intervalDescription": "Buộc làm mới thời gian thực mỗi N ms (0 để tắt).",
+        "intervalLabel": "Khoảng thời gian thực ngoại tuyến (ms)",
+        "windowDescription": "Khi tổng âm thanh vượt quá 30 giây, giải mã thời gian thực dùng N giây cuối khi không có phân đoạn VAD.",
+        "windowLabel": "Cửa sổ thời gian thực ngoại tuyến (giây)"
+      },
+      "reliablePaste": {
+        "title": "Dán đáng tin cậy (Beta)",
+        "description": "Chỉ khôi phục clipboard sau khi ứng dụng đích thực sự đọc bản chuyển đổi, thay vì sau một khoảng trễ cố định. Nhằm khắc phục tình trạng nội dung clipboard cũ bị dán khi hệ thống tải cao. Yêu cầu phương thức dán bằng clipboard; chỉ hỗ trợ macOS và Windows."
       }
     },
     "general": {
@@ -530,11 +891,11 @@
         "descriptionUnsupported": "Mô hình Parakeet tự động phát hiện ngôn ngữ. Không cần chọn thủ công.",
         "noResults": "Không tìm thấy ngôn ngữ",
         "searchPlaceholder": "Tìm kiếm ngôn ngữ...",
-        "title": "Ngôn ngữ"
-      },
-      "pushToTalk": {
-        "description": "Giữ để ghi âm, thả để dừng",
-        "label": "Nhấn để nói"
+        "title": "Ngôn ngữ",
+        "descriptionNoModel": "Chọn một mô hình cục bộ để cấu hình ngôn ngữ.",
+        "descriptionSenseVoice": "SenseVoice áp dụng ngôn ngữ khi mô hình tải. Chọn lại mô hình sau khi đổi ngôn ngữ.",
+        "descriptionUnknownModel": "Mô hình hiện tại không rõ; tính năng chọn ngôn ngữ bị tắt.",
+        "descriptionUnsupportedEngine": "Chọn ngôn ngữ chỉ áp dụng cho mô hình Whisper hoặc SenseVoice."
       },
       "shortcut": {
         "bindings": {
@@ -553,6 +914,10 @@
           "transcribe": {
             "description": "Chuyển đổi giọng nói của bạn thành văn bản.",
             "name": "Chuyển đổi"
+          },
+          "invoke_skill": {
+            "description": "Bắt đầu ghi âm ở chế độ Skill với định tuyến ý định thông minh.",
+            "name": "Gọi Skill"
           }
         },
         "description": "Cấu hình phím tắt để kích hoạt ghi âm chuyển đổi giọng nói thành văn bản",
@@ -567,13 +932,42 @@
         "pressKeys": "Nhấn phím...",
         "title": "Phím tắt Votype"
       },
-      "title": "Chung"
+      "title": "Chung",
+      "audioInputAutoEnhance": {
+        "description": "Tự động nâng giọng nói nhỏ và hạn chế méo tiếng khi ghi âm. Điều này có thể làm thay đổi âm thanh khi phát lại.",
+        "label": "Tự động nâng cấp micrô"
+      },
+      "groups": {
+        "recording": "Ghi âm",
+        "transcription": "Ngôn ngữ chuyển đổi"
+      },
+      "activationMode": {
+        "label": "Chế độ kích hoạt",
+        "tooltip": {
+          "summary": "Chọn cách kích hoạt phím tắt ghi âm"
+        },
+        "descriptions": {
+          "toggle": "Nhấn để bắt đầu, nhấn lần nữa để dừng",
+          "hold": "Giữ để ghi âm, thả để dừng",
+          "hold_or_toggle": "Nhấn nhanh để bật/tắt, giữ 300ms+ sẽ dừng khi thả"
+        },
+        "options": {
+          "toggle": "Bật/tắt",
+          "hold": "Giữ",
+          "holdOrToggle": "Tự động"
+        }
+      },
+      "holdThreshold": {
+        "label": "Ngưỡng giữ",
+        "description": "Chỉ ở chế độ Tự động: thời gian (mili giây) phím tắt phải được giữ trước khi được tính là giữ thay vì nhấn. Giảm nếu các lần giữ ngắn vẫn để ghi âm tiếp tục; tăng lên nếu các lần nhấn có chủ đích bị coi là giữ."
+      }
     },
     "history": {
       "content": {
         "improved": "Đã tối ưu",
         "original": "Kết quả nhận dạng giọng nói",
-        "streaming": "Kết quả nhận dạng thời gian thực"
+        "streaming": "Kết quả nhận dạng thời gian thực",
+        "chained": "Xử lý theo chuỗi"
       },
       "copyToClipboard": "Sao chép bản ghi vào clipboard",
       "delete": "Xóa mục",
@@ -622,7 +1016,15 @@
         },
         "provider": {
           "description": "Chọn một nhà cung cấp tương thích OpenAI.",
-          "title": "Nhà cung cấp"
+          "title": "Nhà cung cấp",
+          "builtin": "Tích hợp sẵn",
+          "builtinTooltip": "Nhà cung cấp tích hợp sẵn, không thể xóa",
+          "deleteAction": "Xóa nhà cung cấp",
+          "deleteConfirmation": "Bạn có chắc muốn xóa nhà cung cấp \"{{name}}\"? Thao tác này không thể hoàn tác.",
+          "deleteTitle": "Xóa nhà cung cấp",
+          "editName": "Chỉnh sửa tên nhà cung cấp",
+          "namePlaceholder": "Tên nhà cung cấp",
+          "newProvider": "Nhà cung cấp mới"
         },
         "providers": {
           "add": "Thêm Nhà cung cấp",
@@ -644,17 +1046,56 @@
             "modelsEndpoint": "Điểm cuối Mô hình",
             "modelsEndpointPlaceholder": "/models",
             "name": "Tên Nhà cung cấp",
-            "namePlaceholder": "Nhà cung cấp của tôi"
+            "namePlaceholder": "Nhà cung cấp của tôi",
+            "apiKey": "Khóa API",
+            "getApiKey": "Lấy khóa API",
+            "baseUrlHint": "Chế độ tương thích OpenAI, thường kết thúc bằng /v1. Dùng hậu tố '#' để bỏ qua việc tự thêm /v1.",
+            "actualUrlPreview": "Xem trước URL API thực tế",
+            "v1AutoAppended": "Đã tự động thêm /v1",
+            "v1MissingWarning": "URL có thể thiếu phần phiên bản (ví dụ /v1)",
+            "addKey": "Thêm khóa"
           },
           "resetUrl": "Đặt lại URL",
-          "title": "Nhà cung cấp"
+          "title": "Nhà cung cấp",
+          "addCustom": "Thêm tùy chỉnh",
+          "advancedSettings": "Cài đặt nâng cao",
+          "api": {
+            "model": {
+              "title": "Mô hình đang dùng"
+            },
+            "testConnection": "Kiểm tra suy luận mô hình",
+            "testFailed": "Kiểm tra thất bại: {{error}}",
+            "testing": "Đang kiểm tra kết nối...",
+            "testSuccess": "Kiểm tra thành công: {{result}}"
+          },
+          "proxy": {
+            "useProxy": "Proxy",
+            "noGlobalProxy": "Cấu hình proxy trong Cài đặt nâng cao trước"
+          },
+          "group": {
+            "recommended": "Đề xuất",
+            "cloud": "Nhà cung cấp đám mây",
+            "local": "Nhà cung cấp cục bộ"
+          },
+          "testConnection": "Kiểm tra kết nối",
+          "testFailed": "Kết nối thất bại: {{error}}",
+          "testSuccess": "Kết nối thành công"
         },
-        "title": "API (Tương thích OpenAI)"
+        "title": "API (Tương thích OpenAI)",
+        "modelCard": {
+          "errorRate": "{{count}} lần gọi thất bại — tỷ lệ lỗi {{rate}}%"
+        },
+        "models": {
+          "deleteConfirm": {
+            "description": "Bạn có chắc muốn xóa mô hình này? Thao tác này không thể hoàn tác.",
+            "title": "Xóa mô hình?"
+          }
+        }
       },
       "disabledNotice": "Xử lý sau hiện đang bị tắt. Bật nó trong cài đặt Gỡ lỗi để cấu hình.",
       "fusion": {
         "enabled": {
-          "description": "Provide a main transcript and a secondary realtime transcript to post-processing for comparison and disambiguation.",
+          "description": "Cung cấp một bản ghi chính và một bản ghi thời gian thực phụ cho xử lý hậu kỳ để so sánh và loại bỏ nhầm lẫn.",
           "label": "Sử dụng bản ghi thời gian thực (hợp nhất)"
         },
         "secondaryModel": {
@@ -670,7 +1111,8 @@
         "description": "Thêm và quản lý các mô hình được sử dụng để xử lý sau.",
         "empty": {
           "description": "Thêm mô hình để bắt đầu.",
-          "title": "Chưa cấu hình mô hình"
+          "title": "Chưa cấu hình mô hình",
+          "noMatch": "Không có mô hình nào khớp với tìm kiếm."
         },
         "modelTypes": {
           "asr": {
@@ -695,17 +1137,60 @@
           "placeholderEmpty": "Không có mô hình nào",
           "segmented": {
             "customModel": "Tùy chỉnh",
-            "selectModel": "Chọn"
+            "selectModel": "Chọn",
+            "freeModels": "Miễn phí"
           },
           "title": "Chọn Mô hình",
-          "usageTypeTitle": "Loại sử dụng"
+          "usageTypeTitle": "Loại sử dụng",
+          "addButton": "Thêm mô hình",
+          "noFreeModels": "Không có mô hình miễn phí nào cho nhà cung cấp này.",
+          "alreadyAdded": "Đã thêm",
+          "advancedOptions": "Tùy chọn nâng cao",
+          "customLabel": "Nhãn tùy chỉnh",
+          "extraParams": "Tham số bổ sung",
+          "manualLabel": "Nhãn thủ công",
+          "selectLabel": "Chọn nhãn",
+          "sourceBuiltin": "Mô hình miễn phí tích hợp sẵn",
+          "sourceOfficial": "Danh sách mô hình chính thức",
+          "sourceBuiltinHint": "Các mô hình miễn phí được tuyển chọn, không cần gọi API",
+          "sourceOfficialHint": "Danh sách đầy đủ từ API của nhà cung cấp"
         },
         "stats": {
           "asr": "ASR: {{count}}",
           "other": "Khác: {{count}}",
           "text": "Văn bản: {{count}}"
         },
-        "title": "Mô hình"
+        "title": "Mô hình",
+        "deleteConfirm": {
+          "description": "Bạn có chắc muốn xóa mô hình này? Thao tác này không thể hoàn tác.",
+          "title": "Xóa mô hình?"
+        },
+        "promptMessageRole": {
+          "label": "Chế độ nhà phát triển"
+        },
+        "searchPlaceholder": "Tìm kiếm mô hình...",
+        "filter": {
+          "all": "Tất cả"
+        },
+        "sort": {
+          "provider": "Nhà cung cấp",
+          "name": "Tên",
+          "calls": "Số lần gọi",
+          "speed": "Tốc độ",
+          "group": "Nhóm theo nhà cung cấp"
+        },
+        "tabs": {
+          "local": "Mô hình cục bộ",
+          "remote": "Mô hình trực tuyến"
+        },
+        "setAsDefault": "Đặt làm mặc định",
+        "invalidJson": "Định dạng JSON không hợp lệ",
+        "addedCount": "Đã thêm {{count}} mô hình",
+        "customAdd": {
+          "title": "Thêm mô hình tùy chỉnh",
+          "modelId": "ID mô hình",
+          "duplicateWarning": "Đã tồn tại mô hình có ID này cho nhà cung cấp. Thêm vào sẽ tạo một bản sao."
+        }
       },
       "prompts": {
         "cancel": "Hủy",
@@ -716,12 +1201,12 @@
         "enableConfidenceCheck": "Enable Confidence Check",
         "noPrompts": "Không có prompt nào",
         "promptInstructions": "Hướng dẫn Prompt",
-        "promptInstructionsPlaceholder": "Describe how the model should process the input text, what it may change, what it must not change, and what the final output should look like.",
+        "promptInstructionsPlaceholder": "Mô tả cách mô hình nên xử lý văn bản đầu vào, những gì được phép thay đổi, những gì không được thay đổi, và kết quả cuối cùng trông như thế nào.",
         "promptLabel": "Nhãn Prompt",
         "promptLabelPlaceholder": "Nhập tên prompt",
         "promptTip": "Tip: You are editing the task body only. The system automatically injects the main input and supporting reference fields, so focus on the task, constraints, and output requirements.",
         "selectedPrompt": {
-          "description": "Choose the template used for post-processing, or create a new one. The system automatically injects the main input and supporting reference fields, so the prompt body only needs to describe the task, constraints, and output requirements.",
+          "description": "Chọn mẫu dùng cho xử lý hậu kỳ hoặc tạo mẫu mới. Hệ thống tự động chèn đầu vào chính và các trường tham chiếu hỗ trợ, vì vậy nội dung prompt chỉ cần mô tả tác vụ, các ràng buộc và yêu cầu đầu ra.",
           "title": "Prompt đã chọn"
         },
         "selectPrompt": "Chọn một prompt",
@@ -739,15 +1224,336 @@
         "varWindowTitleDesc": "Tiêu đề cửa sổ hiện tại.",
         "lockSkill": "Lock Skill",
         "unlockSkill": "Unlock Skill",
-        "skillLocked": "This skill is locked. Unlock to edit.",
-        "aiGeneratingWait": "AI is generating, please wait",
+        "skillLocked": "Kỹ năng này đang bị khóa. Hãy mở khóa để chỉnh sửa.",
+        "aiGeneratingWait": "AI đang tạo, vui lòng đợi",
         "unsavedChanges": {
           "title": "Unsaved Changes",
-          "description": "Current prompt has unsaved changes. Switching will discard these modifications.",
+          "description": "Prompt hiện tại có thay đổi chưa lưu. Chuyển sang prompt khác sẽ hủy các thay đổi này.",
           "discard": "Discard Changes"
+        },
+        "activeSet": "Đặt làm prompt mặc định",
+        "advancedSettings": "Cài đặt nâng cao",
+        "createSuccess": "Tạo prompt thành công",
+        "deleteConfirm": {
+          "description": "Bạn có chắc muốn xóa prompt này? Thao tác này không thể hoàn tác.",
+          "title": "Xóa prompt"
+        },
+        "createFailed": "Tạo skill thất bại",
+        "nameAndContentRequired": "Tên và nội dung không được để trống",
+        "fillNameAndInstructionsFirst": "Vui lòng điền tên và hướng dẫn trước để AI tạo tóm tắt tốt hơn.",
+        "userOwnedPrompts": "Prompt của tôi",
+        "deleteFailed": "Xóa thất bại",
+        "deleteSuccess": "Xóa prompt thành công",
+        "resetToDefault": "Đặt lại về mặc định",
+        "resetConfirm": {
+          "description": "Thao tác này sẽ khôi phục skill về nội dung tích hợp sẵn ban đầu. Mọi tùy chỉnh sẽ bị mất.",
+          "title": "Đặt lại về mặc định"
+        },
+        "resetSuccess": "Đã đặt lại skill về mặc định",
+        "resetFailed": "Đặt lại skill thất bại",
+        "description": "Mô tả (cho định tuyến thông minh)",
+        "descriptionPlaceholder": "Mô tả ngắn gọn Skill này làm gì và khi nào nên kích hoạt",
+        "editPrompt": "Chỉnh sửa Prompt",
+        "enabledToggle": "Bật/Tắt Skill này",
+        "generationDescription": "Tạo nội dung mới dựa trên văn bản đã nhận dạng làm prompt (ví dụ: dịch, tóm tắt).",
+        "globalConfigTitle": "Cấu hình toàn cục",
+        "managementTitle": "Prompt",
+        "newPromptName": "Prompt mới",
+        "outputMode": {
+          "chat": "Trò chuyện AI",
+          "label": "Chế độ đầu ra",
+          "polish": "Tinh chỉnh văn bản"
+        },
+        "promptBody": "Nội dung nhiệm vụ",
+        "promptBodyPlaceholder": "Mô tả cách mô hình nên xử lý văn bản đầu vào, được phép thay đổi gì, không được thay đổi gì, và kết quả cuối cùng trông như thế nào.",
+        "refinementDescription": "Tự động sửa và định dạng văn bản đã nhận dạng.",
+        "reviewThreshold": "Ngưỡng xem lại",
+        "setAsActive": "Đặt làm mặc định",
+        "updateFailed": "Cập nhật thất bại",
+        "updateSuccess": "Cập nhật prompt thành công",
+        "inlineVarsLabel": "Trường tham chiếu",
+        "autoInjectedNote": "Hệ thống tự động chèn đầu vào chính và các trường tham chiếu hỗ trợ. Nếu cần kiểm soát chính xác hơn, bạn có thể tham chiếu rõ ràng chúng trong nội dung nhiệm vụ.",
+        "primaryFieldsLabel": "Trường chính",
+        "referenceFieldsLabel": "Trường tham chiếu",
+        "explicitReferenceNote": "Nếu bạn tham chiếu rõ ràng một trường ở trên, hệ thống sẽ không thêm lại trường đó ở phần sau của prompt.",
+        "inlineVarsSecondaryLabel": "Biến siêu dữ liệu",
+        "fieldAutocompleteTitle": "Tự động hoàn thành trường",
+        "fieldAutocompleteEmpty": "Không có trường khớp",
+        "fieldInputTextDesc": "Văn bản chính duy nhất cần xử lý",
+        "fieldAsrReferenceDesc": "Tham chiếu ASR bổ trợ dùng để sửa lỗi và phân biệt",
+        "fieldSelectedTextDesc": "Văn bản được chọn dùng làm ngữ cảnh yếu",
+        "fieldPersonNamesDesc": "Tên người đã biết",
+        "fieldProductNamesDesc": "Tên sản phẩm, thương hiệu hoặc tổ chức đã biết",
+        "fieldDomainTermsDesc": "Thuật ngữ chuyên ngành, từ viết tắt hoặc thuật ngữ kỹ thuật",
+        "fieldHotwordsDesc": "Các từ nóng ưu tiên khác",
+        "fieldHistoryHintsDesc": "Gợi ý lịch sử chỉ dùng để đảm bảo nhất quán thuật ngữ và phân biệt yếu",
+        "varAppCategoryDesc": "Danh mục ứng dụng (CodeEditor, Email, v.v.).",
+        "autoGenerate": {
+          "title": "Giọng nói thành Skill",
+          "description": "Mô tả điều bạn muốn bằng ngôn ngữ tự nhiên. AI sẽ tạo một Skill hoàn chỉnh cho bạn.",
+          "shortcutHint": "Mẹo: Nhấn",
+          "placeholder": "ví dụ: Giúp tôi tinh chỉnh văn bản, sửa ngữ pháp và làm cho chuyên nghiệp hơn...",
+          "step1": "Đang tối ưu hướng dẫn prompt",
+          "step2": "Đang tạo tên và biểu tượng",
+          "step3": "Đang tạo mô tả",
+          "emptyInput": "Vui lòng mô tả Skill này nên làm gì",
+          "start": "Tạo",
+          "menuItem": "Nhập bằng giọng nói",
+          "success": "Tạo skill thành công"
+        },
+        "templates": {
+          "template_polish": "Tinh chỉnh mặc định",
+          "template_translate": "Dịch thuật",
+          "template_summary": "Tóm tắt",
+          "template_chat": "Trò chuyện AI",
+          "template_blank": "Skill trống"
+        },
+        "aliasDuplicate": "Alias đã tồn tại",
+        "aliasLabel": "Alias",
+        "aliasPlaceholder": "ví dụ: /dich",
+        "commandPrefixDescription": "Tiền tố lệnh để kích hoạt prompt này",
+        "commandPrefixPlaceholder": "ví dụ: /",
+        "commandPrefixTitle": "Tiền tố lệnh",
+        "noAliases": "Chưa cấu hình alias nào",
+        "noPrefixes": "Chưa cấu hình tiền tố nào",
+        "prefixesSaved": "Đã lưu tiền tố",
+        "blankSkill": "Skill trống",
+        "polishCategory": "Tinh chỉnh",
+        "skillCategory": "Skill",
+        "references": {
+          "title": "Tham chiếu bối cảnh",
+          "add": "Thêm",
+          "empty": "Chưa có tham chiếu bối cảnh nào. Thêm tham chiếu để điều chỉnh hành vi theo từng ứng dụng.",
+          "createFirst": "Tạo tham chiếu đầu tiên",
+          "createTitle": "Tạo tham chiếu bối cảnh",
+          "editTitle": "Chỉnh sửa tham chiếu bối cảnh",
+          "matchType": "Kiểu khớp",
+          "typeAlways": "Quy tắc chung (luôn hoạt động)",
+          "typeApp": "Theo tên ứng dụng",
+          "typeCategory": "Theo danh mục ứng dụng",
+          "alwaysName": "Quy tắc chung",
+          "badgeAlways": "Luôn hoạt động",
+          "appNamePlaceholder": "ví dụ: Slack, Obsidian, WeChat",
+          "contentPlaceholder": "Nhập quy tắc riêng cho bối cảnh này...\n\nVí dụ:\n## Quy tắc IM/Chat\n- Giữ giọng điệu trò chuyện\n- Chỉ sửa lỗi rõ ràng\n- Giữ nguyên emoji",
+          "created": "Đã tạo tham chiếu",
+          "saved": "Đã lưu tham chiếu",
+          "deleted": "Đã xóa tham chiếu",
+          "errorNoName": "Vui lòng nhập tên",
+          "errorSave": "Lưu thất bại",
+          "errorDelete": "Xóa thất bại",
+          "deleteTitle": "Xóa tham chiếu",
+          "deleteConfirm": "Bạn có chắc muốn xóa \"{{name}}\"?"
         }
       },
-      "title": "Xử lý sau"
+      "title": "Xử lý sau",
+      "intentModel": {
+        "defaultOption": "Dùng mô hình mặc định",
+        "description": "Mô hình dùng để phát hiện ý định skill. Để mặc định để tuân theo mô hình xử lý sau chính.",
+        "hint": "Dùng cho định tuyến Skill (phát hiện Skill nào cần dùng) và phân loại hành động định tuyến thông minh. Với tinh chỉnh nhẹ, nó cũng thực hiện chỉnh sửa trong cùng một lần gọi.",
+        "placeholder": "Chọn mô hình ý định",
+        "title": "Mô hình ý định"
+      },
+      "translationModel": {
+        "hint": "Dùng cho tính năng dịch trước khi chèn. Để trống sẽ dùng mô hình ý định, rồi đến mô hình xử lý sau mặc định.",
+        "title": "Mô hình dịch"
+      },
+      "inputInjection": {
+        "groupTitle": "Đầu vào tự động",
+        "title": "Đầu vào tự động",
+        "description": "Kiểm soát những đầu vào hỗ trợ nào được tự động đính kèm vào yêu cầu xử lý sau hoặc dịch.",
+        "summaryEnabled": "Đã bật chèn ngữ cảnh lịch sử, đính kèm tối đa {{count}} mục.",
+        "summaryDisabled": "Không có ngữ cảnh lịch sử nào được tự động đính kèm.",
+        "moreOptions": "Thêm tùy chọn",
+        "basicOnly": "Chỉ mục cơ bản",
+        "history": {
+          "enabled": "Chèn ngữ cảnh lịch sử",
+          "description": "Cung cấp các bản chuyển đổi gần đây từ ứng dụng hiện tại làm ngữ cảnh cho xử lý sau.",
+          "limit": "Độ sâu ngữ cảnh lịch sử",
+          "limitDesc": "Đính kèm tối đa {{count}} mục lịch sử gần nhất vào xử lý sau."
+        },
+        "streaming": {
+          "enabled": "Chèn bản chuyển đổi trực tuyến",
+          "description": "Gửi streaming_output cùng với văn bản cuối cùng để giúp phân biệt kết quả ASR."
+        },
+        "hotwords": {
+          "enabled": "Chèn từ nóng và từ vựng",
+          "description": "Đính kèm từ nóng, thuật ngữ và các ánh xạ nhận dạng sai phổ biến vào xử lý sau."
+        }
+      },
+      "appRules": {
+        "activeProfiles": "{{count}} quy tắc đang hoạt động",
+        "addApp": "Thêm ứng dụng",
+        "addRuleHead": "Thêm quy tắc thủ công",
+        "addTitlePattern": "Thêm bộ lọc tiêu đề",
+        "assignedApps": "Ứng dụng",
+        "assignedAppsDescription": "Các ứng dụng dưới đây sẽ dùng cài đặt hồ sơ này.",
+        "capture": "Bắt",
+        "captureTitle": "Bắt tiêu đề",
+        "categoryDefaults": {
+          "title": "Chính sách mặc định theo danh mục",
+          "hint": "Ứng dụng có hồ sơ riêng không bị ảnh hưởng bởi chính sách danh mục (kể cả hồ sơ tự tạo khi bạn chấp nhận gợi ý).",
+          "inheritGlobal": "Kế thừa toàn cục",
+          "categories": {
+            "CodeEditor": "Trình soạn thảo mã",
+            "Terminal": "Terminal",
+            "InstantMessaging": "Nhắn tin tức thời",
+            "Email": "Email",
+            "Notes": "Ghi chú",
+            "Browser": "Trình duyệt",
+            "Other": "Khác"
+          }
+        },
+        "context": {
+          "description": "Cho phép LLM tham chiếu lịch sử gần đây của ứng dụng hiện tại để cải thiện độ chính xác chuyển đổi và chỉnh sửa.",
+          "enabled": "Bật tham chiếu ngữ cảnh",
+          "limit": "Độ sâu lịch sử ngữ cảnh",
+          "limitDesc": "Mô hình sẽ tham chiếu {{count}} mục gần nhất từ ứng dụng này làm ngữ cảnh.",
+          "title": "Xử lý nhận biết ngữ cảnh"
+        },
+        "createPromptHint": "Thêm một quy tắc ứng dụng để bắt đầu",
+        "default": "Mặc định",
+        "newProfileName": "Tên hồ sơ mới...",
+        "noAppsAssigned": "Chưa có ứng dụng nào được gán cho hồ sơ này.",
+        "noProfiles": "Chưa có quy tắc nào",
+        "noProfilesShort": "Nhấn để cấu hình",
+        "policy": {
+          "always": "Luôn xem lại",
+          "auto": "Tự động",
+          "label": "Chính sách xem lại",
+          "never": "Chèn trực tiếp"
+        },
+        "policyDesc": {
+          "always": "Luôn hiển thị cửa sổ xem lại cho ứng dụng trong hồ sơ này.",
+          "auto": "Kích hoạt xem lại nếu văn bản thay đổi đáng kể (dựa trên ngưỡng).",
+          "never": "Không bao giờ hiển thị cửa sổ xem lại cho ứng dụng trong hồ sơ này."
+        },
+        "policyHeader": "Chính sách kích hoạt xem lại",
+        "profilesDescription": "Tạo hồ sơ để áp dụng logic xử lý hoặc prompt riêng cho các nhóm ứng dụng khác nhau.",
+        "profilesTitle": "Hồ sơ ứng dụng",
+        "promptDescription": "Chọn một prompt tùy chỉnh để dùng cho bản chuyển đổi trong hồ sơ này.",
+        "promptHeader": "Ghi đè Prompt LLM",
+        "selectionClipboardFallback": {
+          "description": "Khi tắt, văn bản được chọn cho ứng dụng này chỉ dùng API Trợ năng và bỏ qua phương án dự phòng sao chép mô phỏng qua clipboard.",
+          "label": "Dự phòng clipboard"
+        },
+        "translateToEnglishOnInsert": {
+          "description": "Với ứng dụng này, chạy thêm một lần dịch LLM sang tiếng Anh ngay trước khi chèn. Nếu dịch thất bại, dùng lại văn bản gốc.",
+          "label": "Dịch trước khi chèn"
+        },
+        "selectPrompt": "Chọn một hồ sơ ở thanh bên để chỉnh sửa",
+        "skipPostProcess": "Bỏ qua xử lý sau",
+        "shortcuts": {
+          "description": "Bạn có thể dùng phím tắt để kích hoạt hồ sơ cụ thể hoặc quản lý quy tắc.",
+          "dialog": "Xác nhận hoặc đóng hộp thoại",
+          "dialogKeys": "Enter / Esc",
+          "nav": "Chuyển giữa các tab cài đặt",
+          "navKeys": "⌘ + 1-8",
+          "title": "Phím tắt & Cách dùng"
+        },
+        "matchType": {
+          "exact": "Chính xác"
+        },
+        "testMatch": "Kiểm tra khớp",
+        "title": "Quy tắc ứng dụng",
+        "titlePattern": "Tiêu đề (Regex)",
+        "allApps": "Tất cả ứng dụng",
+        "appNotInstalled": "Ứng dụng này không còn được cài đặt",
+        "recentApps": "Gần đây",
+        "refresh": "Quét lại ứng dụng đã cài",
+        "searchApps": "Tìm kiếm ứng dụng..."
+      },
+      "confidenceCheck": {
+        "description": "Điều chỉnh độ nhạy cho các prompt đã bật xem lại. Giá trị cao hơn nghĩa là cửa sổ xem lại ít xuất hiện hơn.",
+        "threshold": "Ngưỡng độ nhạy",
+        "thresholdHint": "Điểm cao hơn giá trị này sẽ kích hoạt cửa sổ xem lại.",
+        "title": "Độ nhạy tự động xem lại"
+      },
+      "textModelMode": {
+        "title": "Chế độ xử lý sau",
+        "single": "Một mô hình",
+        "singleHint": "Một mô hình cho toàn bộ văn bản",
+        "length": "Thông minh",
+        "lengthHint": "Tự động chọn mô hình theo độ dài văn bản",
+        "multi": "Nhiều mô hình",
+        "multiHint": "So sánh song song",
+        "defaultModelDescription": "Mô hình mặc định",
+        "noModelSelected": "Chưa chọn mô hình",
+        "multiDescription": "Chọn các mô hình trong danh sách bên dưới để so sánh song song",
+        "multiStrategy": "Chiến lược đa mô hình",
+        "multiStrategyManual": "Thủ công",
+        "multiStrategyManualHint": "Hiển thị tất cả ứng viên để chọn thủ công",
+        "multiStrategyRace": "Siêu nhanh",
+        "multiStrategyRaceShort": "Siêu nhanh",
+        "multiStrategyRaceHint": "Dùng kết quả đầu tiên có sẵn",
+        "multiStrategyLazy": "Lười",
+        "multiStrategyLazyShort": "Lười",
+        "multiStrategyLazyHint": "Đợi 3 giây cho mô hình ưu tiên, tự chọn khi hết thời gian",
+        "preferredModel": "Mô hình ưu tiên",
+        "setAsPreferred": "Đặt làm mô hình ưu tiên",
+        "selectModelsTitle": "Chọn mô hình",
+        "selectModelsDescription": "Chọn mô hình để xử lý song song. Nhấn ngôi sao để đặt mô hình ưu tiên.",
+        "selectedCount": "Đã chọn {{count}}",
+        "noneSelected": "Chưa chọn mô hình nào",
+        "models": "Mô hình",
+        "modelSelection": "Mô hình"
+      },
+      "lengthRouting": {
+        "enableLabel": "Tự động chọn mô hình theo độ dài văn bản",
+        "enableDescription": "Dùng mô hình nhanh cho văn bản ngắn, mô hình nâng cao cho văn bản dài",
+        "thresholdLabel": "Ngưỡng ký tự",
+        "thresholdDescription": "Theo ký tự Unicode (1 ký tự Trung = 1, 1 chữ cái tiếng Anh = 1)",
+        "thresholdValue": "{{count}} ký tự",
+        "shortModelLabel": "Văn bản ngắn",
+        "longModelLabel": "Văn bản dài",
+        "characters": " ký tự",
+        "useDefault": "Dùng mặc định"
+      },
+      "smartRouting": {
+        "title": "Định tuyến thông minh",
+        "hint": "Tự động dùng lại kết quả trước đó cho văn bản giống hệt, và dùng mô hình nhẹ để xác định văn bản ngắn có cần tinh chỉnh không — giúp giảm chi phí token và độ trễ.",
+        "shortText": "Văn bản ngắn",
+        "longText": "Văn bản dài",
+        "fastModel": "Mô hình nhanh",
+        "fastModelHint": "Mô hình nhẹ hoặc nhanh cho văn bản ngắn. Tiết kiệm token và giảm độ trễ cho nội dung đơn giản.",
+        "modelSelection": "Mô hình",
+        "description": "Tự động phát hiện ý định, dùng lại lịch sử, giảm chi phí token"
+      },
+      "modelChain": {
+        "primary": "Chính",
+        "fallback": "Dự phòng",
+        "leftClickHint": "Nhấn chuột trái để chọn mô hình chính",
+        "rightClickHint": "Nhấn chuột phải để chọn mô hình dự phòng",
+        "strategy": "Chiến lược",
+        "serial": "Tuần tự",
+        "staggered": "So le",
+        "race": "Đua",
+        "serialHint": "Thử mô hình dự phòng sau khi mô hình chính thất bại",
+        "staggeredHint": "Khởi động mô hình dự phòng khi mô hình chính chậm",
+        "raceHint": "Gọi cả hai, dùng cái nhanh nhất",
+        "noModel": "Chưa chọn mô hình",
+        "selectModel": "Chọn mô hình"
+      },
+      "providerModels": {
+        "totalCalls": "lần gọi",
+        "avgSpeed": "tokens/sec"
+      },
+      "skills": {
+        "advancedSkills": "Skill nâng cao",
+        "createHint": "Tạo tệp .md trong ~/.votype/skills/ để thêm skill tùy chỉnh",
+        "enabledInFile": "Skill luôn được bật (cấu hình trong tệp)",
+        "helpText": "Tạo tệp .md với YAML frontmatter trong thư mục skills. Chúng sẽ được tự động tải và sẵn sàng sử dụng.",
+        "noExternalSkills": "Không tìm thấy skill bên ngoài nào",
+        "openFolder": "Mở thư mục",
+        "quickCommands": "Lệnh nhanh",
+        "refresh": "Làm mới",
+        "sourceBuiltin": "Tích hợp sẵn",
+        "sourceFile": "Tệp",
+        "sourceUser": "Người dùng"
+      },
+      "modelCard": {
+        "errorRate": "{{count}} lần gọi thất bại — tỷ lệ lỗi {{rate}}%",
+        "lastError": "Lỗi gần nhất{{when}}: {{error}}"
+      }
     },
     "shortcuts": {
       "title": "Phím tắt"
@@ -774,6 +1580,20 @@
         "description": "Điều chỉnh âm lượng của âm thanh phản hồi",
         "title": "Âm lượng"
       }
+    },
+    "vocabulary": {
+      "hotWords": {
+        "description": "Thêm những từ thường bị nghe nhầm. Hệ thống sẽ tự động sửa.",
+        "empty": "Chưa có từ nóng nào",
+        "placeholder": "Thêm một từ...",
+        "title": "Từ nóng",
+        "word": "Từ"
+      },
+      "import": "Nhập",
+      "deleteConfirm": {
+        "title": "Xác nhận xóa",
+        "hotwordMessage": "Bạn có chắc muốn xóa từ nóng này?"
+      }
     }
   },
   "sidebar": {
@@ -787,13 +1607,30 @@
     "models": "Các Mô hình",
     "postProcessing": "Xử lý sau",
     "prompts": "Prompts",
-    "shortcuts": "Phím tắt"
+    "shortcuts": "Phím tắt",
+    "appProfiles": "Hồ sơ ứng dụng",
+    "expertMode": "Chế độ chuyên gia",
+    "expertModeHint": "Hiện các tùy chọn cài đặt nâng cao",
+    "summary": "Tóm tắt",
+    "vocabulary": "Từ vựng",
+    "dailyVocabulary": "Từ vựng hàng ngày"
   },
   "soundPicker": {
     "custom": "Tùy chỉnh",
     "marimba": "Marimba",
     "pop": "Pop",
-    "preview": "Xem trước"
+    "preview": "Xem trước",
+    "chime": "Chuông",
+    "switch": "Công tắc",
+    "pluck": "Gảy",
+    "toggle": "Bật/tắt",
+    "twotone": "Hai tông",
+    "pep": "Pep",
+    "power": "Power",
+    "zap": "Zap",
+    "blip": "Blip",
+    "mouse": "Nhấp chuột",
+    "wood": "Gõ gỗ"
   },
   "theme": {
     "accentColor": {
@@ -864,6 +1701,246 @@
       "systemDesc": "Khớp với chủ đề hệ thống",
       "title": "Chế độ Chủ đề"
     },
-    "title": "Chủ đề"
+    "title": "Chủ đề",
+    "compactMode": {
+      "description": "Hiển thị mô tả dưới dạng chú thích",
+      "title": "Chế độ thu gọn"
+    }
+  },
+  "inline": {
+    "listening": "Đang nghe...",
+    "transcribing": "Đang chuyển đổi...",
+    "polishing": "Đang tinh chỉnh...",
+    "executing": "Đang thực thi...",
+    "complete": "Hoàn tất",
+    "modeToggle": "Chế độ chỉnh sửa",
+    "closeConfirmTitle": "Thay đổi chưa lưu",
+    "closeConfirmMessage": "Nội dung đã bị thay đổi. Xác nhận đóng?",
+    "closeConfirmOk": "Đóng",
+    "closeConfirmCancel": "Hủy",
+    "sectionTitle": "Kết quả chuyển đổi",
+    "undo": "Hoàn tác",
+    "redo": "Làm lại",
+    "placeholder": "Nhấn phím tắt để bắt đầu đọc..."
+  },
+  "summary": {
+    "periodSelector": {
+      "title": "Khoảng thời gian",
+      "day": "Hôm nay",
+      "week": "Tuần",
+      "month": "Tháng"
+    },
+    "stats": {
+      "entries": "Mục",
+      "chars": "Ký tự",
+      "duration": "Thời lượng",
+      "aiCalls": "Lần gọi AI",
+      "noApps": "Không có dữ liệu ứng dụng",
+      "appDistribution": "Phân bố ứng dụng",
+      "timeDistribution": "Phân bố thời gian"
+    },
+    "recap": {
+      "title": "Tóm tắt hàng ngày",
+      "empty": "Chưa đủ hoạt động trong khoảng này để tạo tóm tắt.",
+      "progress": "Tiến độ chính",
+      "friction": "Điểm cản trở",
+      "nextFocus": "Trọng tâm tiếp theo",
+      "blockers": "Rào cản",
+      "nextStep": "Bước tiếp theo gợi ý",
+      "records": "bản ghi"
+    },
+    "timeline": {
+      "title": "Lịch sử",
+      "days": "Ngày",
+      "weeks": "Tuần",
+      "months": "Tháng",
+      "empty": "Chưa có tóm tắt nào"
+    },
+    "actions": {
+      "export": "Xuất"
+    },
+    "export": {
+      "markdown": "Xuất dưới dạng Markdown",
+      "json": "Xuất dưới dạng JSON"
+    },
+    "aiAnalysis": {
+      "title": "Phân tích AI",
+      "generate": "Tạo",
+      "generating": "Đang tạo...",
+      "view": "Xem",
+      "selectModel": "Chọn mô hình",
+      "provider": "Nhà cung cấp",
+      "modelUsed": "Mô hình đã dùng",
+      "clickToGenerate": "Nhấn để tạo phân tích AI về hoạt động của bạn",
+      "communicationStyle": "Phong cách giao tiếp",
+      "reflection": "Suy ngẫm & Gợi ý",
+      "empty": "Nhấn 'Tạo' để nhận thông tin chi tiết do AI cung cấp về hoạt động của bạn.",
+      "updateProfile": "Cập nhật hồ sơ"
+    },
+    "userProfile": {
+      "currentStyle": "Hồ sơ phong cách hiện tại"
+    }
+  },
+  "transcription": {
+    "review": {
+      "aiResponse": "Phản hồi AI",
+      "change": "Thay đổi",
+      "confidence": "Độ tin cậy",
+      "confirm": "Xác nhận & Chèn",
+      "description": "Bản chuyển đổi có thể chứa lỗi. Vui lòng xem lại và chỉnh sửa nếu cần.",
+      "final": "Kết quả cuối cùng",
+      "generationTitle": "Phản hồi của trợ lý AI",
+      "highlightHint": "Các từ được tô sáng là những chỗ LLM đã sửa.",
+      "hint": "⌘/Ctrl + Enter để xác nhận, Escape để hủy",
+      "insert": "Chèn",
+      "insertCode": "Chèn mã",
+      "insertOriginal": "Chèn bản gốc (Tab)",
+      "insertStabilityHint": "Phím tắt: {{shortcut}}\nNếu việc chèn không ổn định, bạn có thể tạm tắt tính năng này.",
+      "instruction": "Hướng dẫn",
+      "placeholder": "Chỉnh sửa bản chuyển đổi...",
+      "source": "Bản chuyển đổi trực tiếp",
+      "title": "Xem lại bản chuyển đổi",
+      "skipPostProcess": "Bỏ qua xử lý sau",
+      "hideDiff": "Ẩn khác biệt",
+      "showDiff": "Hiện khác biệt",
+      "translateText": "Dịch",
+      "translationResult": "Kết quả dịch",
+      "translationPreview": "Xem trước tiếng Anh",
+      "translationPreviewLangLabel": "TIẾNG ANH",
+      "translationModeAuto": "TỰ ĐỘNG",
+      "translationModeManual": "THỦ CÔNG",
+      "translationUpdating": "Đang dịch...",
+      "translationWaiting": "Tự động cập nhật sau khi chỉnh sửa 1 giây",
+      "translationFailedFallback": "Dịch thất bại, sẽ chèn văn bản gốc",
+      "translationReady": "Đã cập nhật",
+      "analysisTitle": "Phân tích:",
+      "deviationNone": "Khớp hoàn hảo",
+      "deviationMinor": "Thay đổi nhỏ",
+      "deviationMajor": "Thay đổi đáng kể",
+      "insertTranslation": "Chèn bản dịch",
+      "insertPolished": "Chèn bản tinh chỉnh",
+      "insertEnglish": "Chèn tiếng Anh",
+      "resizeGrip": "Kéo để đổi kích thước, nhấp đúp để tự động vừa khít",
+      "multiModel": "Kết quả nhiều mô hình",
+      "processing": "Đang xử lý...",
+      "restoreOrder": "Khôi phục thứ tự gốc",
+      "sortBySpeed": "Sắp xếp theo tốc độ phản hồi",
+      "speedSorted": "Ưu tiên tốc độ",
+      "sortBySpeedShort": "Theo tốc độ",
+      "rankCount": "#{{rank}} ({{count}} lần)",
+      "sortByChange": "Sắp xếp theo mức độ thay đổi",
+      "changeSorted": "Ưu tiên thay đổi",
+      "sortLabel": "Sắp xếp",
+      "pressEscAgain": "Nội dung đã thay đổi, nhấn ESC lần nữa để đóng",
+      "speedHistoryAvg": "Trung bình lịch sử: {{speed}} ({{count}} lần gọi)",
+      "speedThisRun": "Lần này: {{speed}} ({{diff}})"
+    }
+  },
+  "secureInput": {
+    "blockedWithCulprit_one": "{{name}} có thể đang chặn 1 phím tắt",
+    "blockedWithCulprit_other": "{{name}} có thể đang chặn {{count}} phím tắt",
+    "blockedNoCulprit_one": "macOS tạm thời đang chặn 1 phím tắt",
+    "blockedNoCulprit_other": "macOS tạm thời đang chặn {{count}} phím tắt",
+    "recorderBlockedWithCulprit": "{{name}} có thể đang chặn việc thay đổi phím tắt",
+    "recorderBlockedNoCulprit": "macOS tạm thời đang chặn việc thay đổi phím tắt",
+    "learnMore": "Cách khắc phục",
+    "recorderBlocked": "Hiện không thể ghi phím tắt — macOS Secure Input đang chặn sự kiện bàn phím. Hãy xử lý cảnh báo Secure Input trước.",
+    "dismiss": "Bỏ qua"
+  },
+  "ruleSuggestion": {
+    "title": "Thêm quy tắc cho cửa sổ này?",
+    "app": "Ứng dụng",
+    "window": "Cửa sổ",
+    "prompt": "Prompt",
+    "used": "Đã dùng",
+    "times": "{{count}} lần",
+    "description": "Sau khi thêm, prompt này sẽ được áp dụng tự động vào lần ghi âm tiếp theo trong cửa sổ này.",
+    "dismiss": "Lần này không",
+    "neverAgain": "Không hỏi lại",
+    "addRule": "Thêm quy tắc"
+  },
+  "hotword": {
+    "addBar": {
+      "placeholder": "Nhập từ nóng (phân tách bằng dấu phẩy để thêm hàng loạt)...",
+      "words": "{{count}} từ",
+      "add": "Thêm",
+      "addCount": "Thêm ({{count}})"
+    },
+    "source": {
+      "manual": "Thủ công",
+      "autoLearned": "Tự động học",
+      "aiExtracted": "AI trích xuất"
+    },
+    "scenario": {
+      "work": "Công việc",
+      "casual": "Thường ngày"
+    },
+    "tagCloud": {
+      "add": "Thêm",
+      "import": "Nhập",
+      "export": "Xuất",
+      "sortByWeight": "Sắp xếp theo trọng số",
+      "sortByAlpha": "Sắp xếp theo bảng chữ cái",
+      "searchPlaceholder": "Tìm kiếm từ nóng...",
+      "aiSuggestions": "Gợi ý AI ({{count}})",
+      "acceptAll": "Chấp nhận tất cả",
+      "dismissAll": "Bỏ qua tất cả",
+      "contextFrequent": "Thường gặp trong ngữ cảnh",
+      "acceptSuggestion": "Chấp nhận gợi ý",
+      "dismissSuggestion": "Bỏ qua gợi ý",
+      "empty": "Chưa có từ nóng nào. Nhấn \"Thêm\" để tạo từ đầu tiên.",
+      "noMatch": "Không có từ nóng nào khớp với \"{{query}}\"",
+      "dropHere": "Thả vào đây"
+    },
+    "editPanel": {
+      "addAlias": "Thêm từ {{label}}",
+      "duplicate": "\"{{target}}\" đã tồn tại",
+      "saveFailed": "Lưu thất bại",
+      "targetPlaceholder": "Từ đích",
+      "decreaseWeight": "Giảm trọng số",
+      "increaseWeight": "Tăng trọng số",
+      "falsePositive": "{{count}} lần nhận dạng sai",
+      "deleteHotword": "Xóa từ nóng",
+      "category": "Danh mục",
+      "scenario": "Tình huống",
+      "correction": "Sửa",
+      "correctionDesc": "Dùng làm tham chiếu chỉnh sửa và được chèn vào prompt LLM. Kéo một alias vào \"Ép buộc\" để biến nó thành thay thế cục bộ trực tiếp.",
+      "correctionPlaceholder": "Thêm từ chỉnh sửa",
+      "force": "Ép buộc",
+      "forceDesc": "Chỉ thay thế chính xác cục bộ, không bao giờ gửi tới LLM. Kéo một alias trở lại \"Sửa\" để khôi phục tham chiếu AI.",
+      "forcePlaceholder": "Thêm từ ép buộc",
+      "none": "Không có",
+      "confirmDeleteTitle": "Xác nhận xóa",
+      "confirmDeleteDesc": "Xóa từ nóng \"{{target}}\"?"
+    },
+    "categoryDialog": {
+      "colors": {
+        "gray": "Xám",
+        "green": "Xanh lá",
+        "orange": "Cam",
+        "blue": "Xanh dương",
+        "purple": "Tím",
+        "red": "Đỏ",
+        "cyan": "Lục lam",
+        "amber": "Hổ phách",
+        "teal": "Mòng két",
+        "pink": "Hồng"
+      },
+      "idInvalid": "ID chỉ được chứa chữ cái, số và dấu gạch ngang",
+      "idDuplicate": "ID danh mục \"{{id}}\" đã tồn tại",
+      "addFailed": "Thêm thất bại",
+      "saveFailed": "Lưu thất bại",
+      "deleteFailed": "Xóa thất bại",
+      "manageTooltip": "Quản lý danh mục",
+      "title": "Quản lý danh mục từ nóng",
+      "description": "Tùy chỉnh tên, màu và biểu tượng của từng danh mục. Không thể xóa danh mục tích hợp sẵn.",
+      "namePlaceholder": "Tên danh mục",
+      "builtin": "Tích hợp sẵn",
+      "deleteTooltip": "Xóa (từ nóng chuyển sang Thuật ngữ)",
+      "idPlaceholder": "ID (ví dụ: medical)",
+      "labelPlaceholder": "Tên (ví dụ: Y tế)",
+      "idInvalidDetail": "ID chỉ được chứa chữ cái, số và dấu gạch ngang (-)",
+      "addCategory": "Thêm danh mục"
+    }
   }
 }

@@ -57,6 +57,14 @@ async changePostProcessEnabledSetting(enabled: boolean) : Promise<Result<null, s
     else return { status: "error", error: e  as any };
 }
 },
+async changeFillerWordRemovalEnabledSetting(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_filler_word_removal_enabled_setting", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async changePostProcessContextEnabledSetting(enabled: boolean) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_post_process_context_enabled_setting", { enabled }) };
@@ -989,6 +997,17 @@ async stopHandyKeysRecording() : Promise<Result<null, string>> {
     else return { status: "error", error: e  as any };
 }
 },
+async getSecureInputStatus() : Promise<SecureInputStatus> {
+    return await TAURI_INVOKE("get_secure_input_status");
+},
+async runKeyboardDiagnostic(durationSecs: number | null) : Promise<Result<KeyboardDiagnosticReport, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("run_keyboard_diagnostic", { durationSecs }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async getAllSkills() : Promise<Skill[]> {
     return await TAURI_INVOKE("get_all_skills");
 },
@@ -1205,6 +1224,11 @@ export type JsonValue = null | boolean | number | string | JsonValue[] | Partial
  * A single API key entry with metadata
  */
 export type KeyEntry = { key: string; enabled?: boolean; label?: string | null }
+export type KeyboardDiagnosticReport = { secure_input_enabled: boolean; culprit_pid: number | null; culprit_name: string | null; 
+/**
+ * Counts only — key identity is deliberately never captured.
+ */
+key_down: number; key_up: number; flags_changed: number; mouse: number; duration_ms: number }
 export type KeyboardImplementation = "tauri" | "handy_keys"
 /**
  * A model selection with optional fallback.
@@ -1288,6 +1312,38 @@ export type ReviewModelOptionsResponse = { models: ReviewModelOption[];
  */
 default_model_id: string | null }
 export type ReviewTranslationSettingsResponse = { enabled: boolean }
+export type SecureInputStatus = { 
+/**
+ * Secure input is currently enabled (live check)
+ */
+enabled: boolean; 
+/**
+ * Enabled continuously long enough to be considered stuck (not just a
+ * password field gaining momentary focus)
+ */
+sustained: boolean; culprit_pid: number | null; culprit_name: string | null; 
+/**
+ * Carbon fallback registrations are currently active
+ */
+fallback_active: boolean; 
+/**
+ * Binding ids shadow-registered with identical semantics
+ */
+covered_bindings: string[]; 
+/**
+ * Side-specific binding ids widened to match either side while shadowed
+ */
+degraded_bindings: string[]; 
+/**
+ * Binding ids that cannot fire at all (e.g. fn+key, registration failure)
+ */
+uncovered_bindings: string[]; 
+/**
+ * The user tried to record a shortcut while secure input was active.
+ * Treated as user impact even when every binding is covered, so the
+ * warning banner appears and explains why recording refused.
+ */
+recorder_blocked: boolean }
 export type ShortcutBinding = { id: string; name: string; description: string; default_binding: string; current_binding: string }
 export type Skill = { id: string; name: string; 
 /**

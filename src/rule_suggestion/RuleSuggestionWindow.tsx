@@ -2,6 +2,7 @@ import { Box, Button, DataList, Flex, Heading, Text } from "@radix-ui/themes";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 export interface RuleSuggestionPayload {
   appName: string;
@@ -22,6 +23,7 @@ const truncate = (s: string, max: number) =>
   s.length > max ? s.slice(0, max) + "…" : s;
 
 export const RuleSuggestionWindow: React.FC<Props> = ({ payload }) => {
+  const { t } = useTranslation();
   const [busy, setBusy] = useState(false);
   const decisionApplied = useRef(false);
 
@@ -114,30 +116,40 @@ export const RuleSuggestionWindow: React.FC<Props> = ({ payload }) => {
       }}
     >
       <Heading size="3" weight="medium">
-        是否为该窗口添加规则？
+        {t("ruleSuggestion.title")}
       </Heading>
       <DataList.Root size="2" orientation="horizontal">
         <DataList.Item>
-          <DataList.Label minWidth="64px">应用</DataList.Label>
+          <DataList.Label minWidth="64px">
+            {t("ruleSuggestion.app")}
+          </DataList.Label>
           <DataList.Value>{payload.appName}</DataList.Value>
         </DataList.Item>
         <DataList.Item>
-          <DataList.Label minWidth="64px">窗口</DataList.Label>
+          <DataList.Label minWidth="64px">
+            {t("ruleSuggestion.window")}
+          </DataList.Label>
           <DataList.Value style={{ wordBreak: "break-all" }}>
             {titleDisplay}
           </DataList.Value>
         </DataList.Item>
         <DataList.Item>
-          <DataList.Label minWidth="64px">提示词</DataList.Label>
+          <DataList.Label minWidth="64px">
+            {t("ruleSuggestion.prompt")}
+          </DataList.Label>
           <DataList.Value>{payload.promptName}</DataList.Value>
         </DataList.Item>
         <DataList.Item>
-          <DataList.Label minWidth="64px">已使用</DataList.Label>
-          <DataList.Value>{payload.count} 次</DataList.Value>
+          <DataList.Label minWidth="64px">
+            {t("ruleSuggestion.used")}
+          </DataList.Label>
+          <DataList.Value>
+            {t("ruleSuggestion.times", { count: payload.count })}
+          </DataList.Value>
         </DataList.Item>
       </DataList.Root>
       <Text size="1" color="gray">
-        添加后，下次在该窗口录音将自动应用此提示词。
+        {t("ruleSuggestion.description")}
       </Text>
       <Flex
         gap="3"
@@ -153,7 +165,7 @@ export const RuleSuggestionWindow: React.FC<Props> = ({ payload }) => {
           disabled={busy}
           onClick={() => respond("dismissed")}
         >
-          这次不要
+          {t("ruleSuggestion.dismiss")}
         </Button>
         <Button
           variant="soft"
@@ -162,7 +174,7 @@ export const RuleSuggestionWindow: React.FC<Props> = ({ payload }) => {
           disabled={busy}
           onClick={() => respond("never_again")}
         >
-          别再问
+          {t("ruleSuggestion.neverAgain")}
         </Button>
         <Button
           variant="solid"
@@ -170,7 +182,7 @@ export const RuleSuggestionWindow: React.FC<Props> = ({ payload }) => {
           disabled={busy}
           onClick={() => respond("accepted")}
         >
-          添加规则
+          {t("ruleSuggestion.addRule")}
         </Button>
       </Flex>
     </Box>

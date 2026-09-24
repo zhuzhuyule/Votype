@@ -78,7 +78,13 @@
     "history": "History",
     "latest": "Latest",
     "localInsertCopied": "No input field focused — result copied to clipboard",
-    "insertBlocked": "{{app}} is on the insert blacklist — content copied to clipboard, paste it manually"
+    "insertBlocked": "{{app}} is on the insert blacklist — content copied to clipboard, paste it manually",
+    "expand": "Expand sidebar",
+    "collapse": "Collapse sidebar",
+    "retry": "Retry",
+    "unknown": "Unknown",
+    "error": "Error",
+    "more": "More"
   },
   "dashboard": {
     "actions": {
@@ -220,7 +226,8 @@
       "translate": "Translate to English",
       "realtime": "Realtime Preview",
       "llm": "LLM Post-process",
-      "selectModel": "Select model..."
+      "selectModel": "Select model...",
+      "openSettings": "Settings"
     }
   },
   "models": {
@@ -662,6 +669,28 @@
           "silero": "Silero",
           "earshot": "Earshot"
         }
+      },
+      "localApi": {
+        "title": "Local API",
+        "enable": "Enable OpenAI-compatible local server",
+        "enableDescription": "Off by default. Turning it on takes effect immediately, no restart needed. It binds to localhost only, so external tools can call models and ASR through a single URL and key.",
+        "allowLan": "Allow LAN access",
+        "allowLanDescription": "When enabled, other devices on your LAN can reach it via your machine's IP. Restart the app for changes to take effect.",
+        "port": "Port",
+        "endpoint": "Endpoint",
+        "url": "URL",
+        "accessKey": "Access Key",
+        "restartToApply": "Restart to apply",
+        "copy": "Copy",
+        "random": "Random",
+        "localAccess": "Local access:",
+        "lanAccess": "LAN access:",
+        "authHeader": "Auth header:",
+        "lanUrlHint": "http://<your-LAN-IP>:{{port}}{{path}}",
+        "copied": "{{label}} copied",
+        "copyFailed": "Failed to copy {{label}}",
+        "keyGenerated": "New access key generated",
+        "keyPlaceholder": "your-key"
       }
     },
     "asrModels": {
@@ -709,7 +738,8 @@
         "tagsLabel": "Tags",
         "title": "Add Custom Model",
         "tooltip": "Add model from URL",
-        "urlLabel": "URL"
+        "urlLabel": "URL",
+        "edit": "Edit custom model"
       },
       "languages": {
         "de": "German",
@@ -775,7 +805,8 @@
         "sensevoice": "SenseVoice",
         "whisper": "Whisper",
         "zipformer": "Zipformer"
-      }
+      },
+      "autoDownloadingPunctuation": "Auto-downloading punctuation model..."
     },
     "debug": {
       "alwaysOnMicrophone": {
@@ -950,7 +981,22 @@
         "pressKeys": "Press keys...",
         "title": "Votype Shortcuts"
       },
-      "title": "General"
+      "title": "General",
+      "font": {
+        "title": "Fonts",
+        "interfaceFont": "Interface font",
+        "description": "Switch to preview instantly; pick the most comfortable one as the default.",
+        "previewLabel": "Current font preview",
+        "labels": {
+          "default": "System UI (default)",
+          "sfPro": "SF Pro",
+          "helvetica": "Helvetica Neue / Arial",
+          "rounded": "SF Pro Rounded",
+          "kaiti": "Kaiti",
+          "songti": "Songti",
+          "mono": "Monospace"
+        }
+      }
     },
     "history": {
       "content": {
@@ -1062,7 +1108,8 @@
             "name": "Provider Name",
             "namePlaceholder": "My Provider",
             "v1AutoAppended": "/v1 was automatically appended",
-            "v1MissingWarning": "URL may be missing version path (e.g. /v1)"
+            "v1MissingWarning": "URL may be missing version path (e.g. /v1)",
+            "addKey": "Add Key"
           },
           "proxy": {
             "useProxy": "Proxy",
@@ -1190,7 +1237,12 @@
         },
         "testMatch": "Test Match",
         "title": "Application Rules",
-        "titlePattern": "Title (Regex)"
+        "titlePattern": "Title (Regex)",
+        "allApps": "All Apps",
+        "appNotInstalled": "This app is no longer installed",
+        "recentApps": "Recent",
+        "refresh": "Rescan installed apps",
+        "searchApps": "Search apps..."
       },
       "confidenceCheck": {
         "description": "Adjust the sensitivity for prompts that have review enabled. Higher values mean the review window appears less often.",
@@ -1224,7 +1276,8 @@
         "selectModelsDescription": "Choose models for parallel processing. Click the star to set preferred model.",
         "selectedCount": "{{count}} selected",
         "noneSelected": "No models selected",
-        "models": "Models"
+        "models": "Models",
+        "modelSelection": "Model"
       },
       "lengthRouting": {
         "enableLabel": "Auto-select model by text length",
@@ -1244,7 +1297,8 @@
         "longText": "Long text",
         "fastModel": "Fast model",
         "fastModelHint": "A lightweight or fast model for short text. Saves tokens and reduces latency for simple content.",
-        "modelSelection": "Model"
+        "modelSelection": "Model",
+        "description": "Auto-detect intent, reuse history, reduce token cost"
       },
       "modelChain": {
         "primary": "Primary",
@@ -1277,6 +1331,8 @@
       },
       "models": {
         "addModel": "Add Model",
+        "addModelIdTooltip": "Add custom model ID",
+        "addModelCustom": "Custom",
         "deleteConfirm": {
           "description": "Are you sure you want to delete this model? This action cannot be undone.",
           "title": "Delete Model?"
@@ -1353,7 +1409,33 @@
         },
         "title": "Models",
         "setAsDefault": "Set as Default",
-        "invalidJson": "Invalid JSON format"
+        "invalidJson": "Invalid JSON format",
+        "addedCount": "Added {{count}} model(s)",
+        "customAdd": {
+          "title": "Add Custom Model",
+          "modelId": "Model ID",
+          "duplicateWarning": "A model with this ID already exists for this provider. Adding will create a copy.",
+          "addFailed": "Add failed: {{error}}",
+          "testTooltipEmpty": "Please enter the model ID first",
+          "testTooltip": "Send a sentence to ping test",
+          "testing": "Testing…",
+          "test": "Test",
+          "skipTest": "Skip test and add directly"
+        },
+        "paramEditor": {
+          "bodyParams": "Body Parameters",
+          "enableThinking": "Enable Thinking",
+          "disableThinking": "Disable Thinking",
+          "addBodyParam": "Add Body Parameter",
+          "addParam": "Add Parameter",
+          "addHeader": "Add Header"
+        },
+        "editModel": {
+          "thinkingEnabled": "Thinking enabled",
+          "modelFamily": "Model Family",
+          "unknown": "Unknown",
+          "presetParams": "Preset parameters: {{hint}}"
+        }
       },
       "providerModels": {
         "totalCalls": "calls",
@@ -1483,7 +1565,34 @@
         "commandPrefixTitle": "Command Prefix",
         "noAliases": "No aliases configured",
         "noPrefixes": "No prefixes configured",
-        "prefixesSaved": "Prefixes saved"
+        "prefixesSaved": "Prefixes saved",
+        "blankSkill": "Blank Skill",
+        "polishCategory": "Polish",
+        "skillCategory": "Skill",
+        "references": {
+          "title": "Scene References",
+          "add": "Add",
+          "empty": "No scene references yet. Add references to adapt behavior per app.",
+          "createFirst": "Create first reference",
+          "createTitle": "Create Scene Reference",
+          "editTitle": "Edit Scene Reference",
+          "matchType": "Match Type",
+          "typeAlways": "General Rules (always active)",
+          "typeApp": "By App Name",
+          "typeCategory": "By App Category",
+          "alwaysName": "General Rules",
+          "badgeAlways": "Always Active",
+          "appNamePlaceholder": "e.g. Slack, Obsidian, WeChat",
+          "contentPlaceholder": "Enter scene-specific rules for this context...\n\nExample:\n## IM/Chat Rules\n- Keep conversational tone\n- Only fix obvious errors\n- Preserve emoji",
+          "created": "Reference created",
+          "saved": "Reference saved",
+          "deleted": "Reference deleted",
+          "errorNoName": "Please enter a name",
+          "errorSave": "Failed to save",
+          "errorDelete": "Failed to delete",
+          "deleteTitle": "Delete Reference",
+          "deleteConfirm": "Are you sure you want to delete \"{{name}}\"?"
+        }
       },
       "skills": {
         "advancedSkills": "Advanced Skills",
@@ -1498,7 +1607,11 @@
         "sourceFile": "File",
         "sourceUser": "User"
       },
-      "title": "Post Process"
+      "title": "Post Process",
+      "modelCard": {
+        "errorRate": "{{count}} failed call(s) — {{rate}}% error rate",
+        "lastError": "Last error{{when}}: {{error}}"
+      }
     },
     "shortcuts": {
       "title": "Shortcuts"
@@ -1539,6 +1652,121 @@
         "title": "Confirm Deletion",
         "hotwordMessage": "Are you sure you want to remove this hot word?"
       }
+    },
+    "summary": {
+      "cluster": {
+        "status": {
+          "inProgress": "In progress",
+          "done": "Done",
+          "blocked": "Blocked",
+          "shelved": "Shelved",
+          "unknown": "Unknown"
+        },
+        "edited": "Edited",
+        "split": "Split",
+        "merge": "Merge"
+      },
+      "split": {
+        "title": "Split from \"{{title}}\"",
+        "hint": "Select the source transcript entries to split out and name the new cluster.",
+        "titlePlaceholder": "New cluster title",
+        "selected": "Selected {{selected}} / {{total}}",
+        "atLeastOne": " — select at least one",
+        "cannotAll": " — cannot select all (remaining cluster would be empty)",
+        "confirm": "Split"
+      },
+      "delete": {
+        "title": "Delete cluster",
+        "body": "Confirm delete \"{{title}}\"? Source transcripts won't be deleted. AI may suggest similar clusters next time you regenerate."
+      },
+      "merge": {
+        "title": "Merge into \"{{title}}\"",
+        "hint": "Select the cluster to merge in. The merged cluster will be deleted, its source_ids and keywords merged into the current cluster.",
+        "noOthers": "No other clusters to merge today",
+        "confirm": "Merge"
+      },
+      "detail": {
+        "loading": "Loading source transcripts...",
+        "invalid": "This cluster is stale, regenerate recommended",
+        "jumpAria": "Jump to Dashboard entry"
+      },
+      "feedbackButtons": {
+        "upAria": "Approve",
+        "downAria": "Disapprove",
+        "notePromptDown": "Feedback: what's wrong?",
+        "notePromptOptional": "Optional note",
+        "placeholderDown": "e.g. Slack messages should be separate clusters...",
+        "submit": "Submit",
+        "submitNoNote": " (no note)"
+      },
+      "dayView": {
+        "aiGenerating": "AI generating...",
+        "noTranscriptsToday": "No transcripts today",
+        "todayClusters": "📌 Today's clusters ({{count}})"
+      },
+      "weekView": {
+        "weeklyHighlights": "Weekly highlights"
+      },
+      "recap": {
+        "empty": "No Recap yet"
+      },
+      "regenerate": {
+        "label": "Regenerate",
+        "loading": "Regenerating..."
+      },
+      "period": {
+        "prevAria": "Previous period",
+        "nextAria": "Next period"
+      },
+      "stats": {
+        "empty": "No statistics"
+      },
+      "feedbackHistory": {
+        "empty": "No negative feedback records in the last 30 days",
+        "desc": "👎 + notes feedback from the last 30 days (these notes are injected into the next AI clustering prompt)",
+        "emptyNote": "(empty note)"
+      },
+      "export": {
+        "pleaseSelect": "Please select a summary first",
+        "copied": "{{format}} copied to clipboard",
+        "failed": "Export failed: {{error}}",
+        "markdown": "Export Markdown",
+        "json": "Export JSON"
+      },
+      "hotword": {
+        "empty": "No extracted vocabulary",
+        "titleFallback": "Vocabulary extraction",
+        "addedTitle": "Added to hotwords",
+        "addTitle": "Click to add to hotwords"
+      },
+      "profile": {
+        "emptyLabel": "No {{label}} data",
+        "emptyProfile": "No Profile data yet",
+        "tabVocab": "Vocabulary",
+        "tabExpr": "Expression",
+        "tabTime": "Time"
+      },
+      "defaultTitle": {
+        "vocabulary": "Vocabulary extraction",
+        "activities": "Specific activities",
+        "highlights": "Highlights",
+        "style": "Communication style",
+        "patterns": "Expression traits",
+        "suggestions": "Improvement suggestions"
+      },
+      "clusterLoadFailed": "Failed to load clusters: {{error}}",
+      "clusterRegenerated": "Clusters regenerated",
+      "aiCallFailed": "AI call failed, kept previous result: {{error}}",
+      "clusterUpdateFailed": "Update failed: {{error}}",
+      "splitDone": "Split complete",
+      "splitFailed": "Split failed: {{error}}",
+      "mergeDone": "Merge complete",
+      "mergeFailed": "Merge failed: {{error}}",
+      "deleteFailed": "Delete failed: {{error}}",
+      "feedbackLoadFailed": "Failed to load feedback: {{error}}",
+      "feedbackSubmitFailed": "Failed to submit feedback: {{error}}",
+      "feedbackDeleteFailed": "Failed to delete feedback: {{error}}",
+      "feedbackHistoryLoadFailed": "Failed to load: {{error}}"
     }
   },
   "sidebar": {
@@ -1756,7 +1984,13 @@
       "sortBySpeed": "Sort by Response Speed",
       "speedSorted": "Speed First",
       "sortBySpeedShort": "By Speed",
-      "rankCount": "#{{rank}} ({{count}} times)"
+      "rankCount": "#{{rank}} ({{count}} times)",
+      "sortByChange": "Sort by change magnitude",
+      "changeSorted": "Change first",
+      "sortLabel": "Sort",
+      "pressEscAgain": "Content modified, press ESC again to close",
+      "speedHistoryAvg": "Historical avg: {{speed}} ({{count}} calls)",
+      "speedThisRun": "This run: {{speed}} ({{diff}})"
     }
   },
   "secureInput": {
@@ -1769,5 +2003,101 @@
     "learnMore": "How to fix",
     "recorderBlocked": "Can’t record shortcuts right now — macOS Secure Input is blocking key events. Resolve the Secure Input warning first.",
     "dismiss": "Dismiss"
+  },
+  "ruleSuggestion": {
+    "title": "Add a rule for this window?",
+    "app": "App",
+    "window": "Window",
+    "prompt": "Prompt",
+    "used": "Used",
+    "times": "{{count}} times",
+    "description": "Once added, this prompt is applied automatically the next time you record in this window.",
+    "dismiss": "Not this time",
+    "neverAgain": "Don't ask again",
+    "addRule": "Add rule"
+  },
+  "hotword": {
+    "addBar": {
+      "placeholder": "Enter hotwords (comma-separated to add in bulk)...",
+      "words": "{{count}} words",
+      "add": "Add",
+      "addCount": "Add ({{count}})"
+    },
+    "source": {
+      "manual": "Manual",
+      "autoLearned": "Auto-learned",
+      "aiExtracted": "AI extracted"
+    },
+    "scenario": {
+      "work": "Work",
+      "casual": "Casual"
+    },
+    "tagCloud": {
+      "add": "Add",
+      "import": "Import",
+      "export": "Export",
+      "sortByWeight": "Sort by weight",
+      "sortByAlpha": "Sort alphabetically",
+      "searchPlaceholder": "Search hotwords...",
+      "aiSuggestions": "AI suggestions ({{count}})",
+      "acceptAll": "Accept all",
+      "dismissAll": "Dismiss all",
+      "contextFrequent": "Frequent in context",
+      "acceptSuggestion": "Accept suggestion",
+      "dismissSuggestion": "Dismiss suggestion",
+      "empty": "No hotwords yet. Click \"Add\" to create your first one.",
+      "noMatch": "No hotwords match \"{{query}}\"",
+      "dropHere": "Drop here"
+    },
+    "editPanel": {
+      "addAlias": "Add {{label}} word",
+      "duplicate": "\"{{target}}\" already exists",
+      "saveFailed": "Failed to save",
+      "targetPlaceholder": "Target word",
+      "decreaseWeight": "Decrease weight",
+      "increaseWeight": "Increase weight",
+      "falsePositive": "{{count}} false positives",
+      "deleteHotword": "Delete hotword",
+      "category": "Category",
+      "scenario": "Scenario",
+      "correction": "Fix",
+      "correctionDesc": "Used as correction reference and injected into the LLM prompt. Drag an alias into \"Force\" to turn it into a direct local replacement.",
+      "correctionPlaceholder": "Add correction word",
+      "force": "Force",
+      "forceDesc": "Local exact replacement only, never sent to the LLM. Drag an alias back into \"Fix\" to restore AI reference.",
+      "forcePlaceholder": "Add force word",
+      "none": "None",
+      "confirmDeleteTitle": "Confirm deletion",
+      "confirmDeleteDesc": "Delete hotword \"{{target}}\"?"
+    },
+    "categoryDialog": {
+      "colors": {
+        "gray": "Gray",
+        "green": "Green",
+        "orange": "Orange",
+        "blue": "Blue",
+        "purple": "Purple",
+        "red": "Red",
+        "cyan": "Cyan",
+        "amber": "Amber",
+        "teal": "Teal",
+        "pink": "Pink"
+      },
+      "idInvalid": "IDs may only contain letters, numbers, and hyphens",
+      "idDuplicate": "Category ID \"{{id}}\" already exists",
+      "addFailed": "Failed to add",
+      "saveFailed": "Failed to save",
+      "deleteFailed": "Failed to delete",
+      "manageTooltip": "Manage categories",
+      "title": "Manage hotword categories",
+      "description": "Customize the name, color and icon of each category. Built-in categories cannot be deleted.",
+      "namePlaceholder": "Category name",
+      "builtin": "Built-in",
+      "deleteTooltip": "Delete (hotwords move to Terms)",
+      "idPlaceholder": "ID (e.g. medical)",
+      "labelPlaceholder": "Name (e.g. Medical)",
+      "idInvalidDetail": "IDs may only contain letters, numbers, and hyphens (-)",
+      "addCategory": "Add category"
+    }
   }
 }

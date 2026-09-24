@@ -168,9 +168,9 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
       return freeModels
         .filter(
           (m) =>
-            m.capabilities === "文本生成" ||
+            m.capabilities === "文本生成" || // i18n-ignore (backend capability enum value)
             m.capabilities === "speech2text" ||
-            m.capabilities === "多模态",
+            m.capabilities === "多模态", // i18n-ignore (backend capability enum value)
         )
         .map((m) => ({
           id: m.id,
@@ -309,7 +309,12 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
               </TextField.Root>
             </Box>
 
-            <Tooltip content="添加自定义模型 ID">
+            <Tooltip
+              content={t(
+                "settings.postProcessing.models.addModelIdTooltip",
+                "Add custom model ID",
+              )}
+            >
               <Button
                 size="1"
                 variant="soft"
@@ -317,7 +322,7 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
                 onClick={() => setCustomAddOpen(true)}
               >
                 <IconPlus size={14} />
-                自定义
+                {t("settings.postProcessing.models.addModelCustom", "Custom")}
               </Button>
             </Tooltip>
 

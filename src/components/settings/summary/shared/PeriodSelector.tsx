@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Button, Flex, SegmentedControl, Text } from "@radix-ui/themes";
 import { IconChevronLeft, IconChevronRight } from "@tabler/icons-react";
 import { useSummaryStore } from "../stores/summaryStore";
@@ -25,6 +26,7 @@ function formatRange(iso: string, mode: ViewMode): string {
 }
 
 export function PeriodSelector() {
+  const { t } = useTranslation();
   const { viewMode, selectedDate, setViewMode, setSelectedDate } =
     useSummaryStore();
 
@@ -35,7 +37,7 @@ export function PeriodSelector() {
           variant="ghost"
           size="1"
           onClick={() => setSelectedDate(shiftDate(selectedDate, viewMode, -1))}
-          aria-label="上一段"
+          aria-label={t("settings.summary.period.prevAria")}
         >
           <IconChevronLeft size={16} />
         </Button>
@@ -50,7 +52,7 @@ export function PeriodSelector() {
           variant="ghost"
           size="1"
           onClick={() => setSelectedDate(shiftDate(selectedDate, viewMode, 1))}
-          aria-label="下一段"
+          aria-label={t("settings.summary.period.nextAria")}
         >
           <IconChevronRight size={16} />
         </Button>

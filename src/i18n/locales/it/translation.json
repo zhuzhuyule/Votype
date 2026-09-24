@@ -1,12 +1,4 @@
 {
-  "tray": {
-    "settings": "Impostazioni...",
-    "checkUpdates": "Verifica aggiornamenti...",
-    "copyLastTranscript": "Copia l'ultima trascrizione",
-    "unloadModel": "Scarica modello",
-    "quit": "Esci",
-    "cancel": "Annulla"
-  },
   "sidebar": {
     "general": "Generale",
     "models": "Modelli",
@@ -14,15 +6,23 @@
     "postProcessing": "Post-Elaborazione",
     "history": "Cronologia",
     "debug": "Debug",
-    "about": "Informazioni"
+    "about": "Informazioni",
+    "appProfiles": "Profili app",
+    "dashboard": "Dashboard",
+    "expertMode": "Modalità esperto",
+    "expertModeHint": "Mostra le opzioni avanzate delle impostazioni",
+    "prompts": "Prompt",
+    "shortcuts": "Scorciatoie",
+    "summary": "Riepilogo",
+    "vocabulary": "Vocabolario",
+    "asrModels": "Modelli ASR",
+    "dailyVocabulary": "Vocabolario giornaliero"
   },
   "onboarding": {
     "subtitle": "Per cominciare, scegli un modello di riconoscimento vocale",
     "recommended": "Raccomandato",
     "download": "Scaricare",
     "downloading": "Download in corso...",
-    "customModelDescription": "Non ufficialmente supportato",
-    "downloadFailed": "Download fallito. Riprova.",
     "modelCard": {
       "accuracy": "accuratezza",
       "speed": "velocità"
@@ -52,40 +52,68 @@
         "name": "Parakeet V3",
         "description": "Veloce e accurato"
       },
-      "moonshine-base": {
-        "name": "Moonshine Base",
-        "description": "Very fast, English only. Handles accents well."
-      }
+      "description": "Seleziona un modello per iniziare. I modelli consigliati funzionano bene nella maggior parte dei casi.",
+      "showMore": "Altri modelli",
+      "title": "Scegli un modello"
     },
     "errors": {
       "loadModels": "Errore di caricamento dei modelli disponibili",
       "downloadModel": "Errore nel download del modello: {{error}}"
     },
-    "permissions": {
-      "title": "Permessi Richiesti",
-      "description": "Handy ha bisogno di alcuni permessi per funzionare correttamente.",
-      "microphone": {
-        "title": "Accesso al Microfono",
-        "description": "Necessario per sentire la tua voce per la trascrizione."
-      },
-      "accessibility": {
-        "title": "Accesso all'Accessibilità",
-        "description": "Necessario per digitare il testo trascritto nelle tue applicazioni."
-      },
-      "grant": "Concedi Permesso",
-      "granted": "Concesso",
-      "waiting": "In attesa...",
-      "allGranted": "Tutto pronto!",
-      "errors": {
-        "checkFailed": "Impossibile verificare i permessi. Riprova.",
-        "requestFailed": "Impossibile richiedere il permesso. Riprova."
-      }
+    "accessibility": {
+      "description": "Questo permesso abilita l'incolla automatico del testo",
+      "feature1": "Incolla automaticamente la trascrizione nell'app corrente",
+      "feature2": "Ottieni la posizione del cursore per posizionare la sovrimpressione",
+      "feature3": "Simula le scorciatoie da tastiera per incollare",
+      "grant": "Concedi permesso",
+      "granted": "Permesso di accessibilità concesso ✓",
+      "noteImpact": "Senza il permesso, i risultati vengono solo copiati negli appunti.",
+      "reason1": "Incolla automaticamente il testo trascritto nelle app attive",
+      "reason2": "Ottieni la posizione del cursore per posizionare la sovrimpressione",
+      "reason3": "Offri un'esperienza più fluida",
+      "simpleDesc": "Incolla automaticamente i risultati della trascrizione, senza bisogno di Cmd+V",
+      "skip": "Salta questo passaggio",
+      "step1": "Apri Impostazioni di Sistema → Privacy e sicurezza → Accessibilità",
+      "step2": "Rimuovi l'app se è già presente nell'elenco",
+      "step3": "Clicca + per aggiungere e abilitare il permesso",
+      "stepsTitle": "Hai problemi?",
+      "title": "Permesso di accessibilità",
+      "whyTitle": "Perché è necessario?",
+      "without1": "L'app funziona comunque normalmente",
+      "without2": "Il testo trascritto viene copiato negli appunti",
+      "without3": "Dovrai incollarlo manualmente (Cmd+V)",
+      "withoutTitle": "Senza questo permesso:"
+    },
+    "microphone": {
+      "denied": "Il permesso del microfono è necessario per registrare la voce. Concedilo nelle Impostazioni di Sistema.",
+      "description": "Votype ha bisogno di accedere al tuo microfono per registrare la voce",
+      "devModeHint": "Modalità sviluppo: verifica dei permessi non disponibile",
+      "error": "Richiesta del permesso non riuscita. Riprova o concedilo manualmente nelle Impostazioni di Sistema.",
+      "grant": "Concedi accesso al microfono",
+      "granted": "Accesso al microfono concesso ✓",
+      "grantFirst": "Concedi il permesso del microfono per continuare",
+      "reason1": "Registra la tua voce per la trascrizione",
+      "reason2": "Tutta l'elaborazione avviene in locale",
+      "reason3": "I tuoi dati vocali non lasciano mai il tuo dispositivo",
+      "shortDesc": "Per registrare la voce da trascrivere",
+      "skipDev": "Salta (modalità sviluppo)",
+      "title": "Microfono",
+      "whyTitle": "Perché è necessario?"
+    },
+    "welcome": {
+      "continue": "Continua",
+      "description": "Un metodo di input vocale che supporta modalità locale, online o ibrida.",
+      "feature1": "Da voce a testo, completamente offline",
+      "feature2": "Privacy al primo posto, i dati non lasciano mai il tuo dispositivo",
+      "feature3": "Attivazione con scorciatoia, premi e parla",
+      "permissionsTitle": "Configurazione dei permessi",
+      "skipDev": "Salta (modalità sviluppo)",
+      "start": "Inizia",
+      "title": "Benvenuto"
     }
   },
   "modelSelector": {
-    "custom": "Personalizzato",
     "active": "Attivo",
-    "switching": "Cambio...",
     "noModelsAvailable": "Nessun modello disponibile",
     "extracting": "Estrazione di {{modelName}}...",
     "extractingMultiple": "Estrazione di {{count}} modelli...",
@@ -99,45 +127,44 @@
     "modelUnloaded": "Modello Disattivato",
     "noModelDownloadRequired": "Nessun Modello - Download Richiesto",
     "deleteModel": "Elimina {{modelName}}",
-    "downloadSpeed": "{{speed}} MB/s",
-    "capabilities": {
-      "languageSelection": "Supporta più lingue di input",
-      "multiLanguage": "Multilingua",
-      "translation": "Può tradurre in inglese",
-      "translate": "Traduci in inglese",
-      "singleLanguage": "Supporta solo questa lingua",
-      "languageOnly": "Solo {{language}}"
+    "addModelFromUrl": "Aggiungi da URL",
+    "addModelFromUrlPrompt": "Incolla un URL di download del modello (es. .tar.bz2):",
+    "availableModels": "Modelli disponibili",
+    "chooseModel": "Scegli un modello",
+    "clickToEnableOnlineAsr": "Clicca per abilitare l'ASR online",
+    "download": "Scarica",
+    "downloadModels": "Scarica modelli",
+    "downloadPrompt": "Scarica un modello qui sotto per iniziare a trascrivere.",
+    "downloadSize": "Dimensione download",
+    "local": "Locale",
+    "online": "Online",
+    "onlineAsr": "ASR online",
+    "onlineAsrActive": "ASR online attivo",
+    "onlineAsrModels": "Modelli ASR online",
+    "realtimeModel": {
+      "empty": "Nessun modello locale idoneo. Scarica (e aggiungi ai preferiti) prima un modello Sherpa.",
+      "enabled": "Abilitato",
+      "off": "Off",
+      "offHint": "Non serve mostrare i sottotitoli in tempo reale per i modelli locali (risparmia risorse di memoria)",
+      "open": "Scegli modello di trascrizione in tempo reale",
+      "selected": "Tempo reale: {{modelName}}",
+      "title": "Modello di trascrizione in tempo reale"
     },
-    "cancel": "Annulla",
-    "cancelDownload": "Annulla download"
+    "realtimeModelLabel": "Modello in tempo reale",
+    "searchPlaceholder": "Cerca modelli…",
+    "userAddedModel": "Modello aggiunto dall'utente",
+    "welcome": "Benvenuto in Votype",
+    "asrFallback": {
+      "add": "+ Riserva",
+      "label": "Riserva",
+      "remove": "Rimuovi riserva"
+    }
   },
   "settings": {
-    "modelSettings": {
-      "title": "Impostazioni di {{model}}",
-      "noSettingsNeeded": "Questo modello funziona automaticamente senza bisogno di configurazione."
-    },
-    "models": {
-      "title": "Modelli di Trascrizione",
-      "description": "Seleziona un modello di trascrizione o scarica modelli aggiuntivi. Diversi modelli offrono diversi livelli di accuratezza e velocità.",
-      "downloaded": "Scaricati",
-      "available": "Disponibili per il Download",
-      "deleteConfirm": "Sei sicuro di voler eliminare {{modelName}}? Dovrai scaricarlo di nuovo per usarlo.",
-      "deleteActiveConfirm": "{{modelName}} è il tuo modello attivo. Eliminarlo interromperà le trascrizioni fino a quando non selezionerai un nuovo modello. Sei sicuro?",
-      "deleteTitle": "Elimina modello",
-      "filters": {
-        "all": "Tutti",
-        "multiLanguage": "Multilingua",
-        "translation": "Traduzione",
-        "allLanguages": "Tutte le lingue"
-      },
-      "noModelsMatch": "Nessun modello corrisponde a questo filtro.",
-      "yourModels": "Modelli scaricati",
-      "availableModels": "Disponibili per il download"
-    },
     "general": {
       "title": "Generale",
       "shortcut": {
-        "title": "Scorciatoie di Handy",
+        "title": "Scorciatoie di Votype",
         "description": "Configura le scorciatoie per attivare la trascrizione vocale",
         "loading": "Caricamento delle scorciatoie...",
         "none": "Nessuna scorciatoia configurata",
@@ -151,6 +178,18 @@
           "cancel": {
             "name": "Scorciatoia Annulla",
             "description": "La scorciatoia da tastiera per annullare la registrazione in corso."
+          },
+          "invoke_skill": {
+            "description": "Avvia la registrazione in modalità Skill con routing intelligente dell'intento.",
+            "name": "Invoca skill"
+          },
+          "open_settings": {
+            "description": "Apre la finestra delle impostazioni.",
+            "name": "Apri impostazioni"
+          },
+          "paste_first_entry": {
+            "description": "Incolla la prima voce della cronologia nella finestra attiva.",
+            "name": "Incolla prima voce"
           }
         },
         "errors": {
@@ -165,11 +204,39 @@
         "descriptionUnsupported": "Il modello Parakeet sceglie automaticamente la lingua. Non serve scegliere manualmente.",
         "searchPlaceholder": "Cerca lingue...",
         "noResults": "Nessuna lingua trovata",
-        "auto": "Auto"
+        "auto": "Auto",
+        "descriptionNoModel": "Seleziona un modello locale per configurare la lingua.",
+        "descriptionSenseVoice": "SenseVoice applica la lingua quando il modello viene caricato. Riseleziona il modello dopo aver cambiato lingua.",
+        "descriptionUnknownModel": "Il modello attuale è sconosciuto; la selezione della lingua è disabilitata.",
+        "descriptionUnsupportedEngine": "La selezione della lingua si applica solo ai modelli Whisper o SenseVoice."
       },
-      "pushToTalk": {
-        "label": "Premi per Parlare",
-        "description": "Tieni premuto per parlare, rilascia per interrompere"
+      "audioInputAutoEnhance": {
+        "description": "Alza automaticamente l'input vocale debole e limita la distorsione durante la registrazione. Questo può modificare il suono in riproduzione.",
+        "label": "Miglioramento automatico microfono"
+      },
+      "groups": {
+        "recording": "Registrazione",
+        "transcription": "Lingua di trascrizione"
+      },
+      "activationMode": {
+        "label": "Modalità di attivazione",
+        "tooltip": {
+          "summary": "Scegli come viene attivata la scorciatoia di registrazione"
+        },
+        "descriptions": {
+          "toggle": "Premi per iniziare, premi di nuovo per fermare",
+          "hold": "Tieni premuto per registrare, rilascia per fermare",
+          "hold_or_toggle": "Una pressione breve attiva/disattiva, tenere premuto 300 ms o più ferma al rilascio"
+        },
+        "options": {
+          "toggle": "Attiva/disattiva",
+          "hold": "Tieni premuto",
+          "holdOrToggle": "Auto"
+        }
+      },
+      "holdThreshold": {
+        "label": "Soglia di pressione prolungata",
+        "description": "Solo modalità Auto: quanto a lungo (in millisecondi) la scorciatoia deve essere tenuta premuta prima di contare come pressione prolungata invece che come tocco. Abbassala se brevi pressioni lasciano la registrazione attiva; alzala se tocchi intenzionali vengono trattati come pressioni prolungate."
       }
     },
     "sound": {
@@ -198,15 +265,12 @@
     "advanced": {
       "title": "Avanzate",
       "groups": {
-        "app": "App",
-        "output": "Output",
-        "transcription": "Trascrizione",
-        "history": "Cronologia",
-        "experimental": "Sperimentale"
-      },
-      "experimentalToggle": {
-        "label": "Funzionalità Sperimentali",
-        "description": "Abilita le funzionalità sperimentali ancora in fase di sviluppo."
+        "dataManagement": "Gestione dati",
+        "debug": "Opzioni di debug",
+        "inputOutput": "Input e output",
+        "network": "Rete",
+        "startup": "Avvio e comportamento",
+        "transcriptionOptimization": "Ottimizzazione trascrizione"
       },
       "startHidden": {
         "label": "Avvia in Background",
@@ -214,11 +278,7 @@
       },
       "autostart": {
         "label": "Avvia all'Accensione",
-        "description": "Avvia Handy automaticamente quando accedi al computer."
-      },
-      "showTrayIcon": {
-        "label": "Mostra icona nella barra di sistema",
-        "description": "Mostra l'icona di Handy nella barra di sistema."
+        "description": "Avvia Votype automaticamente quando accedi al computer."
       },
       "overlay": {
         "title": "Posizione della Sovrimpressione",
@@ -226,7 +286,8 @@
         "options": {
           "none": "Nessuna",
           "bottom": "In basso",
-          "top": "In alto"
+          "top": "In alto",
+          "follow": "Segui cursore"
         }
       },
       "pasteMethod": {
@@ -262,7 +323,10 @@
       "translateToEnglish": {
         "label": "Traduci in inglese",
         "description": "Traduci automaticamente in inglese la voce in altre lingue durante la trascrizione.",
-        "descriptionUnsupported": "La traduzione non è supportata dal modello {{model}}."
+        "descriptionUnsupported": "La traduzione non è supportata dal modello {{model}}.",
+        "descriptionNoModel": "Seleziona un modello locale per abilitare la traduzione.",
+        "descriptionNonWhisper": "La traduzione funziona solo con i modelli Whisper. Attuale: {{model}}",
+        "descriptionUnknownModel": "Le capacità di questo modello sono sconosciute. Seleziona un modello scaricato per abilitare la traduzione."
       },
       "modelUnload": {
         "title": "Disattiva Model",
@@ -284,24 +348,114 @@
         "placeholder": "Aggiungi una parola",
         "add": "Aggiungi",
         "remove": "Rimuovi {{word}}"
+      },
+      "vocabularyCorrections": {
+        "allApps": "Tutte le app",
+        "delete": "Elimina questa correzione",
+        "description": "Correzioni del vocabolario apprese dalla cronologia delle modifiche",
+        "empty": "Nessuna correzione appresa",
+        "global": "Globale",
+        "removeGlobal": "Rimuovi globale",
+        "scope": "Ambito",
+        "setGlobal": "Imposta come globale",
+        "title": "Dizionario del vocabolario"
+      },
+      "scope": {
+        "custom": "App specifiche",
+        "editDescription": "Modifica ambito per \"{{original}}\" → \"{{corrected}}\"",
+        "editTitle": "Ambito della correzione",
+        "global": "Globale",
+        "multiple": "{{count}} app",
+        "none": "Nessuna app",
+        "source": "App di origine ({{app}})"
+      },
+      "proxy": {
+        "add": "Aggiungi proxy",
+        "server": "Server",
+        "username": "Nome utente",
+        "usernamePlaceholder": "Facoltativo",
+        "password": "Password",
+        "passwordPlaceholder": "Facoltativo",
+        "enable": "Abilita",
+        "globalHint": "Applica a tutti i provider per impostazione predefinita",
+        "testAndSave": "Prova e salva",
+        "testSuccess": "Connessione proxy riuscita",
+        "testFailed": "Connessione proxy non riuscita: {{error}}",
+        "remove": "Rimuovi",
+        "removed": "Proxy rimosso"
+      },
+      "insertBlacklist": {
+        "label": "Blacklist di inserimento",
+        "description": "Quando un'app in blacklist (terminale, gestore di password, ...) è in primo piano, la trascrizione viene copiata negli appunti con una notifica invece di essere digitata o incollata automaticamente."
+      },
+      "remoteRecord": {
+        "label": "Tasto registrazione da telecomando",
+        "description": "Rivendica il pulsante di registrazione sui telecomandi vocali Bluetooth (un tasto Consumer di macOS invisibile alle scorciatoie normali): premi una volta per iniziare a registrare, ancora una volta per fermarti."
+      },
+      "punctuation": {
+        "description": "Aggiunge la punteggiatura alla trascrizione finale ({{model}}).",
+        "label": "Aggiungi punteggiatura",
+        "model": {
+          "description": "Scegli un modello di punteggiatura per testo misto zh+en. Si applica solo al risultato finale.",
+          "notDownloaded": "Il modello selezionato non è ancora scaricato.",
+          "title": "Modello di punteggiatura"
+        }
+      },
+      "fillerWordRemoval": {
+        "label": "Rimozione parole riempitive",
+        "description": "Rimuove le interiezioni pronunciate prima della post-elaborazione. Si applica solo alle lingue con schemi di riempitivi affidabili."
+      },
+      "vadBackend": {
+        "title": "Backend attività vocale",
+        "description": "Scegli il rilevatore usato per filtrare il silenzio. Earshot è sperimentale; torna a Silero se il parlato viene tagliato o il rumore mantenuto.",
+        "options": {
+          "silero": "Silero",
+          "earshot": "Earshot"
+        }
+      },
+      "localApi": {
+        "title": "API locale",
+        "enable": "Abilita server locale compatibile con OpenAI",
+        "enableDescription": "Disattivato per impostazione predefinita. Attivarlo ha effetto immediato, senza riavvio. Si associa solo a localhost, così gli strumenti esterni possono chiamare modelli e ASR tramite un unico URL e una chiave.",
+        "allowLan": "Consenti accesso LAN",
+        "allowLanDescription": "Se abilitato, altri dispositivi sulla tua LAN possono raggiungerlo tramite l'IP del tuo computer. Riavvia l'app per applicare le modifiche.",
+        "port": "Porta",
+        "endpoint": "Endpoint",
+        "url": "URL",
+        "accessKey": "Chiave di accesso",
+        "restartToApply": "Riavvia per applicare",
+        "copy": "Copia",
+        "random": "Casuale",
+        "localAccess": "Accesso locale:",
+        "lanAccess": "Accesso LAN:",
+        "authHeader": "Header di autenticazione:",
+        "lanUrlHint": "http://<tuo-IP-LAN>:{{port}}{{path}}",
+        "copied": "{{label}} copiato",
+        "copyFailed": "Copia di {{label}} non riuscita",
+        "keyGenerated": "Nuova chiave di accesso generata",
+        "keyPlaceholder": "your-key"
       }
     },
     "postProcessing": {
       "title": "Post-Elaborazione",
-      "hotkey": {
-        "title": "Tasto di scelta rapida"
-      },
       "api": {
         "title": "API (Compatibile con OpenAI)",
         "provider": {
           "title": "Provider",
-          "description": "Seleziona un provider compatibile con OpenAI."
+          "description": "Seleziona un provider compatibile con OpenAI.",
+          "builtin": "Integrato",
+          "builtinTooltip": "Provider integrato, non può essere eliminato",
+          "deleteAction": "Elimina provider",
+          "deleteConfirmation": "Sei sicuro di voler eliminare il provider \"{{name}}\"? Questa azione non può essere annullata.",
+          "deleteTitle": "Elimina provider",
+          "editName": "Modifica nome provider",
+          "namePlaceholder": "Nome del provider",
+          "newProvider": "Nuovo provider"
         },
         "appleIntelligence": {
           "title": "Apple Intelligence",
           "description": "Si esegue completamente in locale. Non è necessaria una chiave API né l'accesso alla rete.",
-          "requirements": "Necessita di un Mac con Apple Silicon e macOS Tahoe (26.0) o successivi. Apple Intelligence deve essere abilitata nelle Impostazioni di Sistema.",
-          "unavailable": "Apple Intelligence non è disponibile su questo dispositivo. Necessita di un Mac con Apple Silicon e macOS Tahoe (26.0) o successivi con Apple Intelligence abilitata nelle Impostazioni di Sistema."
+          "requirements": "Necessita di un Mac con Apple Silicon e macOS Tahoe (26.0) o successivi. Apple Intelligence deve essere abilitata nelle Impostazioni di Sistema."
         },
         "baseUrl": {
           "title": "URL Base",
@@ -322,13 +476,78 @@
           "placeholderWithOptions": "Cerca o scegli un modello",
           "placeholderNoOptions": "Digita il nome di un modello",
           "refreshModels": "Aggiorna modelli"
+        },
+        "manageProviders": "Gestisci provider",
+        "modelCard": {
+          "errorRate": "{{count}} chiamate non riuscite — tasso di errore {{rate}}%"
+        },
+        "models": {
+          "deleteConfirm": {
+            "description": "Sei sicuro di voler eliminare questo modello? Questa azione non può essere annullata.",
+            "title": "Eliminare il modello?"
+          }
+        },
+        "providers": {
+          "add": "Aggiungi provider",
+          "addCustom": "Aggiungi personalizzato",
+          "advancedSettings": "Impostazioni avanzate",
+          "api": {
+            "model": {
+              "title": "Modello in uso"
+            },
+            "testConnection": "Prova inferenza modello",
+            "testFailed": "Prova non riuscita: {{error}}",
+            "testing": "Verifica della connessione...",
+            "testSuccess": "Prova riuscita: {{result}}"
+          },
+          "builtInBadge": "Integrato",
+          "deleteConfirm": {
+            "description": "Questo rimuoverà il provider e tutti i modelli associati.",
+            "title": "Eliminare il provider?"
+          },
+          "dialog": {
+            "createTitle": "Crea provider",
+            "editTitle": "Modifica provider"
+          },
+          "empty": {
+            "description": "Aggiungi un provider per iniziare.",
+            "title": "Nessun provider"
+          },
+          "fields": {
+            "apiKey": "Chiave API",
+            "getApiKey": "Ottieni chiave API",
+            "baseUrl": "URL di base",
+            "baseUrlHint": "Modalità compatibile con OpenAI, di solito termina con /v1. Usa il suffisso '#' per evitare l'aggiunta automatica di /v1.",
+            "actualUrlPreview": "Anteprima URL API effettivo",
+            "modelsEndpoint": "Endpoint modelli",
+            "modelsEndpointPlaceholder": "/models o https://...",
+            "name": "Nome del provider",
+            "namePlaceholder": "Il mio provider",
+            "v1AutoAppended": "/v1 è stato aggiunto automaticamente",
+            "v1MissingWarning": "All'URL potrebbe mancare il percorso di versione (es. /v1)",
+            "addKey": "Aggiungi chiave"
+          },
+          "proxy": {
+            "useProxy": "Proxy",
+            "noGlobalProxy": "Configura prima il proxy nelle impostazioni Avanzate"
+          },
+          "group": {
+            "recommended": "Consigliati",
+            "cloud": "Provider cloud",
+            "local": "Provider locali"
+          },
+          "resetUrl": "Reimposta URL",
+          "testConnection": "Prova connessione",
+          "testFailed": "Connessione non riuscita: {{error}}",
+          "testSuccess": "Connessione riuscita",
+          "title": "Provider"
         }
       },
       "prompts": {
         "title": "Prompt",
         "selectedPrompt": {
           "title": "Prompt Selezionato",
-          "description": "Choose the template used for post-processing, or create a new one. The system automatically injects the main input and supporting reference fields, so the prompt body only needs to describe the task, constraints, and output requirements."
+          "description": "Scegli il modello usato per la post-elaborazione o creane uno nuovo. Il sistema inserisce automaticamente l'input principale e i campi di riferimento di supporto, quindi il corpo del prompt deve descrivere solo il compito, i vincoli e i requisiti di output."
         },
         "noPrompts": "Nessun prompt disponibile.",
         "selectPrompt": "Scegli un prompt",
@@ -336,7 +555,7 @@
         "promptLabel": "Etichetta del Prompt",
         "promptLabelPlaceholder": "Inserisci il nome del prompt",
         "promptInstructions": "Istruzioni del Prompt",
-        "promptInstructionsPlaceholder": "Describe how the model should process the input text, what it may change, what it must not change, and what the final output should look like.",
+        "promptInstructionsPlaceholder": "Descrivi come il modello deve elaborare il testo in ingresso, cosa può modificare, cosa non deve modificare e come deve apparire l'output finale.",
         "promptTip": "Tip: You are editing the task body only. The system automatically injects the main input and supporting reference fields, so focus on the task, constraints, and output requirements.",
         "updatePrompt": "Aggiorna Prompt",
         "deletePrompt": "Elimina Prompt",
@@ -355,13 +574,435 @@
         "varWindowTitleDesc": "Titolo della finestra corrente.",
         "lockSkill": "Lock Skill",
         "unlockSkill": "Unlock Skill",
-        "skillLocked": "This skill is locked. Unlock to edit.",
-        "aiGeneratingWait": "AI is generating, please wait",
+        "skillLocked": "Questa competenza è bloccata. Sbloccala per modificarla.",
+        "aiGeneratingWait": "L'IA sta generando, attendi",
         "unsavedChanges": {
           "title": "Unsaved Changes",
-          "description": "Current prompt has unsaved changes. Switching will discard these modifications.",
+          "description": "Il prompt attuale ha modifiche non salvate. Cambiando prompt queste modifiche verranno perse.",
           "discard": "Discard Changes"
+        },
+        "activeSet": "Imposta come prompt predefinito",
+        "advancedSettings": "Impostazioni avanzate",
+        "createSuccess": "Prompt creato correttamente",
+        "deleteConfirm": {
+          "description": "Sei sicuro di voler eliminare questo prompt? Questa azione non può essere annullata.",
+          "title": "Elimina prompt"
+        },
+        "createFailed": "Impossibile creare la skill",
+        "nameAndContentRequired": "Nome e contenuto non possono essere vuoti",
+        "fillNameAndInstructionsFirst": "Compila prima nome e istruzioni, così l'IA può generare un riepilogo migliore.",
+        "userOwnedPrompts": "I miei prompt",
+        "deleteFailed": "Eliminazione non riuscita",
+        "deleteSuccess": "Prompt eliminato correttamente",
+        "resetToDefault": "Ripristina predefinito",
+        "resetConfirm": {
+          "description": "Questo ripristinerà la skill al suo contenuto integrato originale. Eventuali personalizzazioni andranno perse.",
+          "title": "Ripristina predefinito"
+        },
+        "resetSuccess": "Skill ripristinata al valore predefinito",
+        "resetFailed": "Impossibile ripristinare la skill",
+        "description": "Descrizione (per il routing intelligente)",
+        "descriptionPlaceholder": "Descrivi brevemente cosa fa questa skill e quando deve essere attivata",
+        "editPrompt": "Modifica prompt",
+        "enabledToggle": "Abilita/disabilita questa skill",
+        "enableConfidenceCheck": "Abilita controllo di affidabilità",
+        "generationDescription": "Genera nuovi contenuti basandosi sul testo riconosciuto come prompt (es. traduzione, riepilogo).",
+        "globalConfigTitle": "Configurazione globale",
+        "managementTitle": "Prompt",
+        "newPromptName": "Nuovo prompt",
+        "outputMode": {
+          "chat": "Chat IA",
+          "label": "Modalità di output",
+          "polish": "Rifinitura testo"
+        },
+        "promptBody": "Corpo dell'attività",
+        "promptBodyPlaceholder": "Descrivi come il modello deve elaborare il testo di input, cosa può cambiare, cosa non deve cambiare e come deve apparire l'output finale.",
+        "refinementDescription": "Corregge e formatta automaticamente il testo riconosciuto.",
+        "reviewThreshold": "Soglia di revisione",
+        "setAsActive": "Imposta come predefinito",
+        "updateFailed": "Aggiornamento non riuscito",
+        "updateSuccess": "Prompt aggiornato correttamente",
+        "inlineVarsLabel": "Campi di riferimento",
+        "autoInjectedNote": "Il sistema inietta automaticamente l'input principale e i campi di riferimento di supporto. Se hai bisogno di un controllo più preciso, puoi citarli esplicitamente nel corpo dell'attività.",
+        "primaryFieldsLabel": "Campi chiave",
+        "referenceFieldsLabel": "Campi di riferimento",
+        "explicitReferenceNote": "Se citi esplicitamente un campo qui sopra, il sistema non aggiungerà di nuovo lo stesso campo più avanti nel prompt.",
+        "inlineVarsSecondaryLabel": "Variabili di metadati",
+        "fieldAutocompleteTitle": "Autocompletamento campi",
+        "fieldAutocompleteEmpty": "Nessun campo corrispondente",
+        "fieldInputTextDesc": "L'unico testo principale che deve essere elaborato",
+        "fieldAsrReferenceDesc": "Riferimento ASR ausiliario usato per correzione e disambiguazione",
+        "fieldSelectedTextDesc": "Testo selezionato usato come contesto debole",
+        "fieldPersonNamesDesc": "Nomi di persona noti",
+        "fieldProductNamesDesc": "Nomi noti di prodotti, marchi o organizzazioni",
+        "fieldDomainTermsDesc": "Termini di dominio, abbreviazioni o termini tecnici",
+        "fieldHotwordsDesc": "Altre hotword prioritarie",
+        "fieldHistoryHintsDesc": "Suggerimenti dalla cronologia usati solo per la coerenza terminologica e la disambiguazione debole",
+        "varAppCategoryDesc": "Categoria dell'app (CodeEditor, Email, ecc.).",
+        "autoGenerate": {
+          "title": "Da voce a skill",
+          "description": "Descrivi a parole tue ciò che vuoi. L'IA genererà una skill completa per te.",
+          "shortcutHint": "Suggerimento: premi",
+          "placeholder": "es. Aiutami a rifinire il testo, correggi la grammatica e rendilo più professionale...",
+          "step1": "Ottimizzazione delle istruzioni del prompt",
+          "step2": "Generazione di nome e icona",
+          "step3": "Generazione della descrizione",
+          "emptyInput": "Descrivi cosa dovrebbe fare questa skill",
+          "start": "Genera",
+          "menuItem": "Input vocale",
+          "success": "Skill creata correttamente"
+        },
+        "templates": {
+          "template_polish": "Rifinitura predefinita",
+          "template_translate": "Traduzione",
+          "template_summary": "Riepilogo",
+          "template_chat": "Chat IA",
+          "template_blank": "Skill vuota"
+        },
+        "aliasDuplicate": "L'alias esiste già",
+        "aliasLabel": "Alias",
+        "aliasPlaceholder": "es. /translate",
+        "commandPrefixDescription": "Prefisso di comando per attivare questo prompt",
+        "commandPrefixPlaceholder": "es. /",
+        "commandPrefixTitle": "Prefisso di comando",
+        "noAliases": "Nessun alias configurato",
+        "noPrefixes": "Nessun prefisso configurato",
+        "prefixesSaved": "Prefissi salvati",
+        "blankSkill": "Skill vuota",
+        "polishCategory": "Rifinitura",
+        "skillCategory": "Skill",
+        "references": {
+          "title": "Riferimenti di contesto",
+          "add": "Aggiungi",
+          "empty": "Nessun riferimento di contesto. Aggiungi riferimenti per adattare il comportamento per app.",
+          "createFirst": "Crea il primo riferimento",
+          "createTitle": "Crea riferimento di contesto",
+          "editTitle": "Modifica riferimento di contesto",
+          "matchType": "Tipo di corrispondenza",
+          "typeAlways": "Regole generali (sempre attive)",
+          "typeApp": "Per nome app",
+          "typeCategory": "Per categoria app",
+          "alwaysName": "Regole generali",
+          "badgeAlways": "Sempre attivo",
+          "appNamePlaceholder": "es. Slack, Obsidian, WeChat",
+          "contentPlaceholder": "Inserisci regole specifiche del contesto...\n\nEsempio:\n## Regole IM/Chat\n- Mantieni un tono colloquiale\n- Correggi solo gli errori evidenti\n- Preserva le emoji",
+          "created": "Riferimento creato",
+          "saved": "Riferimento salvato",
+          "deleted": "Riferimento eliminato",
+          "errorNoName": "Inserisci un nome",
+          "errorSave": "Salvataggio non riuscito",
+          "errorDelete": "Eliminazione non riuscita",
+          "deleteTitle": "Elimina riferimento",
+          "deleteConfirm": "Sei sicuro di voler eliminare \"{{name}}\"?"
         }
+      },
+      "intentModel": {
+        "defaultOption": "Usa modello predefinito",
+        "description": "Modello usato per il rilevamento dell'intento delle skill. Lascia il valore predefinito per seguire il modello principale di post-elaborazione.",
+        "hint": "Usato per il routing delle skill (rilevare quale skill usare) e per la classificazione delle azioni del routing intelligente. Per la rifinitura rapida, esegue anche la correzione nella stessa chiamata.",
+        "placeholder": "Seleziona un modello per l'intento",
+        "title": "Modello per l'intento"
+      },
+      "translationModel": {
+        "hint": "Usato dalla funzione di traduzione prima dell'inserimento. Lascialo vuoto per ripiegare sul modello per l'intento, poi sul modello predefinito di post-elaborazione.",
+        "title": "Modello di traduzione"
+      },
+      "inputInjection": {
+        "groupTitle": "Input automatici",
+        "title": "Input automatici",
+        "description": "Controlla quali input ausiliari vengono allegati automaticamente alle richieste di post-elaborazione o traduzione.",
+        "summaryEnabled": "L'iniezione del contesto della cronologia è abilitata, con un massimo di {{count}} voci allegate.",
+        "summaryDisabled": "Nessun contesto della cronologia verrà allegato automaticamente.",
+        "moreOptions": "Altre opzioni",
+        "basicOnly": "Solo elemento di base",
+        "history": {
+          "enabled": "Inietta contesto cronologia",
+          "description": "Fornisci le trascrizioni recenti dall'app corrente come contesto per la post-elaborazione.",
+          "limit": "Profondità contesto cronologia",
+          "limitDesc": "Allega fino alle ultime {{count}} voci della cronologia alla post-elaborazione."
+        },
+        "streaming": {
+          "enabled": "Inietta trascrizione in streaming",
+          "description": "Invia streaming_output insieme al testo finale per aiutare a disambiguare i risultati ASR."
+        },
+        "hotwords": {
+          "enabled": "Inietta hotword e vocabolario",
+          "description": "Allega hotword, terminologia e mappature comuni di errori di riconoscimento alla post-elaborazione."
+        }
+      },
+      "appRules": {
+        "activeProfiles": "{{count}} regole attive",
+        "addApp": "Aggiungi app",
+        "addRuleHead": "Aggiungi regola manualmente",
+        "addTitlePattern": "Aggiungi filtro titolo",
+        "assignedApps": "App",
+        "assignedAppsDescription": "Le applicazioni elencate qui sotto useranno le impostazioni di questo profilo.",
+        "capture": "Acquisisci",
+        "captureTitle": "Acquisisci titolo",
+        "categoryDefaults": {
+          "title": "Criteri predefiniti per categoria",
+          "hint": "Le app con un proprio profilo non sono interessate dai criteri di categoria (compresi i profili creati automaticamente quando accetti un suggerimento).",
+          "inheritGlobal": "Eredita globale",
+          "categories": {
+            "CodeEditor": "Editor di codice",
+            "Terminal": "Terminali",
+            "InstantMessaging": "Messaggistica istantanea",
+            "Email": "Email",
+            "Notes": "Note",
+            "Browser": "Browser",
+            "Other": "Altro"
+          }
+        },
+        "context": {
+          "description": "Consenti agli LLM di fare riferimento alla cronologia recente dell'applicazione corrente per migliorare l'accuratezza di trascrizione e correzione.",
+          "enabled": "Abilita riferimento al contesto",
+          "limit": "Profondità cronologia contesto",
+          "limitDesc": "Il modello farà riferimento alle ultime {{count}} voci di questa app come contesto.",
+          "title": "Elaborazione consapevole del contesto"
+        },
+        "createPromptHint": "Aggiungi una regola applicazione per iniziare",
+        "default": "Predefinito",
+        "newProfileName": "Nome del nuovo profilo...",
+        "noAppsAssigned": "Nessuna app ancora associata a questo profilo.",
+        "noProfiles": "Nessuna regola",
+        "noProfilesShort": "Clicca per configurare",
+        "policy": {
+          "always": "Revisiona sempre",
+          "auto": "Auto",
+          "label": "Criterio di revisione",
+          "never": "Inserisci direttamente"
+        },
+        "policyDesc": {
+          "always": "Mostra sempre la finestra di revisione per le app in questo profilo.",
+          "auto": "Attiva la revisione se il testo cambia in modo significativo (in base alla soglia).",
+          "never": "Non mostrare mai la finestra di revisione per le app in questo profilo."
+        },
+        "policyHeader": "Criterio di attivazione revisione",
+        "profilesDescription": "Crea profili per applicare logiche di elaborazione o prompt specifici a gruppi diversi di app.",
+        "profilesTitle": "Profili applicazione",
+        "promptDescription": "Seleziona un prompt personalizzato da usare per le trascrizioni in questo profilo.",
+        "promptHeader": "Sostituisci prompt LLM",
+        "selectionClipboardFallback": {
+          "description": "Se disabilitato, il testo selezionato per questa app usa solo l'API di accessibilità e salta il fallback degli appunti con copia simulata.",
+          "label": "Fallback appunti"
+        },
+        "translateToEnglishOnInsert": {
+          "description": "Per questa app, esegui una traduzione LLM aggiuntiva in inglese subito prima dell'inserimento. Se la traduzione fallisce, ripiega sul testo originale.",
+          "label": "Traduci prima dell'inserimento"
+        },
+        "selectPrompt": "Seleziona un profilo dalla barra laterale per modificarlo",
+        "skipPostProcess": "Salta post-elaborazione",
+        "shortcuts": {
+          "description": "Puoi usare le scorciatoie da tastiera per attivare profili specifici o gestire le regole.",
+          "dialog": "Conferma o chiudi le finestre di dialogo",
+          "dialogKeys": "Enter / Esc",
+          "nav": "Naviga tra le schede delle impostazioni",
+          "navKeys": "⌘ + 1-8",
+          "title": "Scorciatoie e utilizzo"
+        },
+        "matchType": {
+          "exact": "Esatto"
+        },
+        "testMatch": "Prova corrispondenza",
+        "title": "Regole applicazione",
+        "titlePattern": "Titolo (Regex)",
+        "allApps": "Tutte le app",
+        "appNotInstalled": "Questa app non è più installata",
+        "recentApps": "Recenti",
+        "refresh": "Riscansiona le app installate",
+        "searchApps": "Cerca app..."
+      },
+      "confidenceCheck": {
+        "description": "Regola la sensibilità per i prompt con revisione abilitata. Valori più alti significano che la finestra di revisione compare meno spesso.",
+        "threshold": "Soglia di sensibilità",
+        "thresholdHint": "I punteggi superiori a questo valore attiveranno la finestra di revisione.",
+        "title": "Sensibilità revisione automatica"
+      },
+      "textModelMode": {
+        "title": "Modalità di post-elaborazione",
+        "single": "Modello singolo",
+        "singleHint": "Un modello per tutto il testo",
+        "length": "Smart",
+        "lengthHint": "Seleziona automaticamente il modello in base alla lunghezza del testo",
+        "multi": "Multi modello",
+        "multiHint": "Confronto in parallelo",
+        "defaultModelDescription": "Modello predefinito",
+        "noModelSelected": "Nessun modello selezionato",
+        "multiDescription": "Seleziona i modelli nell'elenco qui sotto per il confronto in parallelo",
+        "multiStrategy": "Strategia multi-modello",
+        "multiStrategyManual": "Manuale",
+        "multiStrategyManualHint": "Mostra tutti i candidati per la selezione manuale",
+        "multiStrategyRace": "Ultra-veloce",
+        "multiStrategyRaceShort": "Ultra-veloce",
+        "multiStrategyRaceHint": "Usa il primo risultato disponibile",
+        "multiStrategyLazy": "Lazy",
+        "multiStrategyLazyShort": "Lazy",
+        "multiStrategyLazyHint": "Attendi 3 s per il modello preferito, selezione automatica allo scadere",
+        "preferredModel": "Modello preferito",
+        "setAsPreferred": "Imposta come modello preferito",
+        "selectModelsTitle": "Seleziona modelli",
+        "selectModelsDescription": "Scegli i modelli per l'elaborazione in parallelo. Clicca la stella per impostare il modello preferito.",
+        "selectedCount": "{{count}} selezionati",
+        "noneSelected": "Nessun modello selezionato",
+        "models": "Modelli",
+        "modelSelection": "Modello"
+      },
+      "lengthRouting": {
+        "enableLabel": "Seleziona automaticamente il modello in base alla lunghezza del testo",
+        "enableDescription": "Usa un modello veloce per testi brevi e un modello avanzato per testi lunghi",
+        "thresholdLabel": "Soglia caratteri",
+        "thresholdDescription": "In caratteri Unicode (1 carattere cinese = 1, 1 lettera inglese = 1)",
+        "thresholdValue": "{{count}} caratteri",
+        "shortModelLabel": "Testo breve",
+        "longModelLabel": "Testo lungo",
+        "characters": " caratteri",
+        "useDefault": "Usa predefinito"
+      },
+      "smartRouting": {
+        "title": "Routing intelligente",
+        "hint": "Riutilizza automaticamente i risultati precedenti per testi identici e usa un modello leggero per determinare se un testo breve necessita di rifinitura — riducendo costo in token e latenza.",
+        "shortText": "Testo breve",
+        "longText": "Testo lungo",
+        "fastModel": "Modello veloce",
+        "fastModelHint": "Un modello leggero o veloce per testi brevi. Risparmia token e riduce la latenza per contenuti semplici.",
+        "modelSelection": "Modello",
+        "description": "Rileva automaticamente l'intento, riutilizza la cronologia, riduce il costo in token"
+      },
+      "modelChain": {
+        "primary": "Primario",
+        "fallback": "Fallback",
+        "leftClickHint": "Clic sinistro per selezionare il modello primario",
+        "rightClickHint": "Clic destro per selezionare il modello di fallback",
+        "strategy": "Strategia",
+        "serial": "Seriale",
+        "staggered": "Sfalsato",
+        "race": "Corsa",
+        "serialHint": "Prova il fallback dopo che il primario fallisce",
+        "staggeredHint": "Avvia il fallback quando il primario è lento",
+        "raceHint": "Chiama entrambi, usa il più veloce",
+        "noModel": "Nessun modello selezionato",
+        "selectModel": "Seleziona modello"
+      },
+      "disabledNotice": "La post-elaborazione è attualmente disabilitata. Abilitala per configurare.",
+      "fusion": {
+        "enabled": {
+          "description": "Fornisci una trascrizione principale e una secondaria in tempo reale alla post-elaborazione per confronto e disambiguazione.",
+          "label": "Usa trascrizione in tempo reale (fusione)"
+        },
+        "secondaryModel": {
+          "auto": "Auto",
+          "autoDescription": "Usa il modello locale corrente",
+          "description": "Usato solo quando l'ASR online è abilitato. Questo modello locale fornisce sottotitoli in tempo reale e la trascrizione secondaria.",
+          "placeholder": "Seleziona modello...",
+          "title": "Modello di trascrizione in tempo reale (ASR online)"
+        }
+      },
+      "models": {
+        "addModel": "Aggiungi modello",
+        "deleteConfirm": {
+          "description": "Sei sicuro di voler eliminare questo modello? Questa azione non può essere annullata.",
+          "title": "Eliminare il modello?"
+        },
+        "description": "Aggiungi e gestisci i modelli usati per la post-elaborazione.",
+        "empty": {
+          "description": "Aggiungi un modello per iniziare.",
+          "title": "Nessun modello configurato",
+          "noMatch": "Nessun modello corrisponde alla tua ricerca."
+        },
+        "promptMessageRole": {
+          "label": "Modalità sviluppatore"
+        },
+        "modelTypes": {
+          "asr": {
+            "hint": "Riconoscimento vocale",
+            "label": "ASR"
+          },
+          "other": {
+            "hint": "Uso personalizzato",
+            "label": "Altro"
+          },
+          "text": {
+            "hint": "Rifinitura e formattazione del testo",
+            "label": "Testo"
+          }
+        },
+        "selectModel": {
+          "addButton": "Aggiungi modello",
+          "customLabelPlaceholder": "Inserisci etichetta...",
+          "customLabelTitle": "Etichetta personalizzata",
+          "customModelPlaceholder": "Inserisci id modello...",
+          "description": "Scegli un modello da aggiungere o inseriscine uno manualmente.",
+          "placeholder": "Seleziona un modello...",
+          "placeholderEmpty": "Nessun modello disponibile",
+          "segmented": {
+            "customModel": "Personalizzato",
+            "selectModel": "Seleziona",
+            "freeModels": "Gratuiti"
+          },
+          "noFreeModels": "Nessun modello gratuito disponibile per questo provider.",
+          "alreadyAdded": "Aggiunto",
+          "title": "Seleziona modello",
+          "usageTypeTitle": "Tipo di utilizzo",
+          "advancedOptions": "Opzioni avanzate",
+          "customLabel": "Etichetta personalizzata",
+          "extraParams": "Parametri aggiuntivi",
+          "manualLabel": "Etichetta manuale",
+          "selectLabel": "Seleziona etichetta",
+          "sourceBuiltin": "Modelli gratuiti integrati",
+          "sourceOfficial": "Elenco ufficiale dei modelli",
+          "sourceBuiltinHint": "Modelli gratuiti curati, nessuna chiamata API necessaria",
+          "sourceOfficialHint": "Elenco completo dall'API del provider"
+        },
+        "searchPlaceholder": "Cerca modelli...",
+        "filter": {
+          "all": "Tutti"
+        },
+        "sort": {
+          "provider": "Provider",
+          "name": "Nome",
+          "calls": "Chiamate",
+          "speed": "Velocità",
+          "group": "Raggruppa per provider"
+        },
+        "stats": {
+          "asr": "ASR: {{count}}",
+          "other": "Altro: {{count}}",
+          "text": "Testo: {{count}}"
+        },
+        "tabs": {
+          "local": "Modelli locali",
+          "remote": "Modelli online"
+        },
+        "title": "Modelli",
+        "setAsDefault": "Imposta come predefinito",
+        "invalidJson": "Formato JSON non valido",
+        "addedCount": "Aggiunti {{count}} modelli",
+        "customAdd": {
+          "title": "Aggiungi modello personalizzato",
+          "modelId": "ID modello",
+          "duplicateWarning": "Esiste già un modello con questo ID per questo provider. L'aggiunta ne creerà una copia."
+        }
+      },
+      "providerModels": {
+        "totalCalls": "chiamate",
+        "avgSpeed": "tokens/sec"
+      },
+      "skills": {
+        "advancedSkills": "Skill avanzate",
+        "createHint": "Crea file .md in ~/.votype/skills/ per aggiungere skill personalizzate",
+        "enabledInFile": "La skill è sempre abilitata (configura nel file)",
+        "helpText": "Crea file .md con frontmatter YAML nella cartella delle skill. Verranno caricati automaticamente e resi disponibili all'uso.",
+        "noExternalSkills": "Nessuna skill esterna trovata",
+        "openFolder": "Apri cartella",
+        "quickCommands": "Comandi rapidi",
+        "refresh": "Aggiorna",
+        "sourceBuiltin": "Integrata",
+        "sourceFile": "File",
+        "sourceUser": "Utente"
+      },
+      "modelCard": {
+        "errorRate": "{{count}} chiamate non riuscite — tasso di errore {{rate}}%",
+        "lastError": "Ultimo errore{{when}}: {{error}}"
       }
     },
     "history": {
@@ -373,13 +1014,27 @@
       "save": "Salva la trascrizione",
       "unsave": "Rimuovi dai salvataggi",
       "delete": "Elimina elemento",
-      "deleteError": "Errore nell'eliminazione dell'elemento. Per favore, prova di nuovo."
+      "deleteError": "Errore nell'eliminazione dell'elemento. Per favore, prova di nuovo.",
+      "content": {
+        "chained": "Elaborazione concatenata",
+        "improved": "Migliorato",
+        "original": "Risultato del riconoscimento vocale",
+        "streaming": "Risultato del riconoscimento in tempo reale"
+      },
+      "searchPlaceholder": "Cerca nella cronologia...",
+      "timeline": {
+        "earlier": "Precedenti",
+        "thisWeek": "Questa settimana",
+        "today": "Oggi",
+        "yesterday": "Ieri"
+      }
     },
     "debug": {
       "title": "Debug",
       "logDirectory": {
         "title": "Cartella dei Log",
-        "description": "Cartella dove vengono salvati i file di log"
+        "description": "Cartella dove vengono salvati i file di log",
+        "error": "Errore nel caricamento della cartella dei log: {{error}}"
       },
       "logLevel": {
         "title": "Livello di Log",
@@ -387,7 +1042,7 @@
       },
       "updateChecks": {
         "label": "Controlla aggiornamenti",
-        "description": "Controlla automaticamente la disponibilità di nuove versioni di Handy"
+        "description": "Controlla automaticamente la disponibilità di nuove versioni di Votype"
       },
       "soundTheme": {
         "label": "Tema Sonoro",
@@ -432,30 +1087,54 @@
         "label": "Aggiungi Spazio Finale",
         "description": "Aggiungi uno spazio dopo la trascrizione incollata"
       },
-      "keyboardImplementation": {
-        "title": "Keyboard Implementation",
-        "description": "Choose the keyboard shortcut backend.",
-        "bindingsReset": "Keyboard shortcuts were incompatible and reset to defaults"
-      },
       "paths": {
         "appData": "Dati App:",
         "models": "Modelli:",
-        "settings": "Impostazioni:"
+        "settings": "Impostazioni:",
+        "description": "Percorsi di filesystem comuni usati da Votype",
+        "title": "Percorsi"
       },
-      "pasteDelay": {
-        "title": "Ritardo incolla",
-        "description": "Ritardo prima dell'invio del tasto incolla (in millisecondi). Aumentare se viene incollato il testo sbagliato."
+      "destroySettingsWindowOnClose": {
+        "description": "Alla chiusura della finestra delle impostazioni, la distrugge (libera risorse). Riapri dal menu della barra di sistema.",
+        "label": "Distruggi finestra impostazioni alla chiusura"
+      },
+      "groups": {
+        "audio": "Audio ed elaborazione",
+        "data": "Gestione dati",
+        "system": "Sistema e log",
+        "text": "Elaborazione testo"
+      },
+      "logChannels": {
+        "title": "Canali di log",
+        "postProcess": "Richieste di post-elaborazione",
+        "postProcessDesc": "Registra tutti i prompt e le risposte LLM per la rifinitura del testo (singolo e multi-modello)",
+        "skillRouting": "Routing skill/intento",
+        "skillRoutingDesc": "Registra prompt e risposte del routing delle skill",
+        "routing": "Decisioni di routing",
+        "routingDesc": "Registra SmartRouting, ModeRouting e le decisioni della pipeline",
+        "transcription": "Output di trascrizione",
+        "transcriptionDesc": "Registra i risultati ASR e i parziali in tempo reale"
+      },
+      "offlineVadRealtime": {
+        "intervalDescription": "Forza un aggiornamento in tempo reale ogni N ms (0 per disabilitare).",
+        "intervalLabel": "Intervallo tempo reale offline (ms)",
+        "windowDescription": "Quando l'audio totale supera i 30 s, la decodifica in tempo reale usa gli ultimi N secondi quando non ci sono segmenti VAD.",
+        "windowLabel": "Finestra tempo reale offline (s)"
+      },
+      "reliablePaste": {
+        "title": "Incolla affidabile (beta)",
+        "description": "Ripristina gli appunti solo dopo che l'app di destinazione ha effettivamente letto la trascrizione, invece che dopo un ritardo fisso. Serve a correggere l'incolla di vecchi contenuti degli appunti sotto carico di sistema. Richiede un metodo di incolla dagli appunti; solo macOS e Windows."
       }
     },
     "about": {
       "title": "Informazioni",
       "version": {
         "title": "Versione",
-        "description": "Versione attuale di Handy"
+        "description": "Versione attuale di Votype"
       },
       "appDataDirectory": {
         "title": "Cartella Dati App",
-        "description": "Cartella in cui Handy salva i dati"
+        "description": "Cartella in cui Votype salva i dati"
       },
       "sourceCode": {
         "title": "Codice Sorgente",
@@ -464,7 +1143,7 @@
       },
       "supportDevelopment": {
         "title": "Supporta lo Sviluppo",
-        "description": "Aiutaci a sviluppare Handy",
+        "description": "Aiutaci a sviluppare Votype",
         "button": "Dona"
       },
       "acknowledgments": {
@@ -472,8 +1151,149 @@
         "whisper": {
           "title": "Whisper.cpp",
           "description": "Inferenza ad alte prestazioni del modello di riconoscimento vocale automatico Whisper di OpenAI",
-          "details": "Handy usa Whisper.cpp per il riconoscimento vocale veloce in locale. Grazie a Georgi Gerganov e collaboratori per il fantastico lavoro."
+          "details": "Votype usa Whisper.cpp per il riconoscimento vocale veloce in locale. Grazie a Georgi Gerganov e collaboratori per il fantastico lavoro."
         }
+      },
+      "recordingsDirectory": {
+        "description": "Posizione in cui vengono salvate le registrazioni audio",
+        "title": "Cartella delle registrazioni"
+      },
+      "upstream": {
+        "button": "Vedi upstream",
+        "description": "Votype è basato su Handy v0.9.7",
+        "title": "Progetto upstream"
+      }
+    },
+    "asrModels": {
+      "addFromUrl": "Aggiungi e scarica",
+      "addSection": {
+        "description": "Incolla un URL del modello. L'app dedurrà il tipo di modello dal nome del file.",
+        "title": "Installa"
+      },
+      "delete": "Elimina",
+      "description": "Gestisci i modelli di trascrizione locali e scegli quali appaiono nel selettore rapido.",
+      "download": "Scarica",
+      "favorite": "Preferito",
+      "filters": {
+        "all": "Tutti",
+        "downloaded": "Scaricati",
+        "favorites": "Preferiti",
+        "language": "Lingua",
+        "mode": "Modalità",
+        "recommended": "Consigliati",
+        "status": "Stato",
+        "type": "Tipo"
+      },
+      "groupBy": {
+        "language": "Lingua",
+        "mode": "Modalità",
+        "type": "Tipo"
+      },
+      "groups": {
+        "asr": "Modelli ASR",
+        "multilingual": "Multilingua",
+        "punctuation": "Modelli di punteggiatura"
+      },
+      "idLabel": "id: {{id}}",
+      "install": {
+        "addCustomTagButton": "Aggiungi",
+        "button": "Aggiungi modello personalizzato",
+        "customTagPlaceholder": "Tag personalizzato...",
+        "description": "Inserisci l'URL dell'archivio del modello (tar.gz, tar.bz2, ecc.).",
+        "editDescription": "Aggiorna il nome o i tag di questo modello.",
+        "editTitle": "Modifica modello personalizzato",
+        "nameLabel": "Nome (facoltativo)",
+        "placeholder": "https://example.com/model.tar.gz",
+        "remove": "Rimuovi modello personalizzato",
+        "removeConfirm": "Rimuovere questo modello personalizzato? Verranno eliminati anche i file scaricati.",
+        "tagsLabel": "Tag",
+        "title": "Aggiungi modello personalizzato",
+        "tooltip": "Aggiungi modello da URL",
+        "urlLabel": "URL",
+        "edit": "Modifica modello personalizzato"
+      },
+      "languages": {
+        "de": "Tedesco",
+        "en": "Inglese",
+        "es": "Spagnolo",
+        "fr": "Francese",
+        "ja": "Giapponese",
+        "ko": "Coreano",
+        "multilingual": "Multilingua",
+        "other": "Altra",
+        "ru": "Russo",
+        "yue": "Cantonese",
+        "zh": "Cinese"
+      },
+      "library": {
+        "count": "{{count}} modelli",
+        "description": "Scegli i preferiti da mostrare nel selettore rapido.",
+        "searchPlaceholder": "Cerca modelli…",
+        "title": "Libreria"
+      },
+      "modeChips": {
+        "asr": "ASR",
+        "punctuation": "Punteggiatura"
+      },
+      "specialChips": {
+        "streaming": "streaming",
+        "new": "nuovo"
+      },
+      "pipeline": {
+        "description": "Post-elaborazione globale che può essere applicata automaticamente dopo la trascrizione.",
+        "itn": "ITN (SenseVoice)",
+        "itnHint": "Normalizzazione inversa del testo: formattazione di base (es. numeri).",
+        "punctuation": "Punteggiatura automatica",
+        "punctuationHint": "Usa il modello di punteggiatura selezionato per aggiungere la separazione delle frasi.",
+        "punctuationModel": "Modello di punteggiatura",
+        "punctuationModelHint": "Scegli quale modello di punteggiatura usare.",
+        "title": "Pipeline"
+      },
+      "quickSettings": {
+        "description": "Queste si applicano globalmente. Elimina i modelli di punteggiatura nella libreria qui sotto.",
+        "title": "Impostazioni rapide"
+      },
+      "reset": "Reimposta",
+      "status": {
+        "downloaded": "Scaricato",
+        "notDownloaded": "Non scaricato"
+      },
+      "title": "Modelli locali",
+      "typeChips": {
+        "moonshine": "Moonshine",
+        "other": "Altro",
+        "paraformer": "Paraformer",
+        "parakeet": "Parakeet",
+        "sensevoice": "SenseVoice",
+        "whisper": "Whisper",
+        "zipformer": "Zipformer"
+      },
+      "types": {
+        "moonshine": "Moonshine",
+        "paraformer": "Paraformer",
+        "parakeet": "Parakeet",
+        "punctuation": "Punteggiatura",
+        "sensevoice": "SenseVoice",
+        "whisper": "Whisper",
+        "zipformer": "Zipformer"
+      },
+      "autoDownloadingPunctuation": "Download automatico del modello di punteggiatura..."
+    },
+    "shortcuts": {
+      "title": "Scorciatoie"
+    },
+    "vocabulary": {
+      "hotWords": {
+        "description": "Aggiungi parole che vengono spesso fraintese. Il sistema le correggerà automaticamente.",
+        "empty": "Nessuna hot word",
+        "placeholder": "Aggiungi una parola...",
+        "title": "Hot word",
+        "word": "Parola"
+      },
+      "import": "Importa",
+      "deleteConfirm": {
+        "title": "Conferma eliminazione",
+        "hotwordMessage": "Sei sicuro di voler rimuovere questa hot word?"
       }
     }
   },
@@ -489,7 +1309,16 @@
     "downloading": "Download... {{progress}}%",
     "installing": "Installazione...",
     "preparing": "Preparazione...",
-    "checkForUpdates": "Controlla aggiornamenti"
+    "checkForUpdates": "Controlla aggiornamenti",
+    "postProcess": {
+      "title": "Post-elaborazione",
+      "punctuation": "Punteggiatura automatica",
+      "translate": "Traduci in inglese",
+      "realtime": "Anteprima in tempo reale",
+      "llm": "Post-elaborazione LLM",
+      "selectModel": "Seleziona modello...",
+      "openSettings": "Impostazioni"
+    }
   },
   "common": {
     "loading": "Caricamento...",
@@ -511,23 +1340,607 @@
     "off": "Off",
     "yes": "Sì",
     "no": "No",
-    "noOptionsFound": "Nessuna opzione trovata"
+    "noOptionsFound": "Nessuna opzione trovata",
+    "locale": "it",
+    "active": "Attivo",
+    "addNewOption": "Aggiungi nuova opzione",
+    "aiOptimizationFailed": "Ottimizzazione IA non riuscita, controlla la configurazione",
+    "aiOptimizationSuccess": "Ottimizzazione IA completata",
+    "aiOptimize": "Rifinitura IA",
+    "authorize": "Autorizza",
+    "bold": "Grassetto",
+    "code": "Codice inline",
+    "confirm": "Conferma",
+    "copied": "Copiato",
+    "copy": "Copia",
+    "done": "Fatto",
+    "exitFullscreen": "Ripristina",
+    "filterOptions": "Filtra opzioni...",
+    "fullscreen": "Schermo intero",
+    "granted": "Concesso",
+    "h1": "H1",
+    "id": "ID",
+    "italic": "Corsivo",
+    "link": "Link",
+    "list": "Lista",
+    "models": "Modelli",
+    "next": "Avanti",
+    "noMatchingOptions": "Nessuna opzione corrispondente",
+    "notAvailable": "Non disponibile",
+    "optional": "Facoltativo",
+    "quote": "Citazione",
+    "requesting": "Richiesta in corso...",
+    "required": "Obbligatorio",
+    "searchOrPaste": "Cerca o incolla...",
+    "selectAll": "Seleziona tutto",
+    "selectOption": "Seleziona un'opzione",
+    "skip": "Salta",
+    "useInput": "Usa \"{{input}}\"",
+    "useThisProvider": "Usa questo provider",
+    "variables": "Variabili disponibili",
+    "refresh": "Aggiorna",
+    "time": {
+      "justNow": "Adesso",
+      "minutesAgo": "{{count}} min fa",
+      "hoursAgo": "{{count}} h fa",
+      "daysAgo": "{{count}} giorni fa"
+    },
+    "history": "Cronologia",
+    "latest": "Più recente",
+    "localInsertCopied": "Nessun campo di input attivo — risultato copiato negli appunti",
+    "insertBlocked": "{{app}} è nella blacklist di inserimento — contenuto copiato negli appunti, incollalo manualmente",
+    "expand": "Espandi barra laterale",
+    "collapse": "Comprimi barra laterale",
+    "retry": "Riprova",
+    "unknown": "Sconosciuto",
+    "error": "Errore"
   },
   "accessibility": {
     "permissionsRequired": "Richiesti Permessi di Accessibilità",
-    "permissionsDescription": "Handy ha bisogno dei permessi di accessibilità per digitare il testo trascritto.",
+    "permissionsDescription": "Votype ha bisogno dei permessi di accessibilità per digitare il testo trascritto.",
     "openSettings": "Apri Impostazioni di Sistema",
-    "dismiss": "Ignora"
+    "dismiss": "Ignora",
+    "verify": "Verifica"
   },
   "errors": {
-    "loadDirectory": "Errore di caricamento cartella: {{error}}"
+    "loadDirectory": "Errore di caricamento cartella: {{error}}",
+    "noInputDeviceTitle": "Microfono non disponibile",
+    "noInputDevice": "Nessun dispositivo di input audio trovato. Controlla Impostazioni di Sistema > Suono > Input, poi riprova.",
+    "recordingFailed": "Registrazione non riuscita: {{error}}"
   },
   "appLanguage": {
     "title": "Lingua Applicazione",
-    "description": "Cambia la lingua dell'interfaccia di Handy"
+    "description": "Cambia la lingua dell'interfaccia di Votype"
   },
   "overlay": {
+    "error": {
+      "appleIntelligenceFailed": "Apple Intelligence non riuscita. Controlla il sistema.",
+      "appleIntelligenceUnavailable": "Apple Intelligence non disponibile.",
+      "llmInitFailed": "Inizializzazione LLM non riuscita. Controlla chiavi/URL.",
+      "llmRequestFailed": "Richiesta LLM non riuscita. Controlla rete/API.",
+      "llmNetworkError": "Errore di rete, nuovo tentativo...",
+      "llmRateLimited": "Limite di richieste raggiunto, attendi",
+      "llmAuthFailed": "Chiave API non valida, controlla le impostazioni",
+      "llmBadRequest": "Il modello ha rifiutato i parametri della richiesta (es. min_p/top_k), controlla i parametri del modello",
+      "llmModelNotFound": "Modello non trovato o non abilitato, controlla l'ID del modello",
+      "llmApiError": "Errore del servizio API",
+      "llmParseError": "Impossibile analizzare la risposta del modello",
+      "transcriptionFailedSaved": "Trascrizione non riuscita (salvata)"
+    },
+    "skillConfirmation": {
+      "confirmUse": "sulla selezione?",
+      "detectedSelection": "Usa ",
+      "prompt": "Usare questa skill?",
+      "charCount": "{{count}} caratteri"
+    },
+    "status": {
+      "inserting": "Inserimento...",
+      "llm": "Post-elaborazione...",
+      "recording": "Registrazione...",
+      "translation": "Traduzione...",
+      "transcribing": "Trascrizione...",
+      "review": "Revisione...",
+      "rewrite": "Elaborazione…",
+      "success": "Inserito",
+      "translationSuccess": "Traduzione completata"
+    },
+    "rewriteOperation": {
+      "rewrite": "Riscritto",
+      "expand": "Ampliato",
+      "format": "Formattato",
+      "translate": "Tradotto",
+      "polish": "Rifinito",
+      "append": "Aggiunto",
+      "unknown": "Fatto"
+    },
+    "timeout": {
+      "title": "Trascrizione online scaduta",
+      "continue": "Continua",
+      "retry": "Riprova",
+      "cancel": "Annulla"
+    },
+    "ruleSuggestion": {
+      "message": "Hai usato '{{promptName}}' {{count}} volte in {{appName}} ({{title}}). Aggiungere una regola per questa finestra?",
+      "accept": "Aggiungi regola",
+      "dismiss": "Non ora",
+      "never": "Non chiedere mai"
+    }
+  },
+  "dashboard": {
+    "actions": {
+      "edit": "Modifica",
+      "editDescription": "Modifica il testo trascritto per questa voce della cronologia",
+      "editPlaceholder": "Inserisci il testo modificato...",
+      "editTitle": "Modifica risultato del riconoscimento",
+      "openRecordings": "Registrazioni",
+      "quickInsert": "Inserisci in {{app}}",
+      "quickInsertEmpty": "Nessuna app esterna recente rilevata",
+      "quickInsertErrorFocus": "Impossibile attivare la finestra di destinazione",
+      "quickInsertErrorNoTarget": "Nessuna app di destinazione in cui inserire",
+      "quickInsertErrorPaste": "Incolla non riuscito",
+      "reprocessFailed": "Rielaborazione IA non riuscita",
+      "retranscribe": "Ritrascrivi usando l'audio",
+      "rejectPolish": "Rifiuta risultato rifinitura",
+      "retranscribeFailed": "Ritascrizione non riuscita",
+      "retranscribing": "Ritascrizione in corso..."
+    },
+    "activity": {
+      "entries": "{{count}} voci",
+      "subtitle": "Ultimi 40 giorni",
+      "title": "Utilizzo"
+    },
+    "cards": {
+      "allTime": "Sempre",
+      "recent": "Ultimi {{days}} giorni",
+      "today": "Oggi"
+    },
+    "dateLabels": {
+      "today": "Oggi",
+      "yesterday": "Ieri"
+    },
+    "errorIndicator": {
+      "errorTypeLabel": {
+        "asr_empty": "Risultato ASR vuoto",
+        "llm_api_error": "Il provider ha restituito un errore",
+        "llm_auth_failed": "Autenticazione non riuscita",
+        "llm_bad_request": "Richiesta non valida",
+        "llm_config_error": "Errore di configurazione modello/provider",
+        "llm_empty_result": "Risposta vuota",
+        "llm_init_failed": "Inizializzazione client non riuscita",
+        "llm_model_not_found": "Modello non trovato (404)",
+        "llm_network_error": "Errore di rete",
+        "llm_parse_error": "Analisi della risposta non riuscita",
+        "llm_rate_limited": "Limite di richieste (429)",
+        "llm_timeout": "Timeout (10 s)",
+        "llm_unknown": "Errore LLM sconosciuto",
+        "pipeline_timeout": "Timeout pipeline (20 s)"
+      },
+      "errorsOnlyToggle": "Solo errori",
+      "panelDetail": "Dettaglio",
+      "panelErrorType": "Tipo di errore",
+      "panelModel": "Modello",
+      "panelProvider": "Provider",
+      "panelTimestamp": "Data e ora",
+      "stageAsr": "ASR",
+      "stagePolish": "Rifinitura",
+      "tooltipAsrEmpty": "ASR ha restituito un risultato vuoto",
+      "tooltipPolishFailed": "Rifinitura non riuscita",
+      "tooltipPolishProviderError": "Rifinitura non riuscita ({{status}})",
+      "tooltipPolishTimeout": "Rifinitura scaduta"
+    },
+    "details": {
+      "audioRemoved": "Registrazione rimossa",
+      "cancelled": "Annullato",
+      "count": "{{count}} voci",
+      "empty": "Nessun dato",
+      "emptyHint": "Usa la scorciatoia per avviare la tua prima trascrizione",
+      "loadMore": "Carica altro",
+      "meta": {
+        "chars": "{{value}} caratteri"
+      },
+      "recordCount": "{{count}} record",
+      "title": "Cronologia"
+    },
+    "metrics": {
+      "characters": "Caratteri",
+      "duration": "Tempo audio",
+      "entries": "Trascrizioni",
+      "postProcessed": "Post-elaborate",
+      "saved": "Salvate"
+    },
+    "range": {
+      "allTime": "Sempre",
+      "buttons": {
+        "allTime": "Sempre",
+        "last30Days": "Ultimi 30 giorni",
+        "last40Days": "Ultimi 40 giorni",
+        "last7Days": "Ultimi 7 giorni"
+      },
+      "lastNDays": "Ultimi {{days}} giorni",
+      "today": "Oggi"
+    },
+    "summary": {
+      "apps": {
+        "empty": "Nessun dato sulle app",
+        "title": "Le 3 app più usate",
+        "top3": "Top 3"
+      },
+      "llm": {
+        "calls": "{{count}} chiamate al modello",
+        "title": "Utilizzo LLM",
+        "unknownApp": "Sconosciuta"
+      },
+      "recording": {
+        "count": "{{count}} trascrizioni",
+        "title": "Input vocale totale"
+      },
+      "transcription": {
+        "speed": "Media {{rate}}/min",
+        "title": "Testo generato"
+      }
+    },
+    "title": "Dashboard"
+  },
+  "models": {
+    "large": {
+      "description": "Buona accuratezza, ma lento.",
+      "name": "Whisper Large"
+    },
+    "medium": {
+      "description": "Buona accuratezza, velocità nella media",
+      "name": "Whisper Medium"
+    },
+    "parakeet-tdt-0.6b-v2": {
+      "description": "Solo inglese. Il miglior modello per chi parla inglese.",
+      "name": "Parakeet V2"
+    },
+    "parakeet-tdt-0.6b-v3": {
+      "description": "Veloce e accurato",
+      "name": "Parakeet V3"
+    },
+    "punct-zh-en-ct-transformer-2024-04-12": {
+      "description": "Aggiunge punteggiatura e separazione delle frasi per testo misto zh+en. Modello più grande; più accurato ma più lento. Aggiornato il 2024-04-12.",
+      "name": "Punteggiatura (cinese + inglese) Large"
+    },
+    "punct-zh-en-ct-transformer-2024-04-12-int8": {
+      "description": "Aggiunge punteggiatura e separazione delle frasi per testo misto zh+en. Int8; veloce e compatto. Aggiornato il 2024-04-12.",
+      "name": "Punteggiatura (cinese + inglese)"
+    },
+    "small": {
+      "description": "Veloce e abbastanza accurato.",
+      "name": "Whisper Small"
+    },
+    "turbo": {
+      "description": "Bilanciato fra accuratezza e velocità.",
+      "name": "Whisper Turbo"
+    }
+  },
+  "inline": {
+    "listening": "In ascolto...",
     "transcribing": "Trascrizione...",
-    "processing": "Elaborazione..."
+    "polishing": "Rifinitura...",
+    "executing": "Esecuzione...",
+    "complete": "Completato",
+    "modeToggle": "Modalità modifica",
+    "closeConfirmTitle": "Modifiche non salvate",
+    "closeConfirmMessage": "Il contenuto è stato modificato. Confermi la chiusura?",
+    "closeConfirmOk": "Chiudi",
+    "closeConfirmCancel": "Annulla",
+    "sectionTitle": "Risultato della trascrizione",
+    "undo": "Annulla",
+    "redo": "Ripeti",
+    "placeholder": "Premi la scorciatoia per iniziare a dettare..."
+  },
+  "soundPicker": {
+    "custom": "Personalizzato",
+    "marimba": "Marimba",
+    "pop": "Pop",
+    "chime": "Chime",
+    "switch": "Switch",
+    "pluck": "Pluck",
+    "toggle": "Toggle",
+    "twotone": "Due toni",
+    "pep": "Pep",
+    "power": "Power",
+    "zap": "Zap",
+    "blip": "Blip",
+    "mouse": "Clic del mouse",
+    "wood": "Tocco di legno",
+    "preview": "Anteprima"
+  },
+  "summary": {
+    "periodSelector": {
+      "title": "Intervallo di tempo",
+      "day": "Oggi",
+      "week": "Settimana",
+      "month": "Mese"
+    },
+    "stats": {
+      "entries": "Voci",
+      "chars": "Caratteri",
+      "duration": "Durata",
+      "aiCalls": "Chiamate IA",
+      "noApps": "Nessun dato sulle app",
+      "appDistribution": "Distribuzione app",
+      "timeDistribution": "Distribuzione temporale"
+    },
+    "recap": {
+      "title": "Riepilogo giornaliero",
+      "empty": "Non c'è abbastanza attività in questo intervallo per creare un riepilogo.",
+      "progress": "Progressi chiave",
+      "friction": "Attrito",
+      "nextFocus": "Prossimo obiettivo",
+      "blockers": "Ostacoli",
+      "nextStep": "Prossimo passo suggerito",
+      "records": "record"
+    },
+    "timeline": {
+      "title": "Cronologia",
+      "days": "Giorni",
+      "weeks": "Settimane",
+      "months": "Mesi",
+      "empty": "Nessun riepilogo"
+    },
+    "actions": {
+      "export": "Esporta"
+    },
+    "export": {
+      "markdown": "Esporta come Markdown",
+      "json": "Esporta come JSON"
+    },
+    "aiAnalysis": {
+      "title": "Analisi IA",
+      "generate": "Genera",
+      "generating": "Generazione...",
+      "view": "Visualizza",
+      "selectModel": "Seleziona modello",
+      "provider": "Provider",
+      "modelUsed": "Modello usato",
+      "clickToGenerate": "Clicca per generare un'analisi IA delle tue attività",
+      "communicationStyle": "Stile di comunicazione",
+      "reflection": "Riflessioni e suggerimenti",
+      "empty": "Clicca 'Genera' per ottenere approfondimenti IA sulle tue attività.",
+      "updateProfile": "Aggiorna profilo"
+    },
+    "userProfile": {
+      "currentStyle": "Profilo di stile attuale"
+    }
+  },
+  "theme": {
+    "accentColor": {
+      "amber": "Ambra",
+      "blue": "Blu",
+      "bronze": "Bronzo",
+      "brown": "Marrone",
+      "crimson": "Cremisi",
+      "current": "Attuale: {{color}}",
+      "cyan": "Ciano",
+      "description": "Scegli il colore principale usato in tutta l'app",
+      "gold": "Oro",
+      "grass": "Erba",
+      "gray": "Grigio",
+      "green": "Verde",
+      "indigo": "Indaco",
+      "iris": "Iris",
+      "jade": "Giada",
+      "lime": "Lime",
+      "mint": "Menta",
+      "orange": "Arancione",
+      "pink": "Rosa",
+      "plum": "Prugna",
+      "purple": "Viola",
+      "red": "Rosso",
+      "ruby": "Rubino",
+      "sky": "Cielo",
+      "teal": "Verde acqua",
+      "title": "Colore principale",
+      "tomato": "Pomodoro",
+      "violet": "Violetto",
+      "yellow": "Giallo"
+    },
+    "compactMode": {
+      "description": "Mostra le descrizioni come suggerimenti",
+      "title": "Modalità compatta"
+    },
+    "cornerRadius": {
+      "capsule": "Capsula",
+      "capsuleDesc": "Angoli completamente arrotondati",
+      "default": "Predefinito",
+      "defaultDesc": "Arrotondamento standard degli angoli",
+      "description": "Regola l'arrotondamento degli angoli",
+      "rounded": "Arrotondato",
+      "roundedDesc": "Angoli più arrotondati",
+      "sharp": "Netto",
+      "sharpDesc": "Nessun arrotondamento degli angoli",
+      "soft": "Morbido",
+      "softDesc": "Angoli leggermente arrotondati",
+      "title": "Arrotondamento angoli"
+    },
+    "panelStyle": {
+      "description": "Scegli tra pannelli traslucidi o pieni",
+      "solid": "Pieno",
+      "solidDesc": "Pannelli opachi",
+      "title": "Stile pannello",
+      "translucent": "Traslucido",
+      "translucentDesc": "Effetto vetro smerigliato"
+    },
+    "scaling": {
+      "current": "Attuale: {{scale}}",
+      "description": "Regola la scala dell'interfaccia",
+      "title": "Scala"
+    },
+    "themeMode": {
+      "dark": "Scuro",
+      "darkDesc": "Usa sempre il tema scuro",
+      "description": "Scegli l'aspetto di Votype",
+      "light": "Chiaro",
+      "lightDesc": "Usa sempre il tema chiaro",
+      "system": "Sistema",
+      "systemDesc": "Segui il tema di sistema",
+      "title": "Modalità tema"
+    },
+    "title": "Tema"
+  },
+  "transcription": {
+    "review": {
+      "aiResponse": "Risposta IA",
+      "change": "Modifica",
+      "confidence": "Affidabilità",
+      "confirm": "Conferma e inserisci",
+      "description": "La trascrizione potrebbe contenere errori. Rivedi e modifica se necessario.",
+      "final": "Output finale",
+      "generationTitle": "Risposta dell'assistente IA",
+      "highlightHint": "Le parole evidenziate indicano le modifiche dell'LLM.",
+      "hint": "⌘/Ctrl + Enter per confermare, Escape per annullare",
+      "insert": "Inserisci",
+      "insertCode": "Inserisci codice",
+      "insertOriginal": "Inserisci originale (Tab)",
+      "insertStabilityHint": "Scorciatoia: {{shortcut}}\nSe l'inserimento è instabile, puoi disabilitare temporaneamente questa funzione.",
+      "instruction": "Istruzione",
+      "placeholder": "Modifica trascrizione...",
+      "source": "Trascrizione live",
+      "title": "Rivedi trascrizione",
+      "skipPostProcess": "Salta post-elaborazione",
+      "hideDiff": "Nascondi diff",
+      "showDiff": "Mostra diff",
+      "translateText": "Traduci",
+      "translationResult": "Risultato della traduzione",
+      "translationPreview": "Anteprima in inglese",
+      "translationPreviewLangLabel": "INGLESE",
+      "translationModeAuto": "AUTO",
+      "translationModeManual": "MANUALE",
+      "translationUpdating": "Traduzione...",
+      "translationWaiting": "Si aggiorna automaticamente 1 s dopo le modifiche",
+      "translationFailedFallback": "Traduzione non riuscita, verrà inserito il testo originale",
+      "translationReady": "Aggiornato",
+      "analysisTitle": "Analisi:",
+      "deviationNone": "Corrispondenza perfetta",
+      "deviationMinor": "Modifiche minori",
+      "deviationMajor": "Modifiche significative",
+      "insertTranslation": "Inserisci traduzione",
+      "insertPolished": "Inserisci rifinitura",
+      "insertEnglish": "Inserisci inglese",
+      "resizeGrip": "Trascina per ridimensionare, doppio clic per adattare automaticamente",
+      "multiModel": "Risultati multi-modello",
+      "processing": "Elaborazione...",
+      "restoreOrder": "Ripristina ordine originale",
+      "sortBySpeed": "Ordina per velocità di risposta",
+      "speedSorted": "Prima i più veloci",
+      "sortBySpeedShort": "Per velocità",
+      "rankCount": "#{{rank}} ({{count}} volte)",
+      "sortByChange": "Ordina per entità della modifica",
+      "changeSorted": "Prima le modifiche",
+      "sortLabel": "Ordina",
+      "pressEscAgain": "Contenuto modificato, premi di nuovo ESC per chiudere",
+      "speedHistoryAvg": "Media storica: {{speed}} ({{count}} chiamate)",
+      "speedThisRun": "Questa esecuzione: {{speed}} ({{diff}})"
+    }
+  },
+  "secureInput": {
+    "blockedWithCulprit_one": "{{name}} potrebbe bloccare 1 scorciatoia",
+    "blockedWithCulprit_other": "{{name}} potrebbe bloccare {{count}} scorciatoie",
+    "blockedNoCulprit_one": "macOS sta temporaneamente bloccando 1 scorciatoia",
+    "blockedNoCulprit_other": "macOS sta temporaneamente bloccando {{count}} scorciatoie",
+    "recorderBlockedWithCulprit": "{{name}} potrebbe bloccare le modifiche alle scorciatoie",
+    "recorderBlockedNoCulprit": "macOS sta temporaneamente bloccando le modifiche alle scorciatoie",
+    "learnMore": "Come risolvere",
+    "recorderBlocked": "Impossibile registrare le scorciatoie al momento — l'Input Protetto di macOS sta bloccando gli eventi da tastiera. Risolvi prima l'avviso di Input Protetto.",
+    "dismiss": "Ignora"
+  },
+  "ruleSuggestion": {
+    "title": "Aggiungere una regola per questa finestra?",
+    "app": "App",
+    "window": "Finestra",
+    "prompt": "Prompt",
+    "used": "Usato",
+    "times": "{{count}} volte",
+    "description": "Una volta aggiunta, questo prompt viene applicato automaticamente la prossima volta che registri in questa finestra.",
+    "dismiss": "Non questa volta",
+    "neverAgain": "Non chiedere più",
+    "addRule": "Aggiungi regola"
+  },
+  "hotword": {
+    "addBar": {
+      "placeholder": "Inserisci hotword (separate da virgole per aggiungerle in blocco)...",
+      "words": "{{count}} parole",
+      "add": "Aggiungi",
+      "addCount": "Aggiungi ({{count}})"
+    },
+    "source": {
+      "manual": "Manuale",
+      "autoLearned": "Appresa automaticamente",
+      "aiExtracted": "Estratta dall'IA"
+    },
+    "scenario": {
+      "work": "Lavoro",
+      "casual": "Informale"
+    },
+    "tagCloud": {
+      "add": "Aggiungi",
+      "import": "Importa",
+      "export": "Esporta",
+      "sortByWeight": "Ordina per peso",
+      "sortByAlpha": "Ordina alfabeticamente",
+      "searchPlaceholder": "Cerca hotword...",
+      "aiSuggestions": "Suggerimenti IA ({{count}})",
+      "acceptAll": "Accetta tutti",
+      "dismissAll": "Ignora tutti",
+      "contextFrequent": "Frequente nel contesto",
+      "acceptSuggestion": "Accetta suggerimento",
+      "dismissSuggestion": "Ignora suggerimento",
+      "empty": "Nessuna hotword. Clicca \"Aggiungi\" per crearne una.",
+      "noMatch": "Nessuna hotword corrisponde a \"{{query}}\"",
+      "dropHere": "Rilascia qui"
+    },
+    "editPanel": {
+      "addAlias": "Aggiungi parola {{label}}",
+      "duplicate": "\"{{target}}\" esiste già",
+      "saveFailed": "Salvataggio non riuscito",
+      "targetPlaceholder": "Parola di destinazione",
+      "decreaseWeight": "Riduci peso",
+      "increaseWeight": "Aumenta peso",
+      "falsePositive": "{{count}} falsi positivi",
+      "deleteHotword": "Elimina hotword",
+      "category": "Categoria",
+      "scenario": "Scenario",
+      "correction": "Correzione",
+      "correctionDesc": "Usata come riferimento di correzione e iniettata nel prompt LLM. Trascina un alias in \"Forza\" per trasformarlo in una sostituzione locale diretta.",
+      "correctionPlaceholder": "Aggiungi parola di correzione",
+      "force": "Forza",
+      "forceDesc": "Solo sostituzione locale esatta, mai inviata all'LLM. Trascina un alias di nuovo in \"Correzione\" per ripristinare il riferimento IA.",
+      "forcePlaceholder": "Aggiungi parola forzata",
+      "none": "Nessuna",
+      "confirmDeleteTitle": "Conferma eliminazione",
+      "confirmDeleteDesc": "Eliminare la hotword \"{{target}}\"?"
+    },
+    "categoryDialog": {
+      "colors": {
+        "gray": "Grigio",
+        "green": "Verde",
+        "orange": "Arancione",
+        "blue": "Blu",
+        "purple": "Viola",
+        "red": "Rosso",
+        "cyan": "Ciano",
+        "amber": "Ambra",
+        "teal": "Verde acqua",
+        "pink": "Rosa"
+      },
+      "idInvalid": "Gli ID possono contenere solo lettere, numeri e trattini",
+      "idDuplicate": "L'ID categoria \"{{id}}\" esiste già",
+      "addFailed": "Aggiunta non riuscita",
+      "saveFailed": "Salvataggio non riuscito",
+      "deleteFailed": "Eliminazione non riuscita",
+      "manageTooltip": "Gestisci categorie",
+      "title": "Gestisci categorie hotword",
+      "description": "Personalizza nome, colore e icona di ogni categoria. Le categorie integrate non possono essere eliminate.",
+      "namePlaceholder": "Nome categoria",
+      "builtin": "Integrata",
+      "deleteTooltip": "Elimina (le hotword passano a Termini)",
+      "idPlaceholder": "ID (es. medical)",
+      "labelPlaceholder": "Nome (es. Medical)",
+      "idInvalidDetail": "Gli ID possono contenere solo lettere, numeri e trattini (-)",
+      "addCategory": "Aggiungi categoria"
+    }
   }
 }

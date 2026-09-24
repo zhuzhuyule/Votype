@@ -171,7 +171,13 @@ export const CustomAddModelDialog: React.FC<CustomAddModelDialogProps> = ({
     } catch (e) {
       setTestState({
         kind: "failed",
-        error: `添加失败: ${typeof e === "string" ? e : JSON.stringify(e)}`,
+        error: t(
+          "settings.postProcessing.models.customAdd.addFailed",
+          "Add failed: {{error}}",
+          {
+            error: typeof e === "string" ? e : JSON.stringify(e),
+          },
+        ),
       });
     } finally {
       setAdding(false);
@@ -287,10 +293,18 @@ export const CustomAddModelDialog: React.FC<CustomAddModelDialogProps> = ({
           <Flex direction="column" gap="1">
             <Flex align="center" gap="2" wrap="wrap">
               <Text size="2" weight="medium" color="gray">
-                Body 参数
+                {t(
+                  "settings.postProcessing.models.paramEditor.bodyParams",
+                  "Body Parameters",
+                )}
               </Text>
               {bodyEntryCount > 0 && (
-                <Tooltip content="添加参数">
+                <Tooltip
+                  content={t(
+                    "settings.postProcessing.models.paramEditor.addParam",
+                    "Add Parameter",
+                  )}
+                >
                   <IconButton
                     size="1"
                     variant="outline"
@@ -314,7 +328,10 @@ export const CustomAddModelDialog: React.FC<CustomAddModelDialogProps> = ({
                 }
               >
                 <IconBrain size={12} />
-                启用思考
+                {t(
+                  "settings.postProcessing.models.paramEditor.enableThinking",
+                  "Enable Thinking",
+                )}
               </Button>
               <Button
                 size="1"
@@ -328,14 +345,23 @@ export const CustomAddModelDialog: React.FC<CustomAddModelDialogProps> = ({
                 }
               >
                 <IconBrain size={12} />
-                禁用思考
+                {t(
+                  "settings.postProcessing.models.paramEditor.disableThinking",
+                  "Disable Thinking",
+                )}
               </Button>
             </Flex>
             <KeyValueEditor
               value={extraParams}
               onChange={setExtraParams}
-              addLabel="添加 Body 参数"
-              addTooltip="添加参数"
+              addLabel={t(
+                "settings.postProcessing.models.paramEditor.addBodyParam",
+                "Add Body Parameter",
+              )}
+              addTooltip={t(
+                "settings.postProcessing.models.paramEditor.addParam",
+                "Add Parameter",
+              )}
               addRef={bodyEditorRef}
               onEntryCountChange={setBodyEntryCount}
             />
@@ -347,7 +373,12 @@ export const CustomAddModelDialog: React.FC<CustomAddModelDialogProps> = ({
                 Headers
               </Text>
               {headerEntryCount > 0 && (
-                <Tooltip content="添加 Header">
+                <Tooltip
+                  content={t(
+                    "settings.postProcessing.models.paramEditor.addHeader",
+                    "Add Header",
+                  )}
+                >
                   <IconButton
                     size="1"
                     variant="outline"
@@ -363,8 +394,14 @@ export const CustomAddModelDialog: React.FC<CustomAddModelDialogProps> = ({
             <KeyValueEditor
               value={extraHeaders}
               onChange={setExtraHeaders}
-              addLabel="添加 Header"
-              addTooltip="添加 Header"
+              addLabel={t(
+                "settings.postProcessing.models.paramEditor.addHeader",
+                "Add Header",
+              )}
+              addTooltip={t(
+                "settings.postProcessing.models.paramEditor.addParam",
+                "Add Parameter",
+              )}
               addRef={headersEditorRef}
               onEntryCountChange={setHeaderEntryCount}
             />
@@ -375,8 +412,14 @@ export const CustomAddModelDialog: React.FC<CustomAddModelDialogProps> = ({
               <Tooltip
                 content={
                   modelId.trim().length === 0
-                    ? "请先填入模型 ID"
-                    : "发送一句话 ping 测试"
+                    ? t(
+                        "settings.postProcessing.models.customAdd.testTooltipEmpty",
+                        "Please enter the model ID first",
+                      )
+                    : t(
+                        "settings.postProcessing.models.customAdd.testTooltip",
+                        "Send a sentence to ping test",
+                      )
                 }
               >
                 <Button
@@ -387,7 +430,15 @@ export const CustomAddModelDialog: React.FC<CustomAddModelDialogProps> = ({
                   }
                   onClick={handleTest}
                 >
-                  {testState.kind === "testing" ? "测试中…" : "测试"}
+                  {testState.kind === "testing"
+                    ? t(
+                        "settings.postProcessing.models.customAdd.testing",
+                        "Testing…",
+                      )
+                    : t(
+                        "settings.postProcessing.models.customAdd.test",
+                        "Test",
+                      )}
                 </Button>
               </Tooltip>
             </Flex>
@@ -439,7 +490,10 @@ export const CustomAddModelDialog: React.FC<CustomAddModelDialogProps> = ({
                 size="1"
                 onClick={() => setSkipped(true)}
               >
-                跳过测试直接添加
+                {t(
+                  "settings.postProcessing.models.customAdd.skipTest",
+                  "Skip test and add directly",
+                )}
               </Button>
             )}
             <Button variant="soft" color="gray" onClick={handleClose}>

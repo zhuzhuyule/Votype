@@ -1,6 +1,7 @@
 import { Box, Flex, IconButton, Text } from "@radix-ui/themes";
 import { IconArrowUpRight } from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
+import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import type { TaskCluster } from "../summaryTypes";
 
@@ -28,6 +29,7 @@ export function ClusterDetailDrawer({
   cluster,
   onNavigateToHistory,
 }: ClusterDetailDrawerProps) {
+  const { t } = useTranslation();
   const [entries, setEntries] = useState<HistoryEntryLite[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -64,7 +66,7 @@ export function ClusterDetailDrawer({
   if (loading) {
     return (
       <Text size="2" color="gray">
-        加载源转录...
+        {t("settings.summary.detail.loading")}
       </Text>
     );
   }
@@ -72,7 +74,7 @@ export function ClusterDetailDrawer({
   if (entries.length === 0) {
     return (
       <Text size="2" color="gray">
-        该 cluster 已失效，建议重新生成
+        {t("settings.summary.detail.invalid")}
       </Text>
     );
   }
@@ -99,7 +101,7 @@ export function ClusterDetailDrawer({
                   size="1"
                   variant="ghost"
                   onClick={() => onNavigateToHistory(e.id)}
-                  aria-label="跳转到 Dashboard 对应条目"
+                  aria-label={t("settings.summary.detail.jumpAria")}
                 >
                   <IconArrowUpRight size={12} />
                 </IconButton>

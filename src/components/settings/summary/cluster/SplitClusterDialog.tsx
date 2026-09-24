@@ -8,6 +8,7 @@ import {
   ScrollArea,
 } from "@radix-ui/themes";
 import { invoke } from "@tauri-apps/api/core";
+import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import type { TaskCluster } from "../summaryTypes";
 
@@ -37,6 +38,7 @@ export function SplitClusterDialog({
   onCancel,
   onConfirm,
 }: SplitClusterDialogProps) {
+  const { t } = useTranslation();
   const [entries, setEntries] = useState<HistoryEntryLite[]>([]);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [newTitle, setNewTitle] = useState("");
@@ -94,13 +96,15 @@ export function SplitClusterDialog({
   return (
     <Dialog.Root open={open} onOpenChange={(o) => !o && onCancel()}>
       <Dialog.Content style={{ maxWidth: 560 }}>
-        <Dialog.Title>从「{cluster.title}」中拆出</Dialog.Title>
+        <Dialog.Title>
+          {t("settings.summary.split.title", { title: cluster.title })}
+        </Dialog.Title>
         <Dialog.Description size="2" mb="3">
-          勾选要拆出的源转录条目，并为新 cluster 命名。
+          {t("settings.summary.split.hint")}
         </Dialog.Description>
         <Flex direction="column" gap="3">
           <TextField.Root
-            placeholder="新 cluster 标题"
+            placeholder={t("settings.summary.split.titlePlaceholder")}
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}
           />
@@ -128,21 +132,24 @@ export function SplitClusterDialog({
             </Flex>
           </ScrollArea>
           <Text size="1" color="gray">
-            已选 {selected.size} / {entries.length}
-            {selected.size === 0 && " — 至少选一条"}
+            {t("settings.summary.split.selected", {
+              selected: selected.size,
+              total: entries.length,
+            })}
+            {selected.size === 0 && t("settings.summary.split.atLeastOne")}
             {selected.size === entries.length &&
               entries.length > 0 &&
-              " — 不能全选（剩余 cluster 会空）"}
+              t("settings.summary.split.cannotAll")}
           </Text>
         </Flex>
         <Flex gap="3" mt="4" justify="end">
           <Dialog.Close>
             <Button variant="soft" color="gray">
-              取消
+              {t("common.cancel")}
             </Button>
           </Dialog.Close>
           <Button disabled={!validSelection || submitting} onClick={submit}>
-            拆分
+            {t("settings.summary.split.confirm")}
           </Button>
         </Flex>
       </Dialog.Content>

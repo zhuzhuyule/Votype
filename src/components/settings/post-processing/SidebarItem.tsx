@@ -101,7 +101,7 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
           </Box>
         ) : null}
         <Flex direction="column" gap="0" className="flex-1 min-w-0">
-          {/* 标题行 */}
+          {/* Title row */}
           <Flex align="center" gap="2" className="min-w-0">
             <Text size="2" className="font-medium truncate">
               {option.label}

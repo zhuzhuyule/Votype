@@ -147,17 +147,23 @@ export const AdvancedSettings: React.FC = () => {
   const localApiAllowLan = settings?.openai_compatible_api_allow_lan ?? false;
   const localApiBasePath = settings?.openai_compatible_api_base_path ?? "/v1";
   const localApiUrl = `http://127.0.0.1:${localApiPort}${localApiBasePath}`;
-  const lanApiHint = `http://<你的局域网IP>:${localApiPort}${localApiBasePath}`;
+  const lanApiHint = t("settings.advanced.localApi.lanUrlHint", {
+    port: localApiPort,
+    path: localApiBasePath,
+  });
 
-  const copyText = useCallback(async (value: string, label: string) => {
-    try {
-      await navigator.clipboard.writeText(value);
-      toast.success(`${label}已复制`);
-    } catch (error) {
-      console.error(`Failed to copy ${label}:`, error);
-      toast.error(`复制${label}失败`);
-    }
-  }, []);
+  const copyText = useCallback(
+    async (value: string, label: string) => {
+      try {
+        await navigator.clipboard.writeText(value);
+        toast.success(t("settings.advanced.localApi.copied", { label }));
+      } catch (error) {
+        console.error(`Failed to copy ${label}:`, error);
+        toast.error(t("settings.advanced.localApi.copyFailed", { label }));
+      }
+    },
+    [t],
+  );
 
   const generateRandomApiKey = useCallback(() => {
     const bytes = new Uint8Array(18);
@@ -167,21 +173,20 @@ export const AdvancedSettings: React.FC = () => {
       Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
     setLocalApiKey(generated);
     void updateSetting("openai_compatible_api_access_key", generated);
-    toast.success("已生成新的 Access Key");
-  }, [updateSetting]);
+    toast.success(t("settings.advanced.localApi.keyGenerated"));
+  }, [updateSetting, t]);
 
   return (
     <Flex direction="column" className="max-w-5xl w-full mx-auto space-y-8">
-      <SettingsGroup title="Local API">
+      <SettingsGroup title={t("settings.advanced.localApi.title")}>
         <Flex direction="column" gap="4" p="2">
           <Flex align="center" justify="between" gap="4">
             <Box>
               <Text size="2" weight="medium">
-                启用 OpenAI-compatible 本地服务
+                {t("settings.advanced.localApi.enable")}
               </Text>
               <Text size="1" color="gray">
-                默认关闭，打开开关即刻生效、无需重启应用。仅绑定本机地址，供外部工具通过统一
-                URL 和 Key 调用模型与 ASR。
+                {t("settings.advanced.localApi.enableDescription")}
               </Text>
             </Box>
             <Switch
@@ -195,11 +200,10 @@ export const AdvancedSettings: React.FC = () => {
           <Flex align="center" justify="between" gap="4">
             <Box>
               <Text size="2" weight="medium">
-                允许局域网访问
+                {t("settings.advanced.localApi.allowLan")}
               </Text>
               <Text size="1" color="gray">
-                开启后其他局域网设备可通过你的机器 IP
-                访问。修改后需重启应用生效。
+                {t("settings.advanced.localApi.allowLanDescription")}
               </Text>
             </Box>
             <Switch
@@ -215,7 +219,7 @@ export const AdvancedSettings: React.FC = () => {
 
           <Grid columns="auto 1fr auto" gapX="4" gapY="3" align="center">
             <Text size="2" weight="medium" color="gray" className="text-right">
-              Port:
+              {t("settings.advanced.localApi.port")}
             </Text>
             <TextField.Root
               value={localApiPortInput}
@@ -240,11 +244,11 @@ export const AdvancedSettings: React.FC = () => {
               placeholder="33178"
             />
             <Text size="1" color="gray">
-              重启生效
+              {t("settings.advanced.localApi.restartToApply")}
             </Text>
 
             <Text size="2" weight="medium" color="gray" className="text-right">
-              Endpoint:
+              {t("settings.advanced.localApi.endpoint")}
             </Text>
             <TextField.Root
               value={localApiBasePathInput}
@@ -269,11 +273,11 @@ export const AdvancedSettings: React.FC = () => {
               placeholder="/v1"
             />
             <Text size="1" color="gray">
-              重启生效
+              {t("settings.advanced.localApi.restartToApply")}
             </Text>
 
             <Text size="2" weight="medium" color="gray" className="text-right">
-              URL:
+              {t("settings.advanced.localApi.url")}
             </Text>
             <Text
               size="2"
@@ -285,14 +289,16 @@ export const AdvancedSettings: React.FC = () => {
             <Button
               variant="soft"
               color="gray"
-              onClick={() => void copyText(localApiUrl, "URL")}
+              onClick={() =>
+                void copyText(localApiUrl, t("settings.advanced.localApi.url"))
+              }
             >
               <IconCopy size={14} />
-              复制
+              {t("settings.advanced.localApi.copy")}
             </Button>
 
             <Text size="2" weight="medium" color="gray" className="text-right">
-              Access Key:
+              {t("settings.advanced.localApi.accessKey")}
             </Text>
             <TextField.Root
               value={localApiKey}
@@ -323,11 +329,16 @@ export const AdvancedSettings: React.FC = () => {
               <Button
                 variant="soft"
                 color="gray"
-                onClick={() => void copyText(localApiKey, "Access Key")}
+                onClick={() =>
+                  void copyText(
+                    localApiKey,
+                    t("settings.advanced.localApi.accessKey"),
+                  )
+                }
                 disabled={!localApiKey.trim()}
               >
                 <IconCopy size={14} />
-                复制
+                {t("settings.advanced.localApi.copy")}
               </Button>
               <Button
                 variant="soft"
@@ -335,26 +346,27 @@ export const AdvancedSettings: React.FC = () => {
                 onClick={generateRandomApiKey}
               >
                 <IconRefresh size={14} />
-                随机
+                {t("settings.advanced.localApi.random")}
               </Button>
             </Flex>
           </Grid>
 
           <Flex direction="column" gap="1">
             <Text size="1" color="gray">
-              本机访问：
+              {t("settings.advanced.localApi.localAccess")}
               <span className="ml-1 font-mono">{localApiUrl}</span>
             </Text>
             {localApiAllowLan && (
               <Text size="1" color="gray">
-                局域网访问：
+                {t("settings.advanced.localApi.lanAccess")}
                 <span className="ml-1 font-mono">{lanApiHint}</span>
               </Text>
             )}
             <Text size="1" color="gray">
-              鉴权头：
+              {t("settings.advanced.localApi.authHeader")}
               <span className="ml-1 font-mono">
-                Authorization: Bearer {localApiKey || "your-key"}
+                Authorization: Bearer{" "}
+                {localApiKey || t("settings.advanced.localApi.keyPlaceholder")}
               </span>
             </Text>
           </Flex>

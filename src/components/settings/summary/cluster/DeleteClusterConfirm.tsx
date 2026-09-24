@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { AlertDialog, Button, Flex } from "@radix-ui/themes";
 
 interface DeleteClusterConfirmProps {
@@ -13,23 +14,25 @@ export function DeleteClusterConfirm({
   onCancel,
   onConfirm,
 }: DeleteClusterConfirmProps) {
+  const { t } = useTranslation();
   return (
     <AlertDialog.Root open={open} onOpenChange={(o) => !o && onCancel()}>
       <AlertDialog.Content style={{ maxWidth: 400 }}>
-        <AlertDialog.Title>删除 cluster</AlertDialog.Title>
+        <AlertDialog.Title>
+          {t("settings.summary.delete.title")}
+        </AlertDialog.Title>
         <AlertDialog.Description size="2">
-          确认删除「{clusterTitle}」？源转录记录不会被删除。下次重新生成时 AI
-          可能再次提出类似聚类。
+          {t("settings.summary.delete.body", { title: clusterTitle })}
         </AlertDialog.Description>
         <Flex gap="3" mt="4" justify="end">
           <AlertDialog.Cancel>
             <Button variant="soft" color="gray">
-              取消
+              {t("common.cancel")}
             </Button>
           </AlertDialog.Cancel>
           <AlertDialog.Action>
             <Button color="red" onClick={onConfirm}>
-              删除
+              {t("common.delete")}
             </Button>
           </AlertDialog.Action>
         </Flex>

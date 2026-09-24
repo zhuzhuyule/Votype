@@ -92,6 +92,8 @@ function SpeedWithTooltip({
   currentSpeed: number;
   historicalStats?: ModelSpeedStats;
 }) {
+  const { t } = useTranslation();
+
   if (!historicalStats || historicalStats.total_calls < 2) {
     return <span className="candidate-speed">{formatSpeed(currentSpeed)}</span>;
   }
@@ -108,10 +110,15 @@ function SpeedWithTooltip({
     <Tooltip
       content={
         <span>
-          历史平均: {formatSpeed(historicalStats.avg_speed)} (
-          {historicalStats.total_calls} 次)
+          {t("transcription.review.speedHistoryAvg", {
+            speed: formatSpeed(historicalStats.avg_speed),
+            count: historicalStats.total_calls,
+          })}
           <br />
-          本次: {formatSpeed(currentSpeed)} ({diffLabel})
+          {t("transcription.review.speedThisRun", {
+            speed: formatSpeed(currentSpeed),
+            diff: diffLabel,
+          })}
         </span>
       }
     >
@@ -358,7 +365,7 @@ export const CandidatePanel: React.FC<CandidatePanelProps> = ({
               <div className="candidate-editable-container">
                 <EditorContent editor={editor} />
               </div>
-              <Tooltip content={t("transcription.review.insert", "Insert")}>
+              <Tooltip content={t("transcription.review.insert")}>
                 <button
                   type="button"
                   className="candidate-insert-btn"

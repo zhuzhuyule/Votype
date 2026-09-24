@@ -151,23 +151,45 @@ Some languages have complex plural rules. For now, use a general form that works
 
 ## Currently Supported Languages
 
-| Language   | Code | Status            |
-| ---------- | ---- | ----------------- |
-| English    | `en` | Complete (source) |
-| Chinese    | `zh` | Complete          |
-| French     | `fr` | Complete          |
-| German     | `de` | Complete          |
-| Japanese   | `ja` | Complete          |
-| Spanish    | `es` | Complete          |
-| Vietnamese | `vi` | Complete          |
+Coverage is measured against the English source file. Run
+`bun run i18n:check` to see the current numbers — keys are added to English
+continuously, so every locale drifts until it is topped up again.
+
+| Language   | Code | Coverage      | Missing keys |
+| ---------- | ---- | ------------- | ------------ |
+| English    | `en` | 100% (source) | 0            |
+| Chinese    | `zh` | 100%          | 0            |
+| German     | `de` | ~40%          | ~860         |
+| Spanish    | `es` | ~40%          | ~860         |
+| French     | `fr` | ~40%          | ~860         |
+| Vietnamese | `vi` | ~40%          | ~860         |
+| Japanese   | `ja` | ~40%          | ~865         |
+| Italian    | `it` | ~19%          | ~1160        |
+| Korean     | `ko` | ~19%          | ~1160        |
+| Arabic     | `ar` | ~19%          | ~1160        |
+| Czech      | `cs` | ~19%          | ~1160        |
+| Polish     | `pl` | ~19%          | ~1160        |
+| Portuguese | `pt` | ~19%          | ~1160        |
+| Russian    | `ru` | ~19%          | ~1160        |
+| Turkish    | `tr` | ~19%          | ~1160        |
+| Ukrainian  | `uk` | ~19%          | ~1160        |
+
+**Important:** partially translated locales fall back to English per key at
+runtime. That means users of e.g. German currently see a mixed
+German/English UI — completing any locale is a genuinely user-visible
+improvement, not busywork.
+
+The heaviest gaps are consistently in `settings.postProcessing`,
+`settings.asrModels`, `settings.advanced`, `transcription.review` and
+`hotword.*`. Those namespaces are the highest-value places to start.
 
 ## Requested Languages
 
-We'd love help with:
+We'd love help with any of the locales listed above — in particular:
 
-- Korean (`ko`)
-- Portuguese (`pt`)
-- And more!
+- Korean (`ko`), Portuguese (`pt`) — only ~19% covered
+- Arabic (`ar`) — only ~19% covered, **and** the app has no RTL layout support
+  yet, so `ar` needs layout work in addition to translation
 
 ---
 

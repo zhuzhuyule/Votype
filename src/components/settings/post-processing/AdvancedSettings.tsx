@@ -21,7 +21,7 @@ const ENDPOINT_PRESETS: {
   },
   {
     id: "xingchen_free",
-    label: "讯飞星辰 (Free)",
+    label: "讯飞星辰 (Free)", // i18n-ignore (brand name)
     value: `${WORKER_BASE}/free?provider=xunfei`,
     providers: ["xingchen"],
   },

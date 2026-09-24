@@ -233,7 +233,7 @@ export const ReviewHeader: React.FC<ReviewHeaderProps> = ({
       <div className="review-header">
         <div className="review-header-left">
           <span className="review-panel-label">
-            {t("transcription.review.source", "ASR 结果")}
+            {t("transcription.review.source")}
           </span>
           <AudioPlayButton historyId={historyId} />
           {prompts.length > 0 && (
@@ -265,10 +265,10 @@ export const ReviewHeader: React.FC<ReviewHeaderProps> = ({
             }}
             title={
               multiSortMode === "speed"
-                ? t("transcription.review.sortByChange", "按变化幅度排序")
+                ? t("transcription.review.sortByChange")
                 : multiSortMode === "change"
-                  ? t("transcription.review.restoreOrder", "恢复原顺序")
-                  : t("transcription.review.sortBySpeed", "按反应速率排序")
+                  ? t("transcription.review.restoreOrder")
+                  : t("transcription.review.sortBySpeed")
             }
           >
             {multiSortMode === "speed" ? (
@@ -280,15 +280,15 @@ export const ReviewHeader: React.FC<ReviewHeaderProps> = ({
             )}
             <span>
               {multiSortMode === "speed"
-                ? t("transcription.review.speedSorted", "速度优先")
+                ? t("transcription.review.speedSorted")
                 : multiSortMode === "change"
-                  ? t("transcription.review.changeSorted", "变化优先")
-                  : t("transcription.review.sortLabel", "排序")}
+                  ? t("transcription.review.changeSorted")
+                  : t("transcription.review.sortLabel")}
             </span>
           </button>
           <div
             className="review-tooltip review-tooltip-bottom"
-            data-tooltip={t("transcription.review.translateText", "翻译查看")}
+            data-tooltip={t("transcription.review.translateText")}
           >
             <button
               className={`review-translate-btn ${isTranslating ? "loading" : ""}`}
@@ -322,8 +322,7 @@ export const ReviewHeader: React.FC<ReviewHeaderProps> = ({
     return (
       <div className="review-header">
         <div className="review-skill-name">
-          {skillName ||
-            t("transcription.review.generationTitle", "AI Assistant")}
+          {skillName || t("transcription.review.generationTitle")}
         </div>
         <div
           className="review-close-button review-close-btn"
@@ -363,8 +362,8 @@ export const ReviewHeader: React.FC<ReviewHeaderProps> = ({
           >
             <option value="">
               {defaultModelLabel
-                ? `${t("common.default", "Default")} (${defaultModelLabel})`
-                : t("common.default", "Default")}
+                ? `${t("common.default")} (${defaultModelLabel})`
+                : t("common.default")}
             </option>
             {modelOptions.map((m) => {
               // Render "<label> · <provider>" so users always see a recognisable
@@ -385,8 +384,8 @@ export const ReviewHeader: React.FC<ReviewHeaderProps> = ({
           className="review-tooltip review-tooltip-bottom"
           data-tooltip={
             showDiff
-              ? t("transcription.review.hideDiff", "隐藏差异标注")
-              : t("transcription.review.showDiff", "显示差异标注")
+              ? t("transcription.review.hideDiff")
+              : t("transcription.review.showDiff")
           }
         >
           <button
@@ -399,7 +398,7 @@ export const ReviewHeader: React.FC<ReviewHeaderProps> = ({
         </div>
         <div
           className="review-tooltip review-tooltip-bottom"
-          data-tooltip={t("transcription.review.translateText", "翻译查看")}
+          data-tooltip={t("transcription.review.translateText")}
         >
           <button
             className={`review-translate-btn ${isTranslating ? "loading" : ""}`}

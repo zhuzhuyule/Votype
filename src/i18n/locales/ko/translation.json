@@ -1,12 +1,4 @@
 {
-  "tray": {
-    "settings": "설정...",
-    "checkUpdates": "업데이트 확인...",
-    "copyLastTranscript": "마지막 녹음 내용 복사",
-    "unloadModel": "모델 언로드",
-    "quit": "종료",
-    "cancel": "취소"
-  },
   "sidebar": {
     "general": "일반",
     "models": "모델",
@@ -14,15 +6,23 @@
     "postProcessing": "후처리",
     "history": "히스토리",
     "debug": "디버그",
-    "about": "정보"
+    "about": "정보",
+    "appProfiles": "앱 프로필",
+    "dashboard": "대시보드",
+    "expertMode": "전문가 모드",
+    "expertModeHint": "고급 설정 옵션 표시",
+    "prompts": "프롬프트",
+    "shortcuts": "단축키",
+    "summary": "요약",
+    "vocabulary": "어휘",
+    "asrModels": "ASR 모델",
+    "dailyVocabulary": "일일 어휘"
   },
   "onboarding": {
     "subtitle": "시작하려면 음성 인식 모델을 선택하세요",
     "recommended": "추천",
     "download": "다운로드",
     "downloading": "다운로드 중...",
-    "customModelDescription": "공식 지원되지 않음",
-    "downloadFailed": "다운로드에 실패했습니다. 다시 시도해주세요.",
     "modelCard": {
       "accuracy": "정확도",
       "speed": "속도"
@@ -52,40 +52,68 @@
         "name": "Parakeet V3",
         "description": "빠르고 정확함"
       },
-      "moonshine-base": {
-        "name": "Moonshine Base",
-        "description": "매우 빠름, 영어 전용. 억양을 잘 처리합니다."
-      }
+      "description": "시작할 모델을 선택하세요. 추천 모델은 대부분의 사용 사례에 적합합니다.",
+      "showMore": "모델 더 보기",
+      "title": "모델 선택"
     },
     "errors": {
       "loadModels": "사용 가능한 모델을 불러오는데 실패했습니다",
       "downloadModel": "모델 다운로드 실패: {{error}}"
     },
-    "permissions": {
-      "title": "권한 필요",
-      "description": "Handy가 제대로 작동하려면 몇 가지 권한이 필요합니다.",
-      "microphone": {
-        "title": "마이크 접근",
-        "description": "음성 인식을 위해 마이크 접근 권한이 필요합니다."
-      },
-      "accessibility": {
-        "title": "접근성 권한",
-        "description": "녹음된 텍스트를 애플리케이션에 입력하기 위해 필요합니다."
-      },
+    "accessibility": {
+      "description": "이 권한은 텍스트 자동 붙여넣기를 활성화합니다",
+      "feature1": "전사 결과를 현재 앱에 자동으로 붙여넣기",
+      "feature2": "오버레이 배치를 위한 커서 위치 가져오기",
+      "feature3": "붙여넣기용 키보드 단축키 시뮬레이션",
       "grant": "권한 부여",
-      "granted": "승인됨",
-      "waiting": "대기 중...",
-      "allGranted": "모두 설정 완료!",
-      "errors": {
-        "checkFailed": "권한 확인에 실패했습니다. 다시 시도해주세요.",
-        "requestFailed": "권한 요청에 실패했습니다. 다시 시도해주세요."
-      }
+      "granted": "접근성 권한이 부여되었습니다 ✓",
+      "noteImpact": "권한이 없으면 결과가 클립보드에만 복사됩니다.",
+      "reason1": "전사한 텍스트를 활성 앱에 자동으로 붙여넣기",
+      "reason2": "오버레이 배치를 위한 커서 위치 가져오기",
+      "reason3": "더 매끄러운 환경 제공",
+      "simpleDesc": "전사 결과를 자동으로 붙여넣어 Cmd+V가 필요 없습니다",
+      "skip": "이 단계 건너뛰기",
+      "step1": "시스템 설정 → 개인 정보 보호 및 보안 → 손쉬운 사용 열기",
+      "step2": "이미 목록에 있으면 앱을 제거하세요",
+      "step3": "+를 클릭해 앱을 추가하고 권한을 활성화하세요",
+      "stepsTitle": "문제가 있나요?",
+      "title": "접근성 권한",
+      "whyTitle": "왜 필요한가요?",
+      "without1": "앱은 정상적으로 작동합니다",
+      "without2": "전사한 텍스트가 클립보드에 복사됩니다",
+      "without3": "직접 붙여넣어야 합니다 (Cmd+V)",
+      "withoutTitle": "이 권한이 없으면:"
+    },
+    "microphone": {
+      "denied": "음성을 녹음하려면 마이크 권한이 필요합니다. 시스템 설정에서 권한을 부여해주세요.",
+      "description": "Votype가 음성을 녹음하려면 마이크 접근 권한이 필요합니다",
+      "devModeHint": "개발 모드: 권한 확인을 사용할 수 없습니다",
+      "error": "권한 요청에 실패했습니다. 다시 시도하거나 시스템 설정에서 직접 부여해주세요.",
+      "grant": "마이크 접근 권한 부여",
+      "granted": "마이크 접근이 허용되었습니다 ✓",
+      "grantFirst": "계속하려면 마이크 권한을 부여해주세요",
+      "reason1": "음성을 녹음하여 텍스트로 변환",
+      "reason2": "모든 처리는 로컬에서 이루어집니다",
+      "reason3": "음성 데이터는 기기를 벗어나지 않습니다",
+      "shortDesc": "녹음한 음성을 텍스트로 변환",
+      "skipDev": "건너뛰기 (개발 모드)",
+      "title": "마이크",
+      "whyTitle": "왜 필요한가요?"
+    },
+    "welcome": {
+      "continue": "계속",
+      "description": "로컬, 온라인 또는 하이브리드 모드를 지원하는 음성 입력 방식입니다.",
+      "feature1": "완전 오프라인 음성-텍스트 변환",
+      "feature2": "개인정보 우선, 데이터는 기기를 벗어나지 않습니다",
+      "feature3": "단축키로 실행하고 누르고 말하세요",
+      "permissionsTitle": "권한 설정",
+      "skipDev": "건너뛰기 (개발 모드)",
+      "start": "시작하기",
+      "title": "환영합니다"
     }
   },
   "modelSelector": {
-    "custom": "사용자 정의",
     "active": "활성",
-    "switching": "전환 중...",
     "noModelsAvailable": "사용 가능한 모델이 없습니다",
     "extracting": "{{modelName}} 압축 해제 중...",
     "extractingMultiple": "{{count}}개 모델 압축 해제 중...",
@@ -99,27 +127,44 @@
     "modelUnloaded": "모델 언로드됨",
     "noModelDownloadRequired": "모델 없음 - 다운로드 필요",
     "deleteModel": "{{modelName}} 삭제",
-    "downloadSpeed": "{{speed}} MB/s",
-    "cancel": "취소",
-    "cancelDownload": "다운로드 취소",
-    "capabilities": {
-      "languageSelection": "여러 입력 언어를 지원합니다",
-      "singleLanguage": "이 언어만 지원합니다",
-      "multiLanguage": "다국어",
-      "languageOnly": "{{language}} 전용",
-      "translation": "영어로 번역 가능",
-      "translate": "영어로 번역"
+    "addModelFromUrl": "URL로 추가",
+    "addModelFromUrlPrompt": "모델 다운로드 URL을 붙여넣으세요 (예: .tar.bz2):",
+    "availableModels": "사용 가능한 모델",
+    "chooseModel": "모델 선택",
+    "clickToEnableOnlineAsr": "클릭하여 온라인 ASR 활성화",
+    "download": "다운로드",
+    "downloadModels": "모델 다운로드",
+    "downloadPrompt": "아래에서 모델을 다운로드하면 전사를 시작할 수 있습니다.",
+    "downloadSize": "다운로드 크기",
+    "local": "로컬",
+    "online": "온라인",
+    "onlineAsr": "온라인 ASR",
+    "onlineAsrActive": "온라인 ASR 활성",
+    "onlineAsrModels": "온라인 ASR 모델",
+    "realtimeModel": {
+      "empty": "사용 가능한 로컬 모델이 없습니다. 먼저 Sherpa 모델을 다운로드(및 즐겨찾기)하세요.",
+      "enabled": "활성화됨",
+      "off": "끄기",
+      "offHint": "로컬 모델에는 실시간 자막이 필요하지 않습니다 (메모리 절약)",
+      "open": "실시간 전사 모델 선택",
+      "selected": "실시간: {{modelName}}",
+      "title": "실시간 전사 모델"
+    },
+    "realtimeModelLabel": "실시간 모델",
+    "searchPlaceholder": "모델 검색…",
+    "userAddedModel": "사용자 추가 모델",
+    "welcome": "Votype에 오신 것을 환영합니다",
+    "asrFallback": {
+      "add": "+ 백업",
+      "label": "백업",
+      "remove": "백업 모델 제거"
     }
   },
   "settings": {
-    "modelSettings": {
-      "title": "{{model}} 설정",
-      "noSettingsNeeded": "이 모델은 별도의 설정 없이 자동으로 작동합니다."
-    },
     "general": {
       "title": "일반",
       "shortcut": {
-        "title": "Handy 단축키",
+        "title": "Votype 단축키",
         "description": "음성-텍스트 녹음을 시작하는 키보드 단축키를 설정하세요",
         "loading": "단축키 로딩 중...",
         "none": "설정된 단축키 없음",
@@ -133,6 +178,18 @@
           "cancel": {
             "name": "취소 단축키",
             "description": "현재 녹음을 취소하는 키보드 단축키입니다."
+          },
+          "invoke_skill": {
+            "description": "지능형 의도 라우팅으로 스킬 모드에서 녹음을 시작합니다.",
+            "name": "스킬 호출"
+          },
+          "open_settings": {
+            "description": "설정 창을 엽니다.",
+            "name": "설정 열기"
+          },
+          "paste_first_entry": {
+            "description": "첫 번째 히스토리 항목을 활성 창에 붙여넣습니다.",
+            "name": "첫 항목 붙여넣기"
           }
         },
         "errors": {
@@ -147,11 +204,39 @@
         "descriptionUnsupported": "Parakeet 모델은 자동으로 언어를 감지합니다. 수동 선택이 필요하지 않습니다.",
         "searchPlaceholder": "언어 검색...",
         "noResults": "언어를 찾을 수 없습니다",
-        "auto": "자동"
+        "auto": "자동",
+        "descriptionNoModel": "언어를 설정하려면 로컬 모델을 선택하세요.",
+        "descriptionSenseVoice": "SenseVoice는 모델을 로드할 때 언어를 적용합니다. 언어를 변경한 후 모델을 다시 선택하세요.",
+        "descriptionUnknownModel": "현재 모델을 알 수 없어 언어 선택이 비활성화됩니다.",
+        "descriptionUnsupportedEngine": "언어 선택은 Whisper 또는 SenseVoice 모델에만 적용됩니다."
       },
-      "pushToTalk": {
-        "label": "녹음 중 단축키 홀딩",
-        "description": "누르고 있으면 녹음, 놓으면 정지"
+      "audioInputAutoEnhance": {
+        "description": "녹음 중 작은 음성을 자동으로 키우고 왜곡을 제한합니다. 재생음이 달라질 수 있습니다.",
+        "label": "마이크 자동 보정"
+      },
+      "groups": {
+        "recording": "녹음",
+        "transcription": "전사 언어"
+      },
+      "activationMode": {
+        "label": "활성화 모드",
+        "tooltip": {
+          "summary": "녹음 단축키의 작동 방식을 선택하세요"
+        },
+        "descriptions": {
+          "toggle": "눌러서 시작, 다시 눌러서 정지",
+          "hold": "길게 눌러 녹음, 놓으면 정지",
+          "hold_or_toggle": "짧게 누르면 토글, 300ms 이상 길게 누르면 놓을 때 정지"
+        },
+        "options": {
+          "toggle": "토글",
+          "hold": "홀드",
+          "holdOrToggle": "자동"
+        }
+      },
+      "holdThreshold": {
+        "label": "홀드 임계값",
+        "description": "자동 모드 전용: 단축키를 탭이 아닌 홀드로 인식하기 위해 눌러야 하는 시간(밀리초)입니다. 짧게 눌러도 녹음이 계속 켜져 있으면 낮추고, 의도한 탭이 홀드로 처리되면 높이세요."
       }
     },
     "sound": {
@@ -177,36 +262,15 @@
         "description": "오디오 피드백 사운드의 볼륨 조절"
       }
     },
-    "models": {
-      "title": "음성 인식 모델",
-      "description": "음성 인식 모델을 선택하거나 추가 모델을 다운로드하세요. 모델마다 정확도와 속도가 다릅니다.",
-      "yourModels": "다운로드된 모델",
-      "availableModels": "다운로드 가능",
-      "downloaded": "다운로드됨",
-      "available": "다운로드 가능",
-      "deleteConfirm": "{{modelName}}을(를) 삭제하시겠습니까? 다시 사용하려면 다운로드해야 합니다.",
-      "deleteActiveConfirm": "{{modelName}}은(는) 현재 활성 모델입니다. 삭제하면 새 모델을 선택할 때까지 전사가 중지됩니다. 정말 삭제하시겠습니까?",
-      "deleteTitle": "모델 삭제",
-      "filters": {
-        "all": "전체",
-        "multiLanguage": "다국어",
-        "translation": "번역",
-        "allLanguages": "모든 언어"
-      },
-      "noModelsMatch": "이 필터에 맞는 모델이 없습니다."
-    },
     "advanced": {
       "title": "고급",
       "groups": {
-        "app": "앱",
-        "output": "출력",
-        "transcription": "전사",
-        "history": "히스토리",
-        "experimental": "실험적"
-      },
-      "experimentalToggle": {
-        "label": "실험적 기능",
-        "description": "개발 중인 실험적 기능을 활성화합니다."
+        "dataManagement": "데이터 관리",
+        "debug": "디버그 옵션",
+        "inputOutput": "입력 및 출력",
+        "network": "네트워크",
+        "startup": "시작 및 동작",
+        "transcriptionOptimization": "전사 최적화"
       },
       "startHidden": {
         "label": "숨김으로 시작",
@@ -214,11 +278,7 @@
       },
       "autostart": {
         "label": "시작 시 실행",
-        "description": "컴퓨터 로그인 시 Handy를 자동으로 시작합니다."
-      },
-      "showTrayIcon": {
-        "label": "트레이 아이콘 표시",
-        "description": "시스템 트레이에 Handy 아이콘을 표시합니다."
+        "description": "컴퓨터 로그인 시 Votype를 자동으로 시작합니다."
       },
       "overlay": {
         "title": "오버레이 위치",
@@ -226,7 +286,8 @@
         "options": {
           "none": "없음",
           "bottom": "하단",
-          "top": "상단"
+          "top": "상단",
+          "follow": "커서 따라가기"
         }
       },
       "pasteMethod": {
@@ -262,7 +323,10 @@
       "translateToEnglish": {
         "label": "영어로 번역",
         "description": "텍스트로 변환시 다른 언어의 음성을 자동으로 영어로 번역합니다.",
-        "descriptionUnsupported": "번역은 {{model}} 모델에서 지원되지 않습니다."
+        "descriptionUnsupported": "번역은 {{model}} 모델에서 지원되지 않습니다.",
+        "descriptionNoModel": "번역을 활성화하려면 로컬 모델을 선택하세요.",
+        "descriptionNonWhisper": "번역은 Whisper 모델에서만 작동합니다. 현재: {{model}}",
+        "descriptionUnknownModel": "이 모델의 기능을 알 수 없습니다. 번역을 활성화하려면 다운로드한 모델을 선택하세요."
       },
       "modelUnload": {
         "title": "모델 언로드",
@@ -284,24 +348,114 @@
         "placeholder": "단어 추가",
         "add": "추가",
         "remove": "{{word}} 제거"
+      },
+      "vocabularyCorrections": {
+        "allApps": "모든 앱",
+        "delete": "이 교정 삭제",
+        "description": "편집 기록에서 학습한 어휘 교정",
+        "empty": "학습된 교정이 아직 없습니다",
+        "global": "전역",
+        "removeGlobal": "전역 설정 해제",
+        "scope": "범위",
+        "setGlobal": "전역으로 설정",
+        "title": "어휘 사전"
+      },
+      "scope": {
+        "custom": "특정 앱",
+        "editDescription": "\"{{original}}\" → \"{{corrected}}\" 범위 편집",
+        "editTitle": "교정 범위",
+        "global": "전역",
+        "multiple": "앱 {{count}}개",
+        "none": "앱 없음",
+        "source": "원본 앱 ({{app}})"
+      },
+      "proxy": {
+        "add": "프록시 추가",
+        "server": "서버",
+        "username": "사용자 이름",
+        "usernamePlaceholder": "선택 사항",
+        "password": "비밀번호",
+        "passwordPlaceholder": "선택 사항",
+        "enable": "활성화",
+        "globalHint": "기본적으로 모든 제공자에 적용",
+        "testAndSave": "테스트 및 저장",
+        "testSuccess": "프록시 연결 성공",
+        "testFailed": "프록시 연결 실패: {{error}}",
+        "remove": "제거",
+        "removed": "프록시 제거됨"
+      },
+      "insertBlacklist": {
+        "label": "삽입 차단 목록",
+        "description": "차단 목록에 있는 앱(터미널, 비밀번호 관리자 등)이 포그라운드에 있으면 전사 결과를 자동으로 입력하거나 붙여넣지 않고 알림과 함께 클립보드에 복사합니다."
+      },
+      "remoteRecord": {
+        "label": "리모컨 녹음 키",
+        "description": "블루투스 음성 리모컨의 녹음 버튼(일반 단축키에는 보이지 않는 macOS Consumer 키)을 사용합니다. 한 번 누르면 녹음이 시작되고 다시 누르면 정지합니다."
+      },
+      "punctuation": {
+        "description": "최종 전사에 문장부호를 추가합니다 ({{model}}).",
+        "label": "문장부호 추가",
+        "model": {
+          "description": "중국어+영어 혼합 텍스트용 문장부호 모델을 선택하세요. 최종 결과에만 적용됩니다.",
+          "notDownloaded": "선택한 모델이 아직 다운로드되지 않았습니다.",
+          "title": "문장부호 모델"
+        }
+      },
+      "fillerWordRemoval": {
+        "label": "군더더기 단어 제거",
+        "description": "후처리 전에 말버릇(군더더기)을 제거합니다. 신뢰할 수 있는 패턴이 있는 언어에만 적용됩니다."
+      },
+      "vadBackend": {
+        "title": "음성 활동 감지 백엔드",
+        "description": "무음을 걸러내는 데 사용할 감지기를 선택하세요. Earshot은 실험적이므로 음성이 잘리거나 소음이 남으면 Silero로 되돌리세요.",
+        "options": {
+          "silero": "Silero",
+          "earshot": "Earshot"
+        }
+      },
+      "localApi": {
+        "title": "로컬 API",
+        "enable": "OpenAI 호환 로컬 서버 활성화",
+        "enableDescription": "기본적으로 꺼져 있습니다. 켜면 재시작 없이 즉시 적용됩니다. localhost에만 바인딩되므로 외부 도구가 단일 URL과 키로 모델과 ASR을 호출할 수 있습니다.",
+        "allowLan": "LAN 접근 허용",
+        "allowLanDescription": "활성화하면 같은 LAN의 다른 기기가 내 컴퓨터의 IP로 접근할 수 있습니다. 변경 사항을 적용하려면 앱을 재시작하세요.",
+        "port": "포트",
+        "endpoint": "엔드포인트",
+        "url": "URL",
+        "accessKey": "접근 키",
+        "restartToApply": "적용하려면 재시작",
+        "copy": "복사",
+        "random": "무작위",
+        "localAccess": "로컬 접근:",
+        "lanAccess": "LAN 접근:",
+        "authHeader": "인증 헤더:",
+        "lanUrlHint": "http://<your-LAN-IP>:{{port}}{{path}}",
+        "copied": "{{label}} 복사됨",
+        "copyFailed": "{{label}} 복사에 실패했습니다",
+        "keyGenerated": "새 접근 키가 생성되었습니다",
+        "keyPlaceholder": "your-key"
       }
     },
     "postProcessing": {
       "title": "후처리",
-      "hotkey": {
-        "title": "단축키"
-      },
       "api": {
         "title": "API (OpenAI 호환)",
         "provider": {
           "title": "제공자",
-          "description": "OpenAI 호환 제공자를 선택하세요."
+          "description": "OpenAI 호환 제공자를 선택하세요.",
+          "builtin": "내장",
+          "builtinTooltip": "내장 제공자는 삭제할 수 없습니다",
+          "deleteAction": "제공자 삭제",
+          "deleteConfirmation": "\"{{name}}\" 제공자를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.",
+          "deleteTitle": "제공자 삭제",
+          "editName": "제공자 이름 편집",
+          "namePlaceholder": "제공자 이름",
+          "newProvider": "새 제공자"
         },
         "appleIntelligence": {
           "title": "Apple Intelligence",
           "description": "완전히 기기에서 실행됩니다. API 키나 네트워크 접근이 필요하지 않습니다.",
-          "requirements": "macOS Tahoe (26.0) 이상을 실행하는 Apple Silicon Mac이 필요합니다. 시스템 설정에서 Apple Intelligence가 활성화되어 있어야 합니다.",
-          "unavailable": "이 기기에서는 Apple Intelligence를 사용할 수 없습니다. macOS Tahoe (26.0) 이상을 실행하고 시스템 설정에서 Apple Intelligence가 활성화된 Apple Silicon Mac이 필요합니다."
+          "requirements": "macOS Tahoe (26.0) 이상을 실행하는 Apple Silicon Mac이 필요합니다. 시스템 설정에서 Apple Intelligence가 활성화되어 있어야 합니다."
         },
         "baseUrl": {
           "title": "기본 URL",
@@ -322,13 +476,78 @@
           "placeholderWithOptions": "모델 검색 또는 선택",
           "placeholderNoOptions": "모델 이름 입력",
           "refreshModels": "모델 새로고침"
+        },
+        "manageProviders": "제공자 관리",
+        "modelCard": {
+          "errorRate": "실패한 호출 {{count}}회 — 오류율 {{rate}}%"
+        },
+        "models": {
+          "deleteConfirm": {
+            "description": "이 모델을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.",
+            "title": "모델을 삭제할까요?"
+          }
+        },
+        "providers": {
+          "add": "제공자 추가",
+          "addCustom": "사용자 정의 추가",
+          "advancedSettings": "고급 설정",
+          "api": {
+            "model": {
+              "title": "사용 중인 모델"
+            },
+            "testConnection": "모델 추론 테스트",
+            "testFailed": "테스트 실패: {{error}}",
+            "testing": "연결 테스트 중...",
+            "testSuccess": "테스트 성공: {{result}}"
+          },
+          "builtInBadge": "내장",
+          "deleteConfirm": {
+            "description": "제공자와 관련된 모든 모델이 제거됩니다.",
+            "title": "제공자를 삭제할까요?"
+          },
+          "dialog": {
+            "createTitle": "제공자 만들기",
+            "editTitle": "제공자 편집"
+          },
+          "empty": {
+            "description": "제공자를 추가하여 시작하세요.",
+            "title": "제공자 없음"
+          },
+          "fields": {
+            "apiKey": "API 키",
+            "getApiKey": "API 키 받기",
+            "baseUrl": "기본 URL",
+            "baseUrlHint": "OpenAI 호환 모드이며 보통 /v1로 끝납니다. '#' 접미사를 사용하면 /v1 자동 추가를 건너뜁니다.",
+            "actualUrlPreview": "실제 API URL 미리보기",
+            "modelsEndpoint": "모델 엔드포인트",
+            "modelsEndpointPlaceholder": "/models 또는 https://...",
+            "name": "제공자 이름",
+            "namePlaceholder": "내 제공자",
+            "v1AutoAppended": "/v1이 자동으로 추가되었습니다",
+            "v1MissingWarning": "URL에 버전 경로(예: /v1)가 없을 수 있습니다",
+            "addKey": "키 추가"
+          },
+          "proxy": {
+            "useProxy": "프록시",
+            "noGlobalProxy": "고급 설정에서 먼저 프록시를 구성하세요"
+          },
+          "group": {
+            "recommended": "추천",
+            "cloud": "클라우드 제공자",
+            "local": "로컬 제공자"
+          },
+          "resetUrl": "URL 재설정",
+          "testConnection": "연결 테스트",
+          "testFailed": "연결 실패: {{error}}",
+          "testSuccess": "연결 성공",
+          "title": "제공자"
         }
       },
       "prompts": {
         "title": "프롬프트",
         "selectedPrompt": {
           "title": "선택된 프롬프트",
-          "description": "Choose the template used for post-processing, or create a new one. The system automatically injects the main input and supporting reference fields, so the prompt body only needs to describe the task, constraints, and output requirements."
+          "description": "후처리에 사용할 템플릿을 선택하거나 새로 만드세요. 시스템이 메인 입력과 보조 참조 필드를 자동으로 삽입하므로, 프롬프트 본문에는 작업·제약·출력 요구사항만 적으면 됩니다."
         },
         "noPrompts": "사용 가능한 프롬프트 없음",
         "selectPrompt": "프롬프트 선택",
@@ -336,7 +555,7 @@
         "promptLabel": "프롬프트 레이블",
         "promptLabelPlaceholder": "프롬프트 이름 입력",
         "promptInstructions": "프롬프트 지시사항",
-        "promptInstructionsPlaceholder": "Describe how the model should process the input text, what it may change, what it must not change, and what the final output should look like.",
+        "promptInstructionsPlaceholder": "모델이 입력 텍스트를 어떻게 처리해야 하는지, 무엇을 변경해도 되는지, 무엇을 변경하면 안 되는지, 그리고 최종 출력이 어떤 형태여야 하는지 설명하세요.",
         "promptTip": "Tip: You are editing the task body only. The system automatically injects the main input and supporting reference fields, so focus on the task, constraints, and output requirements.",
         "updatePrompt": "프롬프트 업데이트",
         "deletePrompt": "프롬프트 삭제",
@@ -355,13 +574,435 @@
         "varWindowTitleDesc": "현재 창 제목.",
         "lockSkill": "Lock Skill",
         "unlockSkill": "Unlock Skill",
-        "skillLocked": "This skill is locked. Unlock to edit.",
-        "aiGeneratingWait": "AI is generating, please wait",
+        "skillLocked": "이 스킬은 잠겨 있습니다. 편집하려면 잠금을 해제하세요.",
+        "aiGeneratingWait": "AI가 생성 중입니다. 잠시 기다려 주세요",
         "unsavedChanges": {
           "title": "Unsaved Changes",
-          "description": "Current prompt has unsaved changes. Switching will discard these modifications.",
+          "description": "현재 프롬프트에 저장하지 않은 변경 사항이 있습니다. 전환하면 이 변경 사항이 삭제됩니다.",
           "discard": "Discard Changes"
+        },
+        "activeSet": "기본 프롬프트로 설정",
+        "advancedSettings": "고급 설정",
+        "createSuccess": "프롬프트가 생성되었습니다",
+        "deleteConfirm": {
+          "description": "이 프롬프트를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.",
+          "title": "프롬프트 삭제"
+        },
+        "createFailed": "스킬 생성에 실패했습니다",
+        "nameAndContentRequired": "이름과 내용은 비워둘 수 없습니다",
+        "fillNameAndInstructionsFirst": "AI가 더 나은 요약을 생성할 수 있도록 먼저 이름과 지시사항을 입력해주세요.",
+        "userOwnedPrompts": "내 프롬프트",
+        "deleteFailed": "삭제에 실패했습니다",
+        "deleteSuccess": "프롬프트가 삭제되었습니다",
+        "resetToDefault": "기본값으로 재설정",
+        "resetConfirm": {
+          "description": "스킬을 원래 내장 내용으로 복원합니다. 사용자 정의 내용은 모두 사라집니다.",
+          "title": "기본값으로 재설정"
+        },
+        "resetSuccess": "스킬이 기본값으로 재설정되었습니다",
+        "resetFailed": "스킬 재설정에 실패했습니다",
+        "description": "설명 (스마트 라우팅용)",
+        "descriptionPlaceholder": "이 스킬이 하는 일과 언제 실행되어야 하는지 간단히 설명하세요",
+        "editPrompt": "프롬프트 편집",
+        "enabledToggle": "이 스킬 활성화/비활성화",
+        "enableConfidenceCheck": "신뢰도 확인 활성화",
+        "generationDescription": "인식된 텍스트를 프롬프트로 삼아 새 내용을 생성합니다 (예: 번역, 요약).",
+        "globalConfigTitle": "전역 구성",
+        "managementTitle": "프롬프트",
+        "newPromptName": "새 프롬프트",
+        "outputMode": {
+          "chat": "AI 채팅",
+          "label": "출력 모드",
+          "polish": "텍스트 다듬기"
+        },
+        "promptBody": "작업 본문",
+        "promptBodyPlaceholder": "모델이 입력 텍스트를 어떻게 처리해야 하는지, 무엇을 바꿔도 되고 무엇을 바꾸면 안 되는지, 최종 출력이 어떤 형태여야 하는지 설명하세요.",
+        "refinementDescription": "인식된 텍스트를 자동으로 교정하고 서식을 정리합니다.",
+        "reviewThreshold": "검토 임계값",
+        "setAsActive": "기본으로 설정",
+        "updateFailed": "업데이트에 실패했습니다",
+        "updateSuccess": "프롬프트가 업데이트되었습니다",
+        "inlineVarsLabel": "참조 필드",
+        "autoInjectedNote": "시스템이 기본 입력과 보조 참조 필드를 자동으로 주입합니다. 더 정밀한 제어가 필요하면 작업 본문에서 직접 참조할 수 있습니다.",
+        "primaryFieldsLabel": "핵심 필드",
+        "referenceFieldsLabel": "참조 필드",
+        "explicitReferenceNote": "위에서 필드를 직접 참조하면 시스템이 같은 필드를 프롬프트 뒤에 다시 추가하지 않습니다.",
+        "inlineVarsSecondaryLabel": "메타데이터 변수",
+        "fieldAutocompleteTitle": "필드 자동 완성",
+        "fieldAutocompleteEmpty": "일치하는 필드 없음",
+        "fieldInputTextDesc": "처리해야 할 유일한 기본 텍스트",
+        "fieldAsrReferenceDesc": "교정과 모호성 해소에 사용하는 보조 ASR 참조",
+        "fieldSelectedTextDesc": "약한 컨텍스트로 사용하는 선택 텍스트",
+        "fieldPersonNamesDesc": "알려진 인물 이름",
+        "fieldProductNamesDesc": "알려진 제품, 브랜드 또는 조직 이름",
+        "fieldDomainTermsDesc": "도메인 용어, 약어 또는 기술 용어",
+        "fieldHotwordsDesc": "기타 우선순위 핫워드",
+        "fieldHistoryHintsDesc": "용어 일관성과 약한 모호성 해소에만 사용하는 히스토리 힌트",
+        "varAppCategoryDesc": "앱 카테고리 (CodeEditor, Email 등).",
+        "autoGenerate": {
+          "title": "음성으로 스킬 만들기",
+          "description": "원하는 내용을 자연어로 설명하세요. AI가 완전한 스킬을 생성합니다.",
+          "shortcutHint": "팁: 누르면 입력됩니다",
+          "placeholder": "예: 텍스트를 다듬고 문법을 고쳐서 더 전문적으로 만들어줘...",
+          "step1": "프롬프트 지시사항 최적화 중",
+          "step2": "이름과 아이콘 생성 중",
+          "step3": "설명 생성 중",
+          "emptyInput": "이 스킬이 무엇을 해야 하는지 설명해주세요",
+          "start": "생성",
+          "menuItem": "음성 입력",
+          "success": "스킬이 생성되었습니다"
+        },
+        "templates": {
+          "template_polish": "기본 다듬기",
+          "template_translate": "번역",
+          "template_summary": "요약",
+          "template_chat": "AI 채팅",
+          "template_blank": "빈 스킬"
+        },
+        "aliasDuplicate": "별칭이 이미 존재합니다",
+        "aliasLabel": "별칭",
+        "aliasPlaceholder": "예: /translate",
+        "commandPrefixDescription": "이 프롬프트를 실행하는 명령 접두사",
+        "commandPrefixPlaceholder": "예: /",
+        "commandPrefixTitle": "명령 접두사",
+        "noAliases": "설정된 별칭 없음",
+        "noPrefixes": "설정된 접두사 없음",
+        "prefixesSaved": "접두사가 저장되었습니다",
+        "blankSkill": "빈 스킬",
+        "polishCategory": "다듬기",
+        "skillCategory": "스킬",
+        "references": {
+          "title": "장면 참조",
+          "add": "추가",
+          "empty": "장면 참조가 아직 없습니다. 앱별로 동작을 조정하려면 참조를 추가하세요.",
+          "createFirst": "첫 참조 만들기",
+          "createTitle": "장면 참조 만들기",
+          "editTitle": "장면 참조 편집",
+          "matchType": "일치 유형",
+          "typeAlways": "일반 규칙 (항상 활성)",
+          "typeApp": "앱 이름 기준",
+          "typeCategory": "앱 카테고리 기준",
+          "alwaysName": "일반 규칙",
+          "badgeAlways": "항상 활성",
+          "appNamePlaceholder": "예: Slack, Obsidian, WeChat",
+          "contentPlaceholder": "이 컨텍스트에 대한 장면별 규칙을 입력하세요...\n\n예시:\n## IM/채팅 규칙\n- 대화체 유지\n- 명백한 오류만 수정\n- 이모지 유지",
+          "created": "참조가 생성되었습니다",
+          "saved": "참조가 저장되었습니다",
+          "deleted": "참조가 삭제되었습니다",
+          "errorNoName": "이름을 입력해주세요",
+          "errorSave": "저장에 실패했습니다",
+          "errorDelete": "삭제에 실패했습니다",
+          "deleteTitle": "참조 삭제",
+          "deleteConfirm": "\"{{name}}\"을(를) 삭제하시겠습니까?"
         }
+      },
+      "intentModel": {
+        "defaultOption": "기본 모델 사용",
+        "description": "스킬 의도 감지에 사용할 모델입니다. 기본값으로 두면 기본 후처리 모델을 따릅니다.",
+        "hint": "스킬 라우팅(사용할 스킬 감지)과 스마트 라우팅 동작 분류에 사용됩니다. 라이트 다듬기의 경우 같은 호출에서 교정도 수행합니다.",
+        "placeholder": "의도 모델 선택",
+        "title": "의도 모델"
+      },
+      "translationModel": {
+        "hint": "삽입 전 번역 기능에서 사용됩니다. 비워두면 의도 모델, 그다음 기본 후처리 모델로 대체됩니다.",
+        "title": "번역 모델"
+      },
+      "inputInjection": {
+        "groupTitle": "자동 입력",
+        "title": "자동 입력",
+        "description": "후처리 또는 번역 요청에 자동으로 첨부할 보조 입력을 제어합니다.",
+        "summaryEnabled": "히스토리 컨텍스트 주입이 활성화되어 최대 {{count}}개 항목이 첨부됩니다.",
+        "summaryDisabled": "히스토리 컨텍스트가 자동으로 첨부되지 않습니다.",
+        "moreOptions": "옵션 더 보기",
+        "basicOnly": "기본 항목만",
+        "history": {
+          "enabled": "히스토리 컨텍스트 주입",
+          "description": "현재 앱의 최근 전사를 후처리 컨텍스트로 제공합니다.",
+          "limit": "히스토리 컨텍스트 깊이",
+          "limitDesc": "최대 최근 {{count}}개 히스토리 항목을 후처리에 첨부합니다."
+        },
+        "streaming": {
+          "enabled": "스트리밍 전사 주입",
+          "description": "ASR 결과의 모호성을 줄이기 위해 최종 텍스트와 함께 streaming_output을 전송합니다."
+        },
+        "hotwords": {
+          "enabled": "핫워드와 어휘 주입",
+          "description": "핫워드, 용어, 자주 오인식되는 매핑을 후처리에 첨부합니다."
+        }
+      },
+      "appRules": {
+        "activeProfiles": "활성 규칙 {{count}}개",
+        "addApp": "앱 추가",
+        "addRuleHead": "수동으로 규칙 추가",
+        "addTitlePattern": "제목 필터 추가",
+        "assignedApps": "앱",
+        "assignedAppsDescription": "아래 나열된 애플리케이션이 이 프로필 설정을 사용합니다.",
+        "capture": "캡처",
+        "captureTitle": "제목 캡처",
+        "categoryDefaults": {
+          "title": "카테고리 기본 정책",
+          "hint": "자체 프로필이 있는 앱은 카테고리 정책의 영향을 받지 않습니다 (제안을 수락할 때 자동 생성된 프로필 포함).",
+          "inheritGlobal": "전역 상속",
+          "categories": {
+            "CodeEditor": "코드 편집기",
+            "Terminal": "터미널",
+            "InstantMessaging": "인스턴트 메시징",
+            "Email": "이메일",
+            "Notes": "메모",
+            "Browser": "브라우저",
+            "Other": "기타"
+          }
+        },
+        "context": {
+          "description": "LLM이 현재 애플리케이션의 최근 기록을 참조하여 전사 및 교정 정확도를 높일 수 있도록 합니다.",
+          "enabled": "컨텍스트 참조 활성화",
+          "limit": "컨텍스트 히스토리 깊이",
+          "limitDesc": "모델이 이 앱의 최근 {{count}}개 항목을 컨텍스트로 참조합니다.",
+          "title": "컨텍스트 인식 처리"
+        },
+        "createPromptHint": "시작하려면 애플리케이션 규칙을 추가하세요",
+        "default": "기본",
+        "newProfileName": "새 프로필 이름...",
+        "noAppsAssigned": "이 프로필에 매핑된 앱이 아직 없습니다.",
+        "noProfiles": "규칙이 아직 없습니다",
+        "noProfilesShort": "클릭하여 구성",
+        "policy": {
+          "always": "항상 검토",
+          "auto": "자동",
+          "label": "검토 정책",
+          "never": "바로 삽입"
+        },
+        "policyDesc": {
+          "always": "이 프로필의 앱에는 항상 검토 창을 표시합니다.",
+          "auto": "텍스트가 크게 변경되면 검토를 실행합니다 (임계값 기준).",
+          "never": "이 프로필의 앱에는 검토 창을 표시하지 않습니다."
+        },
+        "policyHeader": "검토 실행 정책",
+        "profilesDescription": "프로필을 만들어 앱 그룹별로 특정 처리 로직이나 프롬프트를 적용하세요.",
+        "profilesTitle": "애플리케이션 프로필",
+        "promptDescription": "이 프로필의 전사에 사용할 사용자 정의 프롬프트를 선택하세요.",
+        "promptHeader": "LLM 프롬프트 재정의",
+        "selectionClipboardFallback": {
+          "description": "비활성화하면 이 앱의 선택 텍스트에 접근성 API만 사용하고 시뮬레이션 복사 클립보드 대체를 건너뜁니다.",
+          "label": "클립보드 대체"
+        },
+        "translateToEnglishOnInsert": {
+          "description": "이 앱의 경우 삽입 직전에 영어로 LLM 번역을 한 번 더 실행합니다. 번역에 실패하면 원본 텍스트로 대체합니다.",
+          "label": "삽입 전 번역"
+        },
+        "selectPrompt": "편집할 프로필을 사이드바에서 선택하세요",
+        "skipPostProcess": "후처리 건너뛰기",
+        "shortcuts": {
+          "description": "키보드 단축키로 특정 프로필을 실행하거나 규칙을 관리할 수 있습니다.",
+          "dialog": "대화상자 확인 또는 닫기",
+          "dialogKeys": "Enter / Esc",
+          "nav": "설정 탭 간 이동",
+          "navKeys": "⌘ + 1-8",
+          "title": "단축키 및 사용법"
+        },
+        "matchType": {
+          "exact": "정확히 일치"
+        },
+        "testMatch": "일치 테스트",
+        "title": "애플리케이션 규칙",
+        "titlePattern": "제목 (정규식)",
+        "allApps": "모든 앱",
+        "appNotInstalled": "이 앱은 더 이상 설치되어 있지 않습니다",
+        "recentApps": "최근",
+        "refresh": "설치된 앱 다시 검색",
+        "searchApps": "앱 검색..."
+      },
+      "confidenceCheck": {
+        "description": "검토가 활성화된 프롬프트의 민감도를 조정합니다. 값이 높을수록 검토 창이 덜 나타납니다.",
+        "threshold": "민감도 임계값",
+        "thresholdHint": "이 값보다 높은 점수는 검토 창을 실행합니다.",
+        "title": "자동 검토 민감도"
+      },
+      "textModelMode": {
+        "title": "후처리 모드",
+        "single": "단일 모델",
+        "singleHint": "모든 텍스트에 하나의 모델",
+        "length": "스마트",
+        "lengthHint": "텍스트 길이에 따라 모델 자동 선택",
+        "multi": "다중 모델",
+        "multiHint": "병렬 비교",
+        "defaultModelDescription": "기본 모델",
+        "noModelSelected": "선택된 모델 없음",
+        "multiDescription": "아래 목록에서 병렬 비교할 모델을 선택하세요",
+        "multiStrategy": "다중 모델 전략",
+        "multiStrategyManual": "수동",
+        "multiStrategyManualHint": "모든 후보를 표시하여 직접 선택",
+        "multiStrategyRace": "초고속",
+        "multiStrategyRaceShort": "초고속",
+        "multiStrategyRaceHint": "가장 먼저 나온 결과 사용",
+        "multiStrategyLazy": "지연",
+        "multiStrategyLazyShort": "지연",
+        "multiStrategyLazyHint": "선호 모델을 3초 대기하고 시간 초과 시 자동 선택",
+        "preferredModel": "선호 모델",
+        "setAsPreferred": "선호 모델로 설정",
+        "selectModelsTitle": "모델 선택",
+        "selectModelsDescription": "병렬 처리할 모델을 선택하세요. 별을 클릭하면 선호 모델로 설정됩니다.",
+        "selectedCount": "{{count}}개 선택됨",
+        "noneSelected": "선택된 모델 없음",
+        "models": "모델",
+        "modelSelection": "모델"
+      },
+      "lengthRouting": {
+        "enableLabel": "텍스트 길이에 따라 모델 자동 선택",
+        "enableDescription": "짧은 텍스트에는 빠른 모델, 긴 텍스트에는 고급 모델 사용",
+        "thresholdLabel": "글자 수 임계값",
+        "thresholdDescription": "유니코드 문자 기준 (중국어 1자 = 1, 영어 1자 = 1)",
+        "thresholdValue": "{{count}}자",
+        "shortModelLabel": "짧은 텍스트",
+        "longModelLabel": "긴 텍스트",
+        "characters": " 자",
+        "useDefault": "기본값 사용"
+      },
+      "smartRouting": {
+        "title": "스마트 라우팅",
+        "hint": "동일한 텍스트에 대해 이전 결과를 자동으로 재사용하고, 경량 모델로 짧은 텍스트에 다듬기가 필요한지 판단하여 토큰 비용과 지연을 줄입니다.",
+        "shortText": "짧은 텍스트",
+        "longText": "긴 텍스트",
+        "fastModel": "빠른 모델",
+        "fastModelHint": "짧은 텍스트용 경량 또는 고속 모델입니다. 간단한 내용의 토큰을 절약하고 지연을 줄입니다.",
+        "modelSelection": "모델",
+        "description": "의도 자동 감지, 히스토리 재사용, 토큰 비용 절감"
+      },
+      "modelChain": {
+        "primary": "기본",
+        "fallback": "대체",
+        "leftClickHint": "왼쪽 클릭으로 기본 모델 선택",
+        "rightClickHint": "오른쪽 클릭으로 대체 모델 선택",
+        "strategy": "전략",
+        "serial": "순차",
+        "staggered": "지연 시작",
+        "race": "경쟁",
+        "serialHint": "기본 모델 실패 후 대체 시도",
+        "staggeredHint": "기본 모델이 느리면 대체 시작",
+        "raceHint": "둘 다 호출하여 빠른 결과 사용",
+        "noModel": "선택된 모델 없음",
+        "selectModel": "모델 선택"
+      },
+      "disabledNotice": "후처리가 현재 비활성화되어 있습니다. 활성화하면 구성할 수 있습니다.",
+      "fusion": {
+        "enabled": {
+          "description": "메인 전사와 보조 실시간 전사를 후처리에 제공하여 비교하고 모호성을 해소합니다.",
+          "label": "실시간 전사 사용 (퓨전)"
+        },
+        "secondaryModel": {
+          "auto": "자동",
+          "autoDescription": "현재 로컬 모델 사용",
+          "description": "온라인 ASR이 활성화된 경우에만 사용됩니다. 이 로컬 모델이 실시간 자막과 보조 전사를 제공합니다.",
+          "placeholder": "모델 선택...",
+          "title": "실시간 전사 모델 (온라인 ASR)"
+        }
+      },
+      "models": {
+        "addModel": "모델 추가",
+        "deleteConfirm": {
+          "description": "이 모델을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.",
+          "title": "모델을 삭제할까요?"
+        },
+        "description": "후처리에 사용할 모델을 추가하고 관리합니다.",
+        "empty": {
+          "description": "모델을 추가하여 시작하세요.",
+          "title": "구성된 모델 없음",
+          "noMatch": "검색과 일치하는 모델이 없습니다."
+        },
+        "promptMessageRole": {
+          "label": "개발자 모드"
+        },
+        "modelTypes": {
+          "asr": {
+            "hint": "음성 인식",
+            "label": "ASR"
+          },
+          "other": {
+            "hint": "사용자 정의 용도",
+            "label": "기타"
+          },
+          "text": {
+            "hint": "텍스트 개선 및 서식",
+            "label": "텍스트"
+          }
+        },
+        "selectModel": {
+          "addButton": "모델 추가",
+          "customLabelPlaceholder": "레이블 입력...",
+          "customLabelTitle": "사용자 정의 레이블",
+          "customModelPlaceholder": "모델 ID 입력...",
+          "description": "추가할 모델을 선택하거나 직접 입력하세요.",
+          "placeholder": "모델 선택...",
+          "placeholderEmpty": "사용 가능한 모델 없음",
+          "segmented": {
+            "customModel": "사용자 정의",
+            "selectModel": "선택",
+            "freeModels": "무료"
+          },
+          "noFreeModels": "이 제공자에 사용 가능한 무료 모델이 없습니다.",
+          "alreadyAdded": "추가됨",
+          "title": "모델 선택",
+          "usageTypeTitle": "사용 유형",
+          "advancedOptions": "고급 옵션",
+          "customLabel": "사용자 정의 레이블",
+          "extraParams": "추가 파라미터",
+          "manualLabel": "수동 레이블",
+          "selectLabel": "레이블 선택",
+          "sourceBuiltin": "내장 무료 모델",
+          "sourceOfficial": "공식 모델 목록",
+          "sourceBuiltinHint": "API 호출이 필요 없는 엄선된 무료 모델",
+          "sourceOfficialHint": "제공자 API의 전체 목록"
+        },
+        "searchPlaceholder": "모델 검색...",
+        "filter": {
+          "all": "전체"
+        },
+        "sort": {
+          "provider": "제공자",
+          "name": "이름",
+          "calls": "호출",
+          "speed": "속도",
+          "group": "제공자별 그룹화"
+        },
+        "stats": {
+          "asr": "ASR: {{count}}",
+          "other": "기타: {{count}}",
+          "text": "텍스트: {{count}}"
+        },
+        "tabs": {
+          "local": "로컬 모델",
+          "remote": "온라인 모델"
+        },
+        "title": "모델",
+        "setAsDefault": "기본으로 설정",
+        "invalidJson": "잘못된 JSON 형식",
+        "addedCount": "모델 {{count}}개 추가됨",
+        "customAdd": {
+          "title": "사용자 정의 모델 추가",
+          "modelId": "모델 ID",
+          "duplicateWarning": "이 제공자에 같은 ID의 모델이 이미 있습니다. 추가하면 복사본이 생성됩니다."
+        }
+      },
+      "providerModels": {
+        "totalCalls": "회",
+        "avgSpeed": "tokens/sec"
+      },
+      "skills": {
+        "advancedSkills": "고급 스킬",
+        "createHint": "~/.votype/skills/에 .md 파일을 만들어 사용자 정의 스킬을 추가하세요",
+        "enabledInFile": "스킬이 항상 활성화되어 있습니다 (파일에서 구성)",
+        "helpText": "skills 폴더에 YAML frontmatter가 있는 .md 파일을 만드세요. 자동으로 로드되어 사용할 수 있습니다.",
+        "noExternalSkills": "외부 스킬을 찾을 수 없습니다",
+        "openFolder": "폴더 열기",
+        "quickCommands": "빠른 명령",
+        "refresh": "새로고침",
+        "sourceBuiltin": "내장",
+        "sourceFile": "파일",
+        "sourceUser": "사용자"
+      },
+      "modelCard": {
+        "errorRate": "실패한 호출 {{count}}회 — 오류율 {{rate}}%",
+        "lastError": "마지막 오류{{when}}: {{error}}"
       }
     },
     "history": {
@@ -373,13 +1014,27 @@
       "save": "변환된 텍스트 저장",
       "unsave": "저장에서 제거",
       "delete": "항목 삭제",
-      "deleteError": "항목 삭제에 실패했습니다. 다시 시도해주세요."
+      "deleteError": "항목 삭제에 실패했습니다. 다시 시도해주세요.",
+      "content": {
+        "chained": "연쇄 처리",
+        "improved": "개선됨",
+        "original": "음성 인식 결과",
+        "streaming": "실시간 인식 결과"
+      },
+      "searchPlaceholder": "히스토리 검색...",
+      "timeline": {
+        "earlier": "이전",
+        "thisWeek": "이번 주",
+        "today": "오늘",
+        "yesterday": "어제"
+      }
     },
     "debug": {
       "title": "디버그",
       "logDirectory": {
         "title": "로그 디렉토리",
-        "description": "로그 파일이 저장되는 위치"
+        "description": "로그 파일이 저장되는 위치",
+        "error": "로그 디렉터리를 불러오는 중 오류: {{error}}"
       },
       "logLevel": {
         "title": "로그 레벨",
@@ -387,7 +1042,7 @@
       },
       "updateChecks": {
         "label": "업데이트 확인",
-        "description": "Handy의 새 버전을 자동으로 확인합니다"
+        "description": "Votype의 새 버전을 자동으로 확인합니다"
       },
       "soundTheme": {
         "label": "사운드 테마",
@@ -432,30 +1087,54 @@
         "label": "끝 공백 추가",
         "description": "붙여넣은 텍스트 끝에 공백 추가"
       },
-      "keyboardImplementation": {
-        "title": "키보드 구현",
-        "description": "키보드 단축키 백엔드를 선택하세요.",
-        "bindingsReset": "키보드 단축키가 호환되지 않아 기본값으로 재설정되었습니다"
-      },
-      "pasteDelay": {
-        "title": "붙여넣기 지연",
-        "description": "붙여넣기 키 입력을 보내기 전 지연 시간(밀리초). 잘못된 텍스트가 붙여넣어지면 늘리세요."
-      },
       "paths": {
         "appData": "앱 데이터:",
         "models": "모델:",
-        "settings": "설정:"
+        "settings": "설정:",
+        "description": "Votype가 사용하는 주요 파일 시스템 경로",
+        "title": "경로"
+      },
+      "destroySettingsWindowOnClose": {
+        "description": "설정 창을 닫을 때 창을 파괴하여 리소스를 해제합니다. 트레이 메뉴에서 다시 열 수 있습니다.",
+        "label": "닫을 때 설정 창 파괴"
+      },
+      "groups": {
+        "audio": "오디오 및 처리",
+        "data": "데이터 관리",
+        "system": "시스템 및 로깅",
+        "text": "텍스트 처리"
+      },
+      "logChannels": {
+        "title": "로그 채널",
+        "postProcess": "후처리 요청",
+        "postProcessDesc": "텍스트 다듬기를 위한 모든 LLM 프롬프트와 응답을 기록합니다 (단일/다중 모델)",
+        "skillRouting": "스킬/의도 라우팅",
+        "skillRoutingDesc": "스킬 라우팅 프롬프트와 응답을 기록합니다",
+        "routing": "라우팅 결정",
+        "routingDesc": "SmartRouting, ModeRouting 및 파이프라인 결정을 기록합니다",
+        "transcription": "전사 출력",
+        "transcriptionDesc": "ASR 결과와 실시간 중간 결과를 기록합니다"
+      },
+      "offlineVadRealtime": {
+        "intervalDescription": "N밀리초마다 실시간 새로고침을 강제합니다 (0은 비활성화).",
+        "intervalLabel": "오프라인 실시간 간격 (ms)",
+        "windowDescription": "총 오디오가 30초를 넘으면 VAD 세그먼트가 없을 때 실시간 디코딩에 마지막 N초를 사용합니다.",
+        "windowLabel": "오프라인 실시간 창 (초)"
+      },
+      "reliablePaste": {
+        "title": "안정적인 붙여넣기 (베타)",
+        "description": "고정 지연 대신 대상 앱이 전사 결과를 실제로 읽은 뒤에만 클립보드를 복원합니다. 시스템 부하 시 이전 클립보드 내용이 붙여넣어지는 문제를 해결하기 위한 기능입니다. 클립보드 붙여넣기 방식이 필요하며 macOS와 Windows에서만 지원됩니다."
       }
     },
     "about": {
       "title": "정보",
       "version": {
         "title": "버전",
-        "description": "Handy의 현재 버전"
+        "description": "Votype의 현재 버전"
       },
       "appDataDirectory": {
         "title": "앱 데이터 디렉토리",
-        "description": "Handy가 데이터를 저장하는 위치"
+        "description": "Votype가 데이터를 저장하는 위치"
       },
       "sourceCode": {
         "title": "소스 코드",
@@ -464,7 +1143,7 @@
       },
       "supportDevelopment": {
         "title": "개발 지원",
-        "description": "Handy 개발을 계속할 수 있도록 도와주세요",
+        "description": "Votype 개발을 계속할 수 있도록 도와주세요",
         "button": "후원하기"
       },
       "acknowledgments": {
@@ -472,8 +1151,149 @@
         "whisper": {
           "title": "Whisper.cpp",
           "description": "OpenAI의 Whisper 자동 음성 인식 모델의 고성능 추론",
-          "details": "Handy는 빠르고 로컬 음성-텍스트 처리를 위해 Whisper.cpp를 사용합니다. Georgi Gerganov와 기여자들의 놀라운 작업에 감사드립니다."
+          "details": "Votype는 빠르고 로컬 음성-텍스트 처리를 위해 Whisper.cpp를 사용합니다. Georgi Gerganov와 기여자들의 놀라운 작업에 감사드립니다."
         }
+      },
+      "recordingsDirectory": {
+        "description": "오디오 녹음이 저장되는 위치",
+        "title": "녹음 디렉터리"
+      },
+      "upstream": {
+        "button": "업스트림 보기",
+        "description": "Votype는 Handy v0.9.7을 기반으로 합니다",
+        "title": "업스트림 프로젝트"
+      }
+    },
+    "asrModels": {
+      "addFromUrl": "추가 및 다운로드",
+      "addSection": {
+        "description": "모델 URL을 붙여넣으세요. 파일 이름에서 모델 유형을 자동으로 추론합니다.",
+        "title": "설치"
+      },
+      "delete": "삭제",
+      "description": "로컬 전사 모델을 관리하고 빠른 선택기에 표시할 모델을 지정합니다.",
+      "download": "다운로드",
+      "favorite": "즐겨찾기",
+      "filters": {
+        "all": "전체",
+        "downloaded": "다운로드됨",
+        "favorites": "즐겨찾기",
+        "language": "언어",
+        "mode": "모드",
+        "recommended": "추천",
+        "status": "상태",
+        "type": "유형"
+      },
+      "groupBy": {
+        "language": "언어",
+        "mode": "모드",
+        "type": "유형"
+      },
+      "groups": {
+        "asr": "ASR 모델",
+        "multilingual": "다국어",
+        "punctuation": "문장부호 모델"
+      },
+      "idLabel": "id: {{id}}",
+      "install": {
+        "addCustomTagButton": "추가",
+        "button": "사용자 정의 모델 추가",
+        "customTagPlaceholder": "사용자 정의 태그...",
+        "description": "모델 아카이브의 URL을 입력하세요 (tar.gz, tar.bz2 등).",
+        "editDescription": "이 모델의 이름이나 태그를 업데이트합니다.",
+        "editTitle": "사용자 정의 모델 편집",
+        "nameLabel": "이름 (선택 사항)",
+        "placeholder": "https://example.com/model.tar.gz",
+        "remove": "사용자 정의 모델 제거",
+        "removeConfirm": "이 사용자 정의 모델을 제거할까요? 다운로드한 파일도 함께 삭제됩니다.",
+        "tagsLabel": "태그",
+        "title": "사용자 정의 모델 추가",
+        "tooltip": "URL로 모델 추가",
+        "urlLabel": "URL",
+        "edit": "사용자 정의 모델 편집"
+      },
+      "languages": {
+        "de": "독일어",
+        "en": "영어",
+        "es": "스페인어",
+        "fr": "프랑스어",
+        "ja": "일본어",
+        "ko": "한국어",
+        "multilingual": "다국어",
+        "other": "기타",
+        "ru": "러시아어",
+        "yue": "광둥어",
+        "zh": "중국어"
+      },
+      "library": {
+        "count": "모델 {{count}}개",
+        "description": "빠른 선택기에 표시할 모델을 즐겨찾기로 지정하세요.",
+        "searchPlaceholder": "모델 검색…",
+        "title": "라이브러리"
+      },
+      "modeChips": {
+        "asr": "ASR",
+        "punctuation": "문장부호"
+      },
+      "specialChips": {
+        "streaming": "스트리밍",
+        "new": "신규"
+      },
+      "pipeline": {
+        "description": "전사 후 자동으로 적용할 수 있는 전역 후처리입니다.",
+        "itn": "ITN (SenseVoice)",
+        "itnHint": "역 텍스트 정규화: 기본 서식(예: 숫자)을 처리합니다.",
+        "punctuation": "자동 문장부호",
+        "punctuationHint": "선택한 문장부호 모델로 문장 구분을 추가합니다.",
+        "punctuationModel": "문장부호 모델",
+        "punctuationModelHint": "사용할 문장부호 모델을 선택하세요.",
+        "title": "파이프라인"
+      },
+      "quickSettings": {
+        "description": "아래 설정은 전역으로 적용됩니다. 문장부호 모델은 아래 라이브러리에서 삭제하세요.",
+        "title": "빠른 설정"
+      },
+      "reset": "재설정",
+      "status": {
+        "downloaded": "다운로드됨",
+        "notDownloaded": "다운로드되지 않음"
+      },
+      "title": "로컬 모델",
+      "typeChips": {
+        "moonshine": "Moonshine",
+        "other": "기타",
+        "paraformer": "Paraformer",
+        "parakeet": "Parakeet",
+        "sensevoice": "SenseVoice",
+        "whisper": "Whisper",
+        "zipformer": "Zipformer"
+      },
+      "types": {
+        "moonshine": "Moonshine",
+        "paraformer": "Paraformer",
+        "parakeet": "Parakeet",
+        "punctuation": "문장부호",
+        "sensevoice": "SenseVoice",
+        "whisper": "Whisper",
+        "zipformer": "Zipformer"
+      },
+      "autoDownloadingPunctuation": "문장부호 모델 자동 다운로드 중..."
+    },
+    "shortcuts": {
+      "title": "단축키"
+    },
+    "vocabulary": {
+      "hotWords": {
+        "description": "자주 잘못 듣는 단어를 추가하세요. 시스템이 자동으로 교정합니다.",
+        "empty": "핫워드가 아직 없습니다",
+        "placeholder": "단어 추가...",
+        "title": "핫워드",
+        "word": "단어"
+      },
+      "import": "가져오기",
+      "deleteConfirm": {
+        "title": "삭제 확인",
+        "hotwordMessage": "이 핫워드를 제거하시겠습니까?"
       }
     }
   },
@@ -489,7 +1309,16 @@
     "downloading": "다운로드 중... {{progress}}%",
     "installing": "설치 중...",
     "preparing": "준비 중...",
-    "checkForUpdates": "업데이트 확인"
+    "checkForUpdates": "업데이트 확인",
+    "postProcess": {
+      "title": "후처리",
+      "punctuation": "자동 문장부호",
+      "translate": "영어로 번역",
+      "realtime": "실시간 미리보기",
+      "llm": "LLM 후처리",
+      "selectModel": "모델 선택...",
+      "openSettings": "설정"
+    }
   },
   "common": {
     "loading": "로딩 중...",
@@ -511,23 +1340,607 @@
     "off": "꺼짐",
     "yes": "예",
     "no": "아니오",
-    "noOptionsFound": "옵션을 찾을 수 없습니다"
+    "noOptionsFound": "옵션을 찾을 수 없습니다",
+    "locale": "ko",
+    "active": "활성",
+    "addNewOption": "새 옵션 추가",
+    "aiOptimizationFailed": "AI 최적화에 실패했습니다. 설정을 확인해주세요",
+    "aiOptimizationSuccess": "AI 최적화 성공",
+    "aiOptimize": "AI 다듬기",
+    "authorize": "승인",
+    "bold": "굵게",
+    "code": "인라인 코드",
+    "confirm": "확인",
+    "copied": "복사됨",
+    "copy": "복사",
+    "done": "완료",
+    "exitFullscreen": "복원",
+    "filterOptions": "옵션 필터링...",
+    "fullscreen": "전체 화면",
+    "granted": "승인됨",
+    "h1": "H1",
+    "id": "ID",
+    "italic": "기울임",
+    "link": "링크",
+    "list": "목록",
+    "models": "모델",
+    "next": "다음",
+    "noMatchingOptions": "일치하는 옵션 없음",
+    "notAvailable": "사용 불가",
+    "optional": "선택 사항",
+    "quote": "인용",
+    "requesting": "요청 중...",
+    "required": "필수",
+    "searchOrPaste": "검색 또는 붙여넣기...",
+    "selectAll": "모두 선택",
+    "selectOption": "옵션 선택",
+    "skip": "건너뛰기",
+    "useInput": "\"{{input}}\" 사용",
+    "useThisProvider": "이 제공자 사용",
+    "variables": "사용 가능한 변수",
+    "refresh": "새로고침",
+    "time": {
+      "justNow": "방금 전",
+      "minutesAgo": "{{count}}분 전",
+      "hoursAgo": "{{count}}시간 전",
+      "daysAgo": "{{count}}일 전"
+    },
+    "history": "히스토리",
+    "latest": "최신",
+    "localInsertCopied": "입력 필드가 없어 결과를 클립보드에 복사했습니다",
+    "insertBlocked": "{{app}}이(가) 삽입 차단 목록에 있어 내용을 클립보드에 복사했습니다. 직접 붙여넣어 주세요",
+    "expand": "사이드바 펼치기",
+    "collapse": "사이드바 접기",
+    "retry": "다시 시도",
+    "unknown": "알 수 없음",
+    "error": "오류"
   },
   "accessibility": {
     "permissionsRequired": "접근성 권한 필요",
-    "permissionsDescription": "Handy는 녹음된 텍스트를 입력하기 위해 접근성 권한이 필요합니다.",
+    "permissionsDescription": "Votype는 녹음된 텍스트를 입력하기 위해 접근성 권한이 필요합니다.",
     "openSettings": "시스템 설정 열기",
-    "dismiss": "닫기"
+    "dismiss": "닫기",
+    "verify": "확인"
   },
   "errors": {
-    "loadDirectory": "디렉토리 로딩 오류: {{error}}"
+    "loadDirectory": "디렉토리 로딩 오류: {{error}}",
+    "noInputDeviceTitle": "마이크를 사용할 수 없음",
+    "noInputDevice": "오디오 입력 장치를 찾을 수 없습니다. 시스템 설정 > 사운드 > 입력을 확인한 후 다시 시도해주세요.",
+    "recordingFailed": "녹음에 실패했습니다: {{error}}"
   },
   "appLanguage": {
     "title": "애플리케이션 언어",
-    "description": "Handy 인터페이스의 언어를 변경하세요"
+    "description": "Votype 인터페이스의 언어를 변경하세요"
   },
   "overlay": {
+    "error": {
+      "appleIntelligenceFailed": "Apple Intelligence 실패. 시스템을 확인하세요.",
+      "appleIntelligenceUnavailable": "Apple Intelligence를 사용할 수 없습니다.",
+      "llmInitFailed": "LLM 초기화 실패. 키/URL을 확인하세요.",
+      "llmRequestFailed": "LLM 요청 실패. 네트워크/API를 확인하세요.",
+      "llmNetworkError": "네트워크 오류, 재시도 중...",
+      "llmRateLimited": "요청이 제한되었습니다. 잠시 기다려주세요",
+      "llmAuthFailed": "API 키가 유효하지 않습니다. 설정을 확인하세요",
+      "llmBadRequest": "모델이 요청 파라미터를 거부했습니다 (예: min_p/top_k). 모델 파라미터를 확인하세요",
+      "llmModelNotFound": "모델을 찾을 수 없거나 활성화되지 않았습니다. 모델 ID를 확인하세요",
+      "llmApiError": "API 서비스 오류",
+      "llmParseError": "모델 응답 파싱에 실패했습니다",
+      "transcriptionFailedSaved": "전사 실패 (저장됨)"
+    },
+    "skillConfirmation": {
+      "confirmUse": "선택 항목에 적용할까요?",
+      "detectedSelection": "사용할 스킬",
+      "prompt": "이 스킬을 사용할까요?",
+      "charCount": "{{count}}자"
+    },
+    "status": {
+      "inserting": "삽입 중...",
+      "llm": "후처리 중...",
+      "recording": "녹음 중...",
+      "translation": "번역 중...",
+      "transcribing": "텍스트로 변환 중...",
+      "review": "검토...",
+      "rewrite": "처리 중…",
+      "success": "삽입됨",
+      "translationSuccess": "번역 성공"
+    },
+    "rewriteOperation": {
+      "rewrite": "재작성됨",
+      "expand": "확장됨",
+      "format": "서식 지정됨",
+      "translate": "번역됨",
+      "polish": "다듬어짐",
+      "append": "추가됨",
+      "unknown": "완료"
+    },
+    "timeout": {
+      "title": "온라인 전사 시간 초과",
+      "continue": "계속",
+      "retry": "다시 시도",
+      "cancel": "취소"
+    },
+    "ruleSuggestion": {
+      "message": "'{{promptName}}'을(를) {{appName}}에서 {{count}}번 사용했습니다 ({{title}}). 이 창에 규칙을 추가할까요?",
+      "accept": "규칙 추가",
+      "dismiss": "나중에",
+      "never": "다시 묻지 않기"
+    }
+  },
+  "dashboard": {
+    "actions": {
+      "edit": "편집",
+      "editDescription": "이 히스토리 항목의 전사 텍스트를 수정합니다",
+      "editPlaceholder": "수정할 텍스트 입력...",
+      "editTitle": "인식 결과 편집",
+      "openRecordings": "녹음 폴더",
+      "quickInsert": "{{app}}에 삽입",
+      "quickInsertEmpty": "최근 외부 앱을 찾을 수 없음",
+      "quickInsertErrorFocus": "대상 창 활성화에 실패했습니다",
+      "quickInsertErrorNoTarget": "삽입할 대상 앱이 없습니다",
+      "quickInsertErrorPaste": "붙여넣기에 실패했습니다",
+      "reprocessFailed": "AI 재처리에 실패했습니다",
+      "retranscribe": "오디오로 다시 전사",
+      "rejectPolish": "다듬기 결과 거부",
+      "retranscribeFailed": "다시 전사하지 못했습니다",
+      "retranscribing": "다시 전사 중..."
+    },
+    "activity": {
+      "entries": "{{count}}개 항목",
+      "subtitle": "최근 40일",
+      "title": "사용량"
+    },
+    "cards": {
+      "allTime": "전체 기간",
+      "recent": "최근 {{days}}일",
+      "today": "오늘"
+    },
+    "dateLabels": {
+      "today": "오늘",
+      "yesterday": "어제"
+    },
+    "errorIndicator": {
+      "errorTypeLabel": {
+        "asr_empty": "ASR 결과 없음",
+        "llm_api_error": "제공자 오류 반환",
+        "llm_auth_failed": "인증 실패",
+        "llm_bad_request": "잘못된 요청",
+        "llm_config_error": "모델/제공자 설정 오류",
+        "llm_empty_result": "빈 응답",
+        "llm_init_failed": "클라이언트 초기화 실패",
+        "llm_model_not_found": "모델을 찾을 수 없음 (404)",
+        "llm_network_error": "네트워크 오류",
+        "llm_parse_error": "응답 파싱 실패",
+        "llm_rate_limited": "요청 제한 (429)",
+        "llm_timeout": "시간 초과 (10초)",
+        "llm_unknown": "알 수 없는 LLM 오류",
+        "pipeline_timeout": "파이프라인 시간 초과 (20초)"
+      },
+      "errorsOnlyToggle": "실패만",
+      "panelDetail": "상세",
+      "panelErrorType": "오류 유형",
+      "panelModel": "모델",
+      "panelProvider": "제공자",
+      "panelTimestamp": "시간",
+      "stageAsr": "ASR",
+      "stagePolish": "다듬기",
+      "tooltipAsrEmpty": "ASR이 빈 결과를 반환했습니다",
+      "tooltipPolishFailed": "다듬기에 실패했습니다",
+      "tooltipPolishProviderError": "다듬기 실패 ({{status}})",
+      "tooltipPolishTimeout": "다듬기 시간 초과"
+    },
+    "details": {
+      "audioRemoved": "녹음 삭제됨",
+      "cancelled": "취소됨",
+      "count": "{{count}}개 항목",
+      "empty": "데이터 없음",
+      "emptyHint": "단축키를 눌러 첫 전사를 시작하세요",
+      "loadMore": "더 불러오기",
+      "meta": {
+        "chars": "{{value}}자"
+      },
+      "recordCount": "{{count}}개 기록",
+      "title": "히스토리"
+    },
+    "metrics": {
+      "characters": "글자 수",
+      "duration": "오디오 시간",
+      "entries": "전사 횟수",
+      "postProcessed": "후처리됨",
+      "saved": "저장됨"
+    },
+    "range": {
+      "allTime": "전체 기간",
+      "buttons": {
+        "allTime": "전체 기간",
+        "last30Days": "최근 30일",
+        "last40Days": "최근 40일",
+        "last7Days": "최근 7일"
+      },
+      "lastNDays": "최근 {{days}}일",
+      "today": "오늘"
+    },
+    "summary": {
+      "apps": {
+        "empty": "앱 데이터 없음",
+        "title": "가장 많이 사용한 앱 Top 3",
+        "top3": "Top 3"
+      },
+      "llm": {
+        "calls": "모델 호출 {{count}}회",
+        "title": "LLM 사용량",
+        "unknownApp": "알 수 없음"
+      },
+      "recording": {
+        "count": "전사 {{count}}회",
+        "title": "총 음성 입력"
+      },
+      "transcription": {
+        "speed": "평균 {{rate}}/분",
+        "title": "생성된 텍스트"
+      }
+    },
+    "title": "대시보드"
+  },
+  "models": {
+    "large": {
+      "description": "좋은 정확도지만 느립니다.",
+      "name": "Whisper Large"
+    },
+    "medium": {
+      "description": "좋은 정확도, 중간 속도",
+      "name": "Whisper Medium"
+    },
+    "parakeet-tdt-0.6b-v2": {
+      "description": "영어 전용. 영어 사용자를 위한 최고의 모델.",
+      "name": "Parakeet V2"
+    },
+    "parakeet-tdt-0.6b-v3": {
+      "description": "빠르고 정확함",
+      "name": "Parakeet V3"
+    },
+    "punct-zh-en-ct-transformer-2024-04-12": {
+      "description": "중국어+영어 혼합 텍스트에 문장부호와 문장 구분을 추가합니다. 대형 모델로 더 정확하지만 느립니다. 2024-04-12 업데이트.",
+      "name": "문장부호 (중국어 + 영어) Large"
+    },
+    "punct-zh-en-ct-transformer-2024-04-12-int8": {
+      "description": "중국어+영어 혼합 텍스트에 문장부호와 문장 구분을 추가합니다. Int8이라 빠르고 가볍습니다. 2024-04-12 업데이트.",
+      "name": "문장부호 (중국어 + 영어)"
+    },
+    "small": {
+      "description": "빠르고 상당히 정확합니다.",
+      "name": "Whisper Small"
+    },
+    "turbo": {
+      "description": "정확도와 속도의 균형.",
+      "name": "Whisper Turbo"
+    }
+  },
+  "inline": {
+    "listening": "듣는 중...",
     "transcribing": "텍스트로 변환 중...",
-    "processing": "처리 중..."
+    "polishing": "다듬는 중...",
+    "executing": "실행 중...",
+    "complete": "완료",
+    "modeToggle": "편집 모드",
+    "closeConfirmTitle": "저장되지 않은 변경사항",
+    "closeConfirmMessage": "내용이 수정되었습니다. 닫으시겠습니까?",
+    "closeConfirmOk": "닫기",
+    "closeConfirmCancel": "취소",
+    "sectionTitle": "전사 결과",
+    "undo": "실행 취소",
+    "redo": "다시 실행",
+    "placeholder": "단축키를 눌러 받아쓰기를 시작하세요..."
+  },
+  "soundPicker": {
+    "custom": "사용자 정의",
+    "marimba": "마림바",
+    "pop": "팝",
+    "chime": "차임",
+    "switch": "스위치",
+    "pluck": "플럭",
+    "toggle": "토글",
+    "twotone": "투톤",
+    "pep": "펩",
+    "power": "파워",
+    "zap": "잽",
+    "blip": "블립",
+    "mouse": "마우스 클릭",
+    "wood": "나무 두드림",
+    "preview": "미리듣기"
+  },
+  "summary": {
+    "periodSelector": {
+      "title": "기간",
+      "day": "오늘",
+      "week": "주",
+      "month": "월"
+    },
+    "stats": {
+      "entries": "항목",
+      "chars": "글자 수",
+      "duration": "소요 시간",
+      "aiCalls": "AI 호출",
+      "noApps": "앱 데이터 없음",
+      "appDistribution": "앱 분포",
+      "timeDistribution": "시간 분포"
+    },
+    "recap": {
+      "title": "일일 요약",
+      "empty": "이 기간에는 요약을 만들 만큼 활동이 충분하지 않습니다.",
+      "progress": "주요 진행 상황",
+      "friction": "마찰",
+      "nextFocus": "다음 집중 사항",
+      "blockers": "장애 요인",
+      "nextStep": "제안된 다음 단계",
+      "records": "기록"
+    },
+    "timeline": {
+      "title": "히스토리",
+      "days": "일",
+      "weeks": "주",
+      "months": "개월",
+      "empty": "요약이 아직 없습니다"
+    },
+    "actions": {
+      "export": "내보내기"
+    },
+    "export": {
+      "markdown": "Markdown으로 내보내기",
+      "json": "JSON으로 내보내기"
+    },
+    "aiAnalysis": {
+      "title": "AI 분석",
+      "generate": "생성",
+      "generating": "생성 중...",
+      "view": "보기",
+      "selectModel": "모델 선택",
+      "provider": "제공자",
+      "modelUsed": "사용된 모델",
+      "clickToGenerate": "클릭하여 활동에 대한 AI 분석 생성",
+      "communicationStyle": "커뮤니케이션 스타일",
+      "reflection": "성찰 및 제안",
+      "empty": "'생성'을 클릭하면 활동에 대한 AI 인사이트를 받을 수 있습니다.",
+      "updateProfile": "프로필 업데이트"
+    },
+    "userProfile": {
+      "currentStyle": "현재 스타일 프로필"
+    }
+  },
+  "theme": {
+    "accentColor": {
+      "amber": "앰버",
+      "blue": "블루",
+      "bronze": "브론즈",
+      "brown": "브라운",
+      "crimson": "크림슨",
+      "current": "현재: {{color}}",
+      "cyan": "시안",
+      "description": "앱 전체에 사용할 강조 색상을 선택하세요",
+      "gold": "골드",
+      "grass": "그래스",
+      "gray": "그레이",
+      "green": "그린",
+      "indigo": "인디고",
+      "iris": "아이리스",
+      "jade": "제이드",
+      "lime": "라임",
+      "mint": "민트",
+      "orange": "오렌지",
+      "pink": "핑크",
+      "plum": "플럼",
+      "purple": "퍼플",
+      "red": "레드",
+      "ruby": "루비",
+      "sky": "스카이",
+      "teal": "틸",
+      "title": "강조 색상",
+      "tomato": "토마토",
+      "violet": "바이올렛",
+      "yellow": "옐로우"
+    },
+    "compactMode": {
+      "description": "설명을 툴팁으로 표시",
+      "title": "컴팩트 모드"
+    },
+    "cornerRadius": {
+      "capsule": "캡슐",
+      "capsuleDesc": "완전히 둥근 모서리",
+      "default": "기본",
+      "defaultDesc": "표준 모서리 둥글기",
+      "description": "모서리의 둥글기를 조정하세요",
+      "rounded": "둥글게",
+      "roundedDesc": "더 둥근 모서리",
+      "sharp": "각지게",
+      "sharpDesc": "모서리 둥글기 없음",
+      "soft": "부드럽게",
+      "softDesc": "약간 둥근 모서리",
+      "title": "모서리 둥글기"
+    },
+    "panelStyle": {
+      "description": "반투명 또는 불투명 패널 중에서 선택하세요",
+      "solid": "불투명",
+      "solidDesc": "불투명 패널",
+      "title": "패널 스타일",
+      "translucent": "반투명",
+      "translucentDesc": "프로스트 글래스 효과"
+    },
+    "scaling": {
+      "current": "현재: {{scale}}",
+      "description": "UI 배율 조정",
+      "title": "배율"
+    },
+    "themeMode": {
+      "dark": "다크",
+      "darkDesc": "항상 다크 테마 사용",
+      "description": "Votype의 모양을 선택하세요",
+      "light": "라이트",
+      "lightDesc": "항상 라이트 테마 사용",
+      "system": "시스템",
+      "systemDesc": "시스템 테마에 맞춤",
+      "title": "테마 모드"
+    },
+    "title": "테마"
+  },
+  "transcription": {
+    "review": {
+      "aiResponse": "AI 응답",
+      "change": "변경",
+      "confidence": "신뢰도",
+      "confirm": "확인 후 삽입",
+      "description": "전사에 오류가 있을 수 있습니다. 검토하고 필요하면 수정하세요.",
+      "final": "최종 출력",
+      "generationTitle": "AI 어시스턴트 응답",
+      "highlightHint": "강조된 단어는 LLM이 수정한 부분입니다.",
+      "hint": "⌘/Ctrl + Enter로 확인, Escape로 취소",
+      "insert": "삽입",
+      "insertCode": "코드 삽입",
+      "insertOriginal": "원본 삽입 (Tab)",
+      "insertStabilityHint": "단축키: {{shortcut}}\n삽입이 불안정하면 이 기능을 잠시 비활성화할 수 있습니다.",
+      "instruction": "지시사항",
+      "placeholder": "전사 편집...",
+      "source": "실시간 전사",
+      "title": "전사 검토",
+      "skipPostProcess": "후처리 건너뛰기",
+      "hideDiff": "차이 숨기기",
+      "showDiff": "차이 보기",
+      "translateText": "번역",
+      "translationResult": "번역 결과",
+      "translationPreview": "영어 미리보기",
+      "translationPreviewLangLabel": "영어",
+      "translationModeAuto": "자동",
+      "translationModeManual": "수동",
+      "translationUpdating": "번역 중...",
+      "translationWaiting": "편집 후 1초 뒤 자동 업데이트",
+      "translationFailedFallback": "번역에 실패하여 원본 텍스트가 삽입됩니다",
+      "translationReady": "업데이트됨",
+      "analysisTitle": "분석:",
+      "deviationNone": "완벽히 일치",
+      "deviationMinor": "약간의 변경",
+      "deviationMajor": "상당한 변경",
+      "insertTranslation": "번역 삽입",
+      "insertPolished": "다듬은 텍스트 삽입",
+      "insertEnglish": "영어 삽입",
+      "resizeGrip": "드래그하여 크기 조절, 더블클릭하면 자동 맞춤",
+      "multiModel": "다중 모델 결과",
+      "processing": "처리 중...",
+      "restoreOrder": "원래 순서 복원",
+      "sortBySpeed": "응답 속도순 정렬",
+      "speedSorted": "속도 우선",
+      "sortBySpeedShort": "속도순",
+      "rankCount": "#{{rank}} ({{count}}회)",
+      "sortByChange": "변경량순 정렬",
+      "changeSorted": "변경 우선",
+      "sortLabel": "정렬",
+      "pressEscAgain": "내용이 수정되었습니다. ESC를 다시 누르면 닫힙니다",
+      "speedHistoryAvg": "과거 평균: {{speed}} ({{count}}회 호출)",
+      "speedThisRun": "이번 실행: {{speed}} ({{diff}})"
+    }
+  },
+  "secureInput": {
+    "blockedWithCulprit_one": "{{name}}이(가) 단축키 1개를 차단하고 있을 수 있습니다",
+    "blockedWithCulprit_other": "{{name}}이(가) 단축키 {{count}}개를 차단하고 있을 수 있습니다",
+    "blockedNoCulprit_one": "macOS가 일시적으로 단축키 1개를 차단하고 있습니다",
+    "blockedNoCulprit_other": "macOS가 일시적으로 단축키 {{count}}개를 차단하고 있습니다",
+    "recorderBlockedWithCulprit": "{{name}}이(가) 단축키 변경을 차단하고 있을 수 있습니다",
+    "recorderBlockedNoCulprit": "macOS가 일시적으로 단축키 변경을 차단하고 있습니다",
+    "learnMore": "해결 방법",
+    "recorderBlocked": "지금은 단축키를 기록할 수 없습니다 — macOS 보안 입력이 키 이벤트를 차단하고 있습니다. 먼저 보안 입력 경고를 해결하세요.",
+    "dismiss": "닫기"
+  },
+  "ruleSuggestion": {
+    "title": "이 창에 규칙을 추가할까요?",
+    "app": "앱",
+    "window": "창",
+    "prompt": "프롬프트",
+    "used": "사용됨",
+    "times": "{{count}}회",
+    "description": "추가하면 다음에 이 창에서 녹음할 때 이 프롬프트가 자동으로 적용됩니다.",
+    "dismiss": "이번에는 안 함",
+    "neverAgain": "다시 묻지 않기",
+    "addRule": "규칙 추가"
+  },
+  "hotword": {
+    "addBar": {
+      "placeholder": "핫워드 입력 (쉼표로 구분하면 한 번에 추가)...",
+      "words": "단어 {{count}}개",
+      "add": "추가",
+      "addCount": "추가 ({{count}})"
+    },
+    "source": {
+      "manual": "수동",
+      "autoLearned": "자동 학습",
+      "aiExtracted": "AI 추출"
+    },
+    "scenario": {
+      "work": "업무",
+      "casual": "일상"
+    },
+    "tagCloud": {
+      "add": "추가",
+      "import": "가져오기",
+      "export": "내보내기",
+      "sortByWeight": "가중치순 정렬",
+      "sortByAlpha": "가나다순 정렬",
+      "searchPlaceholder": "핫워드 검색...",
+      "aiSuggestions": "AI 제안 ({{count}})",
+      "acceptAll": "모두 수락",
+      "dismissAll": "모두 무시",
+      "contextFrequent": "컨텍스트에서 자주 등장",
+      "acceptSuggestion": "제안 수락",
+      "dismissSuggestion": "제안 무시",
+      "empty": "핫워드가 아직 없습니다. \"추가\"를 클릭해 첫 핫워드를 만드세요.",
+      "noMatch": "\"{{query}}\"와 일치하는 핫워드가 없습니다",
+      "dropHere": "여기에 놓기"
+    },
+    "editPanel": {
+      "addAlias": "{{label}} 단어 추가",
+      "duplicate": "\"{{target}}\"이(가) 이미 존재합니다",
+      "saveFailed": "저장에 실패했습니다",
+      "targetPlaceholder": "대상 단어",
+      "decreaseWeight": "가중치 낮추기",
+      "increaseWeight": "가중치 높이기",
+      "falsePositive": "오탐 {{count}}회",
+      "deleteHotword": "핫워드 삭제",
+      "category": "카테고리",
+      "scenario": "시나리오",
+      "correction": "교정",
+      "correctionDesc": "교정 참조로 사용되며 LLM 프롬프트에 주입됩니다. 별칭을 \"강제\"로 드래그하면 로컬 직접 치환으로 바뀝니다.",
+      "correctionPlaceholder": "교정 단어 추가",
+      "force": "강제",
+      "forceDesc": "로컬에서 정확히 치환만 하며 LLM에는 전송되지 않습니다. 별칭을 다시 \"교정\"으로 드래그하면 AI 참조로 복원됩니다.",
+      "forcePlaceholder": "강제 단어 추가",
+      "none": "없음",
+      "confirmDeleteTitle": "삭제 확인",
+      "confirmDeleteDesc": "핫워드 \"{{target}}\"을(를) 삭제할까요?"
+    },
+    "categoryDialog": {
+      "colors": {
+        "gray": "그레이",
+        "green": "그린",
+        "orange": "오렌지",
+        "blue": "블루",
+        "purple": "퍼플",
+        "red": "레드",
+        "cyan": "시안",
+        "amber": "앰버",
+        "teal": "틸",
+        "pink": "핑크"
+      },
+      "idInvalid": "ID는 문자, 숫자, 하이픈만 포함할 수 있습니다",
+      "idDuplicate": "카테고리 ID \"{{id}}\"이(가) 이미 존재합니다",
+      "addFailed": "추가에 실패했습니다",
+      "saveFailed": "저장에 실패했습니다",
+      "deleteFailed": "삭제에 실패했습니다",
+      "manageTooltip": "카테고리 관리",
+      "title": "핫워드 카테고리 관리",
+      "description": "각 카테고리의 이름, 색상, 아이콘을 사용자 정의하세요. 내장 카테고리는 삭제할 수 없습니다.",
+      "namePlaceholder": "카테고리 이름",
+      "builtin": "내장",
+      "deleteTooltip": "삭제 (핫워드는 용어로 이동)",
+      "idPlaceholder": "ID (예: medical)",
+      "labelPlaceholder": "이름 (예: 의료)",
+      "idInvalidDetail": "ID는 문자, 숫자, 하이픈(-)만 포함할 수 있습니다",
+      "addCategory": "카테고리 추가"
+    }
   }
 }

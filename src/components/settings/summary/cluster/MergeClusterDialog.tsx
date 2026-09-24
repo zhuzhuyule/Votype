@@ -6,6 +6,7 @@ import {
   Text,
   ScrollArea,
 } from "@radix-ui/themes";
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import type { TaskCluster } from "../summaryTypes";
 
@@ -24,6 +25,7 @@ export function MergeClusterDialog({
   onCancel,
   onConfirm,
 }: MergeClusterDialogProps) {
+  const { t } = useTranslation();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
 
@@ -52,16 +54,17 @@ export function MergeClusterDialog({
   return (
     <Dialog.Root open={open} onOpenChange={(o) => !o && onCancel()}>
       <Dialog.Content style={{ maxWidth: 520 }}>
-        <Dialog.Title>合并到「{targetCluster.title}」</Dialog.Title>
+        <Dialog.Title>
+          {t("settings.summary.merge.title", { title: targetCluster.title })}
+        </Dialog.Title>
         <Dialog.Description size="2" mb="3">
-          选择要并入的 cluster。被并入的 cluster 会被删除，其 source_ids
-          与关键词合并到当前 cluster。
+          {t("settings.summary.merge.hint")}
         </Dialog.Description>
         <ScrollArea type="auto" style={{ maxHeight: 320 }}>
           <Flex direction="column" gap="2">
             {candidates.length === 0 && (
               <Text size="2" color="gray">
-                当日没有其他 cluster 可合并。
+                {t("settings.summary.merge.noOthers")}
               </Text>
             )}
             {candidates.map((c) => (
@@ -87,11 +90,12 @@ export function MergeClusterDialog({
         <Flex gap="3" mt="4" justify="end">
           <Dialog.Close>
             <Button variant="soft" color="gray">
-              取消
+              {t("common.cancel")}
             </Button>
           </Dialog.Close>
           <Button disabled={selected.size === 0 || submitting} onClick={submit}>
-            合并 {selected.size > 0 && `(${selected.size})`}
+            {t("settings.summary.merge.confirm")}
+            {selected.size > 0 ? ` (${selected.size})` : ""}
           </Button>
         </Flex>
       </Dialog.Content>

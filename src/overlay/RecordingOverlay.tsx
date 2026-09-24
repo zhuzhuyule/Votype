@@ -239,9 +239,7 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
 
           // Unknown/missing code: fall back to a generic localized label so we
           // don't dump raw provider output into the overlay.
-          setErrorText(
-            t("overlay.error.llmRequestFailed", "LLM 请求失败，请检查网络/API"),
-          );
+          setErrorText(t("overlay.error.llmRequestFailed"));
         },
       );
       if (disposed) {

@@ -1,6 +1,7 @@
 import { Button, Flex, Text } from "@radix-ui/themes";
 import { invoke } from "@tauri-apps/api/core";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 interface ExportSectionProps {
@@ -8,10 +9,11 @@ interface ExportSectionProps {
 }
 
 export function ExportSection({ summaryId }: ExportSectionProps) {
+  const { t } = useTranslation();
   if (!summaryId) {
     return (
       <Text size="2" color="gray">
-        请先选择 Summary
+        {t("settings.summary.export.pleaseSelect")}
       </Text>
     );
   }
@@ -23,19 +25,21 @@ export function ExportSection({ summaryId }: ExportSectionProps) {
         format,
       });
       await writeText(content);
-      toast.success(`${format.toUpperCase()} 已复制到剪贴板`);
+      toast.success(
+        t("settings.summary.export.copied", { format: format.toUpperCase() }),
+      );
     } catch (e) {
-      toast.error(`导出失败: ${e}`);
+      toast.error(t("settings.summary.export.failed", { error: String(e) }));
     }
   };
 
   return (
     <Flex direction="column" gap="2">
       <Button size="2" variant="soft" onClick={() => exportAs("markdown")}>
-        导出 Markdown
+        {t("settings.summary.export.markdown")}
       </Button>
       <Button size="2" variant="soft" onClick={() => exportAs("json")}>
-        导出 JSON
+        {t("settings.summary.export.json")}
       </Button>
     </Flex>
   );

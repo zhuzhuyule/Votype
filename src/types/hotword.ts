@@ -29,13 +29,15 @@ export interface HotwordCategoryMeta {
   is_builtin: boolean;
 }
 
-export const SOURCE_LABELS: Record<HotwordSource, string> = {
-  manual: "手动",
-  auto_learned: "自动学习",
-  ai_extracted: "AI 提取",
+// 这里是 i18n key 而不是展示文案：本文件是纯 TS 模块，拿不到 useTranslation，
+// 由消费方组件负责 t() 解析。
+export const SOURCE_LABEL_KEYS: Record<HotwordSource, string> = {
+  manual: "hotword.source.manual",
+  auto_learned: "hotword.source.autoLearned",
+  ai_extracted: "hotword.source.aiExtracted",
 };
 
-export const SCENARIO_LABELS: Record<HotwordScenario, string> = {
-  work: "工作",
-  casual: "日常",
+export const SCENARIO_LABEL_KEYS: Record<HotwordScenario, string> = {
+  work: "hotword.scenario.work",
+  casual: "hotword.scenario.casual",
 };

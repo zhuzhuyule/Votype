@@ -29,13 +29,14 @@ import {
   IconX,
 } from "@tabler/icons-react";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type {
   Hotword,
   HotwordCategory,
   HotwordCategoryMeta,
   HotwordScenario,
 } from "../../../types/hotword";
-import { SOURCE_LABELS } from "../../../types/hotword";
+import { SOURCE_LABEL_KEYS } from "../../../types/hotword";
 import { resolveIcon } from "../../../lib/hotwordIcons";
 import { CategoryManageDialog } from "./CategoryManageDialog";
 import { HotwordAddBar } from "./HotwordAddBar";
@@ -125,6 +126,7 @@ export const HotwordTagCloud: React.FC<HotwordTagCloudProps> = ({
   onUpdateCategoryMeta,
   onDeleteCategory,
 }) => {
+  const { t } = useTranslation();
   const [search, setSearch] = useState("");
   const [sortMode, setSortMode] = useState<"alpha" | "weight">("alpha");
   const [showAddBar, setShowAddBar] = useState(false);
@@ -272,11 +274,11 @@ export const HotwordTagCloud: React.FC<HotwordTagCloudProps> = ({
               onClick={() => setShowAddBar(!showAddBar)}
             >
               <IconPlus size={14} />
-              添加
+              {t("hotword.tagCloud.add")}
             </Button>
             <Button size="2" variant="soft" onClick={onImport}>
               <IconUpload size={14} />
-              导入
+              {t("hotword.tagCloud.import")}
             </Button>
             <Button
               size="2"
@@ -285,7 +287,7 @@ export const HotwordTagCloud: React.FC<HotwordTagCloudProps> = ({
               disabled={hotwords.length === 0}
             >
               <IconDownload size={14} />
-              导出
+              {t("hotword.tagCloud.export")}
             </Button>
             <CategoryManageDialog
               categories={categories}
@@ -296,7 +298,11 @@ export const HotwordTagCloud: React.FC<HotwordTagCloudProps> = ({
           </Flex>
           <Flex align="center" gap="2">
             <Tooltip
-              content={sortMode === "alpha" ? "按权重排序" : "按字母排序"}
+              content={
+                sortMode === "alpha"
+                  ? t("hotword.tagCloud.sortByWeight")
+                  : t("hotword.tagCloud.sortByAlpha")
+              }
             >
               <IconButton
                 size="2"
@@ -318,7 +324,7 @@ export const HotwordTagCloud: React.FC<HotwordTagCloudProps> = ({
                 size="2"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="搜索热词..."
+                placeholder={t("hotword.tagCloud.searchPlaceholder")}
               >
                 <TextField.Slot>
                   <IconSearch size={14} />
@@ -355,7 +361,9 @@ export const HotwordTagCloud: React.FC<HotwordTagCloudProps> = ({
               <Flex direction="column" gap="2">
                 <Flex justify="between" align="center">
                   <Text size="1" weight="bold" className="text-amber-900">
-                    AI 建议 ({suggestions.length})
+                    {t("hotword.tagCloud.aiSuggestions", {
+                      count: suggestions.length,
+                    })}
                   </Text>
                   <Flex gap="1">
                     <Button
@@ -364,7 +372,7 @@ export const HotwordTagCloud: React.FC<HotwordTagCloudProps> = ({
                       color="green"
                       onClick={onAcceptAll}
                     >
-                      全部采纳
+                      {t("hotword.tagCloud.acceptAll")}
                     </Button>
                     <Button
                       size="1"
@@ -372,7 +380,7 @@ export const HotwordTagCloud: React.FC<HotwordTagCloudProps> = ({
                       color="gray"
                       onClick={onDismissAll}
                     >
-                      全部清除
+                      {t("hotword.tagCloud.dismissAll")}
                     </Button>
                   </Flex>
                 </Flex>
@@ -388,10 +396,11 @@ export const HotwordTagCloud: React.FC<HotwordTagCloudProps> = ({
                     const sourceText =
                       s.originals.length > 0
                         ? s.originals.join(" / ")
-                        : "上下文高频词";
+                        : t("hotword.tagCloud.contextFrequent");
                     const targetCategoryLabel =
                       categoryMap[s.category]?.label ?? s.category;
-                    const sourceLabel = SOURCE_LABELS[s.source] ?? s.source;
+                    const sourceKey = SOURCE_LABEL_KEYS[s.source];
+                    const sourceLabel = sourceKey ? t(sourceKey) : s.source;
                     return (
                       <div
                         key={s.id}
@@ -418,7 +427,9 @@ export const HotwordTagCloud: React.FC<HotwordTagCloudProps> = ({
                               variant="soft"
                               color="green"
                               radius="full"
-                              aria-label="采纳建议"
+                              aria-label={t(
+                                "hotword.tagCloud.acceptSuggestion",
+                              )}
                               className="h-7 w-7 opacity-85 transition-[opacity,transform,box-shadow] hover:!opacity-100 hover:scale-105 hover:shadow-sm"
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -433,7 +444,9 @@ export const HotwordTagCloud: React.FC<HotwordTagCloudProps> = ({
                               variant="soft"
                               color="red"
                               radius="full"
-                              aria-label="忽略建议"
+                              aria-label={t(
+                                "hotword.tagCloud.dismissSuggestion",
+                              )}
                               className="h-7 w-7 opacity-85 transition-[opacity,transform,box-shadow] hover:!opacity-100 hover:scale-105 hover:shadow-sm"
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -476,19 +489,19 @@ export const HotwordTagCloud: React.FC<HotwordTagCloudProps> = ({
 
           {loading && (
             <Text size="2" color="gray" className="py-8 text-center">
-              加载中...
+              {t("common.loading")}
             </Text>
           )}
 
           {!loading && hotwords.length === 0 && (
             <Text size="2" color="gray" className="py-8 text-center">
-              暂无热词，点击"添加"按钮添加新热词
+              {t("hotword.tagCloud.empty")}
             </Text>
           )}
 
           {!loading && hotwords.length > 0 && filteredHotwords.length === 0 && (
             <Text size="2" color="gray" className="py-4 text-center">
-              未找到匹配「{search}」的热词
+              {t("hotword.tagCloud.noMatch", { query: search })}
             </Text>
           )}
 
@@ -540,7 +553,7 @@ export const HotwordTagCloud: React.FC<HotwordTagCloudProps> = ({
                             color="gray"
                             className="py-2 opacity-50"
                           >
-                            拖放到此分类
+                            {t("hotword.tagCloud.dropHere")}
                           </Text>
                         )}
                       </Flex>

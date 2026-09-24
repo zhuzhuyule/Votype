@@ -1,9 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
+import { useTranslation } from "react-i18next";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { ClusterFeedback } from "../summaryTypes";
 
 export function useClusterFeedback(clusterId: string | null) {
+  const { t } = useTranslation();
   const [items, setItems] = useState<ClusterFeedback[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -19,7 +21,9 @@ export function useClusterFeedback(clusterId: string | null) {
       });
       setItems(list);
     } catch (e) {
-      toast.error(`加载反馈失败: ${e}`);
+      toast.error(
+        t("settings.summary.feedbackLoadFailed", { error: String(e) }),
+      );
     } finally {
       setLoading(false);
     }
@@ -36,7 +40,9 @@ export function useClusterFeedback(clusterId: string | null) {
         });
         await refresh();
       } catch (e) {
-        toast.error(`提交反馈失败: ${e}`);
+        toast.error(
+          t("settings.summary.feedbackSubmitFailed", { error: String(e) }),
+        );
       }
     },
     [clusterId, refresh],
@@ -48,7 +54,9 @@ export function useClusterFeedback(clusterId: string | null) {
         await invoke("delete_cluster_feedback", { id });
         await refresh();
       } catch (e) {
-        toast.error(`删除反馈失败: ${e}`);
+        toast.error(
+          t("settings.summary.feedbackDeleteFailed", { error: String(e) }),
+        );
       }
     },
     [refresh],

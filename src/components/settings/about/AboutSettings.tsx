@@ -69,6 +69,21 @@ export const AboutSettings: React.FC = () => {
         </SettingContainer>
 
         <SettingContainer
+          title={t("settings.about.upstream.title")}
+          description={t("settings.about.upstream.description")}
+          grouped={true}
+          descriptionMode="inline"
+        >
+          <Button
+            variant="outline"
+            size="2"
+            onClick={() => openUrl("https://github.com/cjpais/Handy")}
+          >
+            {t("settings.about.upstream.button")}
+          </Button>
+        </SettingContainer>
+
+        <SettingContainer
           title={t("settings.about.supportDevelopment.title")}
           description={t("settings.about.supportDevelopment.description")}
           grouped={true}

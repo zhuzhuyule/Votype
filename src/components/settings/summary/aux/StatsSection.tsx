@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Box, Grid, Text } from "@radix-ui/themes";
 import type { SummaryStats } from "../summaryTypes";
 
@@ -28,16 +29,17 @@ function StatCard({ label, value }: { label: string; value: string }) {
 }
 
 export function StatsSection({ stats, loading }: StatsSectionProps) {
+  const { t } = useTranslation();
   if (loading)
     return (
       <Text size="2" color="gray">
-        加载中...
+        {t("common.loading")}
       </Text>
     );
   if (!stats)
     return (
       <Text size="2" color="gray">
-        无统计数据
+        {t("settings.summary.stats.empty")}
       </Text>
     );
 

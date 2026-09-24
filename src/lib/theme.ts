@@ -77,14 +77,16 @@ export const FONT_FAMILY_MAP: Record<string, string> = {
  * Display labels for the font picker. Kept alongside the map so new fonts
  * only need to be added in one place.
  */
+// Display labels for the font picker. Values are i18n keys (resolved at render
+// time via t() in the consumer) so the dropdown localizes with the rest of the UI.
 export const FONT_FAMILY_LABELS: Record<string, string> = {
-  default: "默认（系统 UI）",
-  sfPro: "SF Pro",
-  helvetica: "Helvetica Neue / Arial",
-  rounded: "SF Pro Rounded（圆体）",
-  kaiti: "楷体 (Kaiti)",
-  songti: "宋体 (Songti)",
-  mono: "等宽 (Monospace)",
+  default: "settings.general.font.labels.default",
+  sfPro: "settings.general.font.labels.sfPro",
+  helvetica: "settings.general.font.labels.helvetica",
+  rounded: "settings.general.font.labels.rounded",
+  kaiti: "settings.general.font.labels.kaiti",
+  songti: "settings.general.font.labels.songti",
+  mono: "settings.general.font.labels.mono",
 };
 
 export const STORAGE_KEY = "votype_ui_theme_config";

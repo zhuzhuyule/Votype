@@ -1,12 +1,4 @@
 {
-  "tray": {
-    "settings": "Configurações...",
-    "checkUpdates": "Verificar Atualizações...",
-    "copyLastTranscript": "Copiar última transcrição",
-    "unloadModel": "Descarregar modelo",
-    "quit": "Sair",
-    "cancel": "Cancelar"
-  },
   "sidebar": {
     "general": "Geral",
     "models": "Modelos",
@@ -14,15 +6,23 @@
     "postProcessing": "Pós-Processamento",
     "history": "Histórico",
     "debug": "Depuração",
-    "about": "Sobre"
+    "about": "Sobre",
+    "appProfiles": "Perfis de Aplicativos",
+    "dashboard": "Painel",
+    "expertMode": "Modo Especialista",
+    "expertModeHint": "Mostrar opções avançadas de configurações",
+    "prompts": "Prompts",
+    "shortcuts": "Atalhos",
+    "summary": "Resumo",
+    "vocabulary": "Vocabulário",
+    "asrModels": "Modelos ASR",
+    "dailyVocabulary": "Vocabulário Diário"
   },
   "onboarding": {
     "subtitle": "Para começar, escolha um modelo de transcrição",
     "recommended": "Recomendado",
     "download": "Baixar",
     "downloading": "Baixando...",
-    "customModelDescription": "Não suportado oficialmente",
-    "downloadFailed": "Falha no download. Por favor, tente novamente.",
     "modelCard": {
       "accuracy": "precisão",
       "speed": "velocidade"
@@ -52,38 +52,67 @@
         "name": "Parakeet V3",
         "description": "Rápido e preciso"
       },
-      "moonshine-base": {
-        "name": "Moonshine Base",
-        "description": "Very fast, English only. Handles accents well."
-      }
+      "description": "Selecione um modelo para começar. Os modelos recomendados funcionam bem na maioria dos casos.",
+      "showMore": "Mais Modelos",
+      "title": "Escolha um Modelo"
     },
     "errors": {
       "loadModels": "Falha ao carregar modelos disponíveis",
       "downloadModel": "Falha ao baixar modelo: {{error}}"
     },
-    "permissions": {
-      "title": "Permissões Necessárias",
-      "description": "O Handy precisa de algumas permissões para funcionar corretamente.",
-      "microphone": {
-        "title": "Acesso ao Microfone",
-        "description": "Necessário para ouvir sua voz para transcrição."
-      },
-      "accessibility": {
-        "title": "Acesso à Acessibilidade",
-        "description": "Necessário para digitar o texto transcrito em seus aplicativos."
-      },
+    "accessibility": {
+      "description": "Esta permissão possibilita a colagem automática de texto",
+      "feature1": "Colar automaticamente a transcrição no aplicativo atual",
+      "feature2": "Obter a posição do cursor para posicionar a sobreposição",
+      "feature3": "Simular atalhos de teclado para colar",
       "grant": "Conceder Permissão",
-      "granted": "Concedido",
-      "waiting": "Aguardando...",
-      "allGranted": "Tudo pronto!",
-      "errors": {
-        "checkFailed": "Erro ao verificar permissões. Por favor, tente novamente.",
-        "requestFailed": "Erro ao solicitar permissão. Por favor, tente novamente."
-      }
+      "granted": "Permissão de acessibilidade concedida ✓",
+      "noteImpact": "Sem a permissão, os resultados são apenas copiados para a área de transferência.",
+      "reason1": "Colar automaticamente o texto transcrito nos aplicativos ativos",
+      "reason2": "Obter a posição do cursor para posicionar a sobreposição",
+      "reason3": "Proporcionar uma experiência mais fluida",
+      "simpleDesc": "Cole automaticamente os resultados da transcrição, sem precisar de Cmd+V",
+      "skip": "Pular Esta Etapa",
+      "step1": "Abra Configurações do Sistema → Privacidade e Segurança → Acessibilidade",
+      "step2": "Remova o aplicativo se ele já estiver na lista",
+      "step3": "Clique em + para adicionar e habilitar a permissão",
+      "stepsTitle": "Está com problemas?",
+      "title": "Permissão de Acessibilidade",
+      "whyTitle": "Por que isso é necessário?",
+      "without1": "O aplicativo continua funcionando normalmente",
+      "without2": "O texto transcrito é copiado para a área de transferência",
+      "without3": "Você precisará colar manualmente (Cmd+V)",
+      "withoutTitle": "Sem esta permissão:"
+    },
+    "microphone": {
+      "denied": "A permissão de microfone é necessária para gravar voz. Conceda a permissão nas Configurações do Sistema.",
+      "description": "O Votype precisa de acesso ao seu microfone para gravar voz",
+      "devModeHint": "Modo de desenvolvimento: verificação de permissão indisponível",
+      "error": "Falha ao solicitar permissão. Tente novamente ou conceda manualmente nas Configurações do Sistema.",
+      "grant": "Conceder Acesso ao Microfone",
+      "granted": "Acesso ao microfone concedido ✓",
+      "grantFirst": "Conceda a permissão de microfone para continuar",
+      "reason1": "Gravar sua voz para transcrição",
+      "reason2": "Todo o processamento acontece localmente",
+      "reason3": "Seus dados de voz nunca saem do seu dispositivo",
+      "shortDesc": "Para gravar voz e transcrever",
+      "skipDev": "Pular (Modo de Desenvolvimento)",
+      "title": "Microfone",
+      "whyTitle": "Por que isso é necessário?"
+    },
+    "welcome": {
+      "continue": "Continuar",
+      "description": "Um método de entrada de voz com suporte a modos local, online ou híbrido.",
+      "feature1": "Fala para texto, totalmente offline",
+      "feature2": "Privacidade em primeiro lugar, os dados nunca saem do seu dispositivo",
+      "feature3": "Acionamento por atalho, pressione e fale",
+      "permissionsTitle": "Configuração de Permissões",
+      "skipDev": "Pular (Modo de Desenvolvimento)",
+      "start": "Começar",
+      "title": "Bem-vindo"
     }
   },
   "modelSelector": {
-    "custom": "Personalizado",
     "active": "Ativo",
     "noModelsAvailable": "Nenhum modelo disponível",
     "extracting": "Extraindo {{modelName}}...",
@@ -98,28 +127,44 @@
     "modelUnloaded": "Modelo Descarregado",
     "noModelDownloadRequired": "Sem Modelo - Download Necessário",
     "deleteModel": "Excluir {{modelName}}",
-    "switching": "Alternando...",
-    "downloadSpeed": "{{speed}} MB/s",
-    "capabilities": {
-      "languageSelection": "Suporta vários idiomas de entrada",
-      "multiLanguage": "Multi-idioma",
-      "translation": "Pode traduzir para inglês",
-      "translate": "Traduzir para inglês",
-      "singleLanguage": "Suporta apenas este idioma",
-      "languageOnly": "Apenas {{language}}"
+    "addModelFromUrl": "Adicionar por URL",
+    "addModelFromUrlPrompt": "Cole uma URL de download do modelo (ex.: .tar.bz2):",
+    "availableModels": "Modelos Disponíveis",
+    "chooseModel": "Escolha um Modelo",
+    "clickToEnableOnlineAsr": "Clique para habilitar o ASR Online",
+    "download": "Baixar",
+    "downloadModels": "Baixar Modelos",
+    "downloadPrompt": "Baixe um modelo abaixo para começar a transcrever.",
+    "downloadSize": "Tamanho do download",
+    "local": "Local",
+    "online": "Online",
+    "onlineAsr": "ASR Online",
+    "onlineAsrActive": "ASR Online ativo",
+    "onlineAsrModels": "Modelos de ASR Online",
+    "realtimeModel": {
+      "empty": "Nenhum modelo local compatível. Baixe (e favorite) um modelo Sherpa primeiro.",
+      "enabled": "Habilitado",
+      "off": "Desligado",
+      "offHint": "Não é preciso exibir legendas ao vivo para modelos locais (economiza memória)",
+      "open": "Escolher modelo de transcrição em tempo real",
+      "selected": "Tempo real: {{modelName}}",
+      "title": "Modelo de transcrição em tempo real"
     },
-    "cancel": "Cancelar",
-    "cancelDownload": "Cancelar download"
+    "realtimeModelLabel": "Modelo em Tempo Real",
+    "searchPlaceholder": "Buscar modelos…",
+    "userAddedModel": "Modelo adicionado pelo usuário",
+    "welcome": "Bem-vindo ao Votype",
+    "asrFallback": {
+      "add": "+ Backup",
+      "label": "Backup",
+      "remove": "Remover backup"
+    }
   },
   "settings": {
-    "modelSettings": {
-      "title": "Configurações de {{model}}",
-      "noSettingsNeeded": "Este modelo funciona automaticamente sem necessidade de configuração."
-    },
     "general": {
       "title": "Geral",
       "shortcut": {
-        "title": "Atalhos do Handy",
+        "title": "Atalhos do Votype",
         "description": "Configure atalhos de teclado para iniciar a gravação de voz para texto",
         "loading": "Carregando atalhos...",
         "none": "Nenhum atalho configurado",
@@ -133,6 +178,18 @@
           "cancel": {
             "name": "Atalho de Cancelar",
             "description": "O atalho de teclado para cancelar a gravação atual."
+          },
+          "invoke_skill": {
+            "description": "Inicia a gravação no modo Skill com roteamento inteligente de intenção.",
+            "name": "Invocar Skill"
+          },
+          "open_settings": {
+            "description": "Abre a janela de configurações.",
+            "name": "Abrir Configurações"
+          },
+          "paste_first_entry": {
+            "description": "Cola a primeira entrada do histórico na janela ativa.",
+            "name": "Colar Primeira Entrada"
           }
         },
         "errors": {
@@ -147,30 +204,40 @@
         "descriptionUnsupported": "O modelo Parakeet detecta automaticamente o idioma. Não é necessária seleção manual.",
         "searchPlaceholder": "Buscar idiomas...",
         "noResults": "Nenhum idioma encontrado",
-        "auto": "Auto"
+        "auto": "Auto",
+        "descriptionNoModel": "Selecione um modelo local para configurar o idioma.",
+        "descriptionSenseVoice": "O SenseVoice aplica o idioma quando o modelo é carregado. Selecione o modelo novamente após alterar o idioma.",
+        "descriptionUnknownModel": "O modelo atual é desconhecido; a seleção de idioma está desabilitada.",
+        "descriptionUnsupportedEngine": "A seleção de idioma aplica-se apenas a modelos Whisper ou SenseVoice."
       },
-      "pushToTalk": {
-        "label": "Pressionar para Falar",
-        "description": "Segure para gravar, solte para parar"
+      "audioInputAutoEnhance": {
+        "description": "Aumenta automaticamente a entrada de voz baixa e limita a distorção durante a gravação. Isso pode alterar o som da reprodução.",
+        "label": "Melhoria Automática do Microfone"
+      },
+      "groups": {
+        "recording": "Gravação",
+        "transcription": "Idioma da Transcrição"
+      },
+      "activationMode": {
+        "label": "Modo de Ativação",
+        "tooltip": {
+          "summary": "Escolha como o atalho de gravação é acionado"
+        },
+        "descriptions": {
+          "toggle": "Pressione para iniciar, pressione novamente para parar",
+          "hold": "Segure para gravar, solte para parar",
+          "hold_or_toggle": "Toque rápido alterna, segurar 300ms+ para ao soltar"
+        },
+        "options": {
+          "toggle": "Alternar",
+          "hold": "Segurar",
+          "holdOrToggle": "Auto"
+        }
+      },
+      "holdThreshold": {
+        "label": "Limite de Segurar",
+        "description": "Apenas no modo Auto: por quanto tempo (em milissegundos) o atalho deve ser mantido antes de contar como segurar em vez de um toque. Reduza se toques curtos continuarem deixando a gravação ativa; aumente se toques intencionais forem tratados como segurar."
       }
-    },
-    "models": {
-      "title": "Modelos de Transcrição",
-      "description": "Selecione um modelo de transcrição ou baixe modelos adicionais. Diferentes modelos oferecem diferentes níveis de precisão e velocidade.",
-      "downloaded": "Baixados",
-      "available": "Disponíveis para Download",
-      "deleteConfirm": "Tem certeza de que deseja excluir {{modelName}}? Você precisará baixá-lo novamente para usá-lo.",
-      "deleteActiveConfirm": "{{modelName}} é o seu modelo ativo. Excluí-lo interromperá as transcrições até que você selecione um novo modelo. Tem certeza?",
-      "deleteTitle": "Excluir Modelo",
-      "filters": {
-        "all": "Todos",
-        "multiLanguage": "Multi-idioma",
-        "translation": "Tradução",
-        "allLanguages": "Todos os Idiomas"
-      },
-      "noModelsMatch": "Nenhum modelo corresponde a este filtro.",
-      "yourModels": "Modelos baixados",
-      "availableModels": "Disponíveis para download"
     },
     "sound": {
       "title": "Som",
@@ -198,15 +265,12 @@
     "advanced": {
       "title": "Avançado",
       "groups": {
-        "app": "Aplicativo",
-        "output": "Saída",
-        "transcription": "Transcrição",
-        "history": "Histórico",
-        "experimental": "Experimental"
-      },
-      "experimentalToggle": {
-        "label": "Recursos Experimentais",
-        "description": "Ativar recursos experimentais que ainda estão em desenvolvimento."
+        "dataManagement": "Gerenciamento de Dados",
+        "debug": "Opções de Depuração",
+        "inputOutput": "Entrada e Saída",
+        "network": "Rede",
+        "startup": "Inicialização e Comportamento",
+        "transcriptionOptimization": "Otimização da Transcrição"
       },
       "startHidden": {
         "label": "Iniciar Oculto",
@@ -214,11 +278,7 @@
       },
       "autostart": {
         "label": "Iniciar na Inicialização",
-        "description": "Iniciar automaticamente o Handy quando você fizer login no seu computador."
-      },
-      "showTrayIcon": {
-        "label": "Mostrar ícone na bandeja",
-        "description": "Exibir o ícone do Handy na bandeja do sistema."
+        "description": "Iniciar automaticamente o Votype quando você fizer login no seu computador."
       },
       "overlay": {
         "title": "Posição da Sobreposição",
@@ -226,7 +286,8 @@
         "options": {
           "none": "Nenhum",
           "bottom": "Inferior",
-          "top": "Superior"
+          "top": "Superior",
+          "follow": "Seguir o Cursor"
         }
       },
       "pasteMethod": {
@@ -262,7 +323,10 @@
       "translateToEnglish": {
         "label": "Traduzir para Inglês",
         "description": "Traduzir automaticamente fala de outros idiomas para inglês durante a transcrição.",
-        "descriptionUnsupported": "Tradução não é suportada pelo modelo {{model}}."
+        "descriptionUnsupported": "Tradução não é suportada pelo modelo {{model}}.",
+        "descriptionNoModel": "Selecione um modelo local para habilitar a tradução.",
+        "descriptionNonWhisper": "A tradução só funciona com modelos Whisper. Atual: {{model}}",
+        "descriptionUnknownModel": "As capacidades deste modelo são desconhecidas. Selecione um modelo baixado para habilitar a tradução."
       },
       "modelUnload": {
         "title": "Descarregar Modelo",
@@ -284,24 +348,114 @@
         "placeholder": "Adicionar uma palavra",
         "add": "Adicionar",
         "remove": "Remover {{word}}"
+      },
+      "vocabularyCorrections": {
+        "allApps": "Todos os aplicativos",
+        "delete": "Excluir esta correção",
+        "description": "Correções de vocabulário aprendidas a partir do seu histórico de edições",
+        "empty": "Nenhuma correção aprendida ainda",
+        "global": "Global",
+        "removeGlobal": "Remover global",
+        "scope": "Escopo",
+        "setGlobal": "Definir como global",
+        "title": "Dicionário de Vocabulário"
+      },
+      "scope": {
+        "custom": "Aplicativos Específicos",
+        "editDescription": "Editar escopo para \"{{original}}\" → \"{{corrected}}\"",
+        "editTitle": "Escopo da Correção",
+        "global": "Global",
+        "multiple": "{{count}} aplicativos",
+        "none": "Nenhum aplicativo",
+        "source": "Aplicativo de Origem ({{app}})"
+      },
+      "proxy": {
+        "add": "Adicionar proxy",
+        "server": "Servidor",
+        "username": "Usuário",
+        "usernamePlaceholder": "Opcional",
+        "password": "Senha",
+        "passwordPlaceholder": "Opcional",
+        "enable": "Habilitar",
+        "globalHint": "Aplicar a todos os provedores por padrão",
+        "testAndSave": "Testar e Salvar",
+        "testSuccess": "Conexão com o proxy bem-sucedida",
+        "testFailed": "Falha na conexão com o proxy: {{error}}",
+        "remove": "Remover",
+        "removed": "Proxy removido"
+      },
+      "insertBlacklist": {
+        "label": "Lista de Bloqueio de Inserção",
+        "description": "Quando um aplicativo da lista de bloqueio (terminal, gerenciador de senhas, ...) está em primeiro plano, a transcrição é copiada para a área de transferência com uma notificação, em vez de ser digitada ou colada automaticamente."
+      },
+      "remoteRecord": {
+        "label": "Tecla de Gravação de Controle Remoto",
+        "description": "Reivindica o botão de gravação de controles remotos de voz Bluetooth (uma tecla Consumer do macOS invisível para atalhos normais): pressione uma vez para iniciar a gravação e outra para parar."
+      },
+      "punctuation": {
+        "description": "Adiciona pontuação à transcrição final ({{model}}).",
+        "label": "Adicionar Pontuação",
+        "model": {
+          "description": "Escolha um modelo de pontuação para texto misto zh+en. Aplicado apenas ao resultado final.",
+          "notDownloaded": "O modelo selecionado ainda não foi baixado.",
+          "title": "Modelo de Pontuação"
+        }
+      },
+      "fillerWordRemoval": {
+        "label": "Remoção de Palavras de Preenchimento",
+        "description": "Remove palavras de preenchimento (vícios de linguagem) antes do pós-processamento. Aplica-se apenas a idiomas com padrões confiáveis."
+      },
+      "vadBackend": {
+        "title": "Backend de Atividade de Voz",
+        "description": "Escolha o detector usado para filtrar silêncio. O Earshot é experimental; volte para o Silero se a fala for cortada ou o ruído for mantido.",
+        "options": {
+          "silero": "Silero",
+          "earshot": "Earshot"
+        }
+      },
+      "localApi": {
+        "title": "API Local",
+        "enable": "Habilitar servidor local compatível com OpenAI",
+        "enableDescription": "Desativado por padrão. Ativá-lo tem efeito imediato, sem necessidade de reiniciar. Ele se vincula apenas ao localhost, permitindo que ferramentas externas chamem modelos e ASR por meio de uma única URL e chave.",
+        "allowLan": "Permitir acesso pela LAN",
+        "allowLanDescription": "Quando habilitado, outros dispositivos na sua LAN podem acessá-lo pelo IP da sua máquina. Reinicie o aplicativo para aplicar as alterações.",
+        "port": "Porta",
+        "endpoint": "Endpoint",
+        "url": "URL",
+        "accessKey": "Chave de Acesso",
+        "restartToApply": "Reinicie para aplicar",
+        "copy": "Copiar",
+        "random": "Aleatório",
+        "localAccess": "Acesso local:",
+        "lanAccess": "Acesso pela LAN:",
+        "authHeader": "Cabeçalho de autenticação:",
+        "lanUrlHint": "http://<seu-IP-LAN>:{{port}}{{path}}",
+        "copied": "{{label}} copiado",
+        "copyFailed": "Falha ao copiar {{label}}",
+        "keyGenerated": "Nova chave de acesso gerada",
+        "keyPlaceholder": "your-key"
       }
     },
     "postProcessing": {
       "title": "Pós-Processamento",
-      "hotkey": {
-        "title": "Tecla de atalho"
-      },
       "api": {
         "title": "API (Compatível com OpenAI)",
         "provider": {
           "title": "Provedor",
-          "description": "Selecione um provedor compatível com OpenAI."
+          "description": "Selecione um provedor compatível com OpenAI.",
+          "builtin": "Integrado",
+          "builtinTooltip": "Provedor integrado, não pode ser excluído",
+          "deleteAction": "Excluir Provedor",
+          "deleteConfirmation": "Tem certeza de que deseja excluir o provedor \"{{name}}\"? Esta ação não pode ser desfeita.",
+          "deleteTitle": "Excluir Provedor",
+          "editName": "Editar Nome do Provedor",
+          "namePlaceholder": "Nome do Provedor",
+          "newProvider": "Novo Provedor"
         },
         "appleIntelligence": {
           "title": "Apple Intelligence",
           "description": "Executa totalmente no dispositivo. Nenhuma chave de API ou acesso à rede é necessário.",
-          "requirements": "Requer um Mac Apple Silicon executando macOS Tahoe (26.0) ou posterior. Apple Intelligence deve estar habilitado nas Configurações do Sistema.",
-          "unavailable": "Apple Intelligence não está disponível neste dispositivo. Requer um Mac Apple Silicon executando macOS Tahoe (26.0) ou posterior com Apple Intelligence habilitado nas Configurações do Sistema."
+          "requirements": "Requer um Mac Apple Silicon executando macOS Tahoe (26.0) ou posterior. Apple Intelligence deve estar habilitado nas Configurações do Sistema."
         },
         "baseUrl": {
           "title": "URL Base",
@@ -322,13 +476,78 @@
           "placeholderWithOptions": "Buscar ou selecionar um modelo",
           "placeholderNoOptions": "Digite o nome de um modelo",
           "refreshModels": "Atualizar modelos"
+        },
+        "manageProviders": "Gerenciar Provedores",
+        "modelCard": {
+          "errorRate": "{{count}} chamada(s) com falha — taxa de erro de {{rate}}%"
+        },
+        "models": {
+          "deleteConfirm": {
+            "description": "Tem certeza de que deseja excluir este modelo? Esta ação não pode ser desfeita.",
+            "title": "Excluir Modelo?"
+          }
+        },
+        "providers": {
+          "add": "Adicionar Provedor",
+          "addCustom": "Adicionar Personalizado",
+          "advancedSettings": "Configurações Avançadas",
+          "api": {
+            "model": {
+              "title": "Usando o Modelo"
+            },
+            "testConnection": "Testar Inferência do Modelo",
+            "testFailed": "Falha no teste: {{error}}",
+            "testing": "Testando conexão...",
+            "testSuccess": "Teste bem-sucedido: {{result}}"
+          },
+          "builtInBadge": "Integrado",
+          "deleteConfirm": {
+            "description": "Isso removerá o provedor e todos os modelos associados.",
+            "title": "Excluir provedor?"
+          },
+          "dialog": {
+            "createTitle": "Criar Provedor",
+            "editTitle": "Editar Provedor"
+          },
+          "empty": {
+            "description": "Adicione um provedor para começar.",
+            "title": "Nenhum provedor"
+          },
+          "fields": {
+            "apiKey": "Chave da API",
+            "getApiKey": "Obter Chave da API",
+            "baseUrl": "URL Base",
+            "baseUrlHint": "Modo compatível com OpenAI, geralmente termina em /v1. Use o sufixo '#' para ignorar a inclusão automática de /v1.",
+            "actualUrlPreview": "Pré-visualização da URL Real da API",
+            "modelsEndpoint": "Endpoint de Modelos",
+            "modelsEndpointPlaceholder": "/models ou https://...",
+            "name": "Nome do Provedor",
+            "namePlaceholder": "Meu Provedor",
+            "v1AutoAppended": "/v1 foi adicionado automaticamente",
+            "v1MissingWarning": "A URL pode estar sem o caminho de versão (ex.: /v1)",
+            "addKey": "Adicionar Chave"
+          },
+          "proxy": {
+            "useProxy": "Proxy",
+            "noGlobalProxy": "Configure o proxy em Configurações Avançadas primeiro"
+          },
+          "group": {
+            "recommended": "Recomendados",
+            "cloud": "Provedores na Nuvem",
+            "local": "Provedores Locais"
+          },
+          "resetUrl": "Redefinir URL",
+          "testConnection": "Testar Conexão",
+          "testFailed": "Falha na conexão: {{error}}",
+          "testSuccess": "Conexão bem-sucedida",
+          "title": "Provedores"
         }
       },
       "prompts": {
         "title": "Prompt",
         "selectedPrompt": {
           "title": "Prompt Selecionado",
-          "description": "Choose the template used for post-processing, or create a new one. The system automatically injects the main input and supporting reference fields, so the prompt body only needs to describe the task, constraints, and output requirements."
+          "description": "Escolha o modelo usado no pós-processamento ou crie um novo. O sistema injeta automaticamente a entrada principal e os campos de referência de apoio, então o corpo do prompt só precisa descrever a tarefa, as restrições e os requisitos de saída."
         },
         "noPrompts": "Nenhum prompt disponível",
         "selectPrompt": "Selecionar um prompt",
@@ -336,7 +555,7 @@
         "promptLabel": "Rótulo do Prompt",
         "promptLabelPlaceholder": "Digite o nome do prompt",
         "promptInstructions": "Instruções do Prompt",
-        "promptInstructionsPlaceholder": "Describe how the model should process the input text, what it may change, what it must not change, and what the final output should look like.",
+        "promptInstructionsPlaceholder": "Descreva como o modelo deve processar o texto de entrada, o que pode alterar, o que não deve alterar e como deve ser a saída final.",
         "promptTip": "Tip: You are editing the task body only. The system automatically injects the main input and supporting reference fields, so focus on the task, constraints, and output requirements.",
         "updatePrompt": "Atualizar Prompt",
         "deletePrompt": "Excluir Prompt",
@@ -349,13 +568,441 @@
         "varWindowTitleDesc": "Título da janela atual.",
         "lockSkill": "Lock Skill",
         "unlockSkill": "Unlock Skill",
-        "skillLocked": "This skill is locked. Unlock to edit.",
-        "aiGeneratingWait": "AI is generating, please wait",
+        "skillLocked": "Esta habilidade está bloqueada. Desbloqueie para editar.",
+        "aiGeneratingWait": "A IA está gerando, aguarde",
         "unsavedChanges": {
           "title": "Unsaved Changes",
-          "description": "Current prompt has unsaved changes. Switching will discard these modifications.",
+          "description": "O prompt atual tem alterações não salvas. Trocar de prompt descartará essas modificações.",
           "discard": "Discard Changes"
+        },
+        "activeSet": "Definir como prompt padrão",
+        "advancedSettings": "Configurações Avançadas",
+        "createSuccess": "Prompt criado com sucesso",
+        "deleteConfirm": {
+          "description": "Tem certeza de que deseja excluir este prompt? Esta ação não pode ser desfeita.",
+          "title": "Excluir Prompt"
+        },
+        "createFailed": "Falha ao criar a skill",
+        "nameAndContentRequired": "Nome e conteúdo não podem estar vazios",
+        "fillNameAndInstructionsFirst": "Preencha o nome e as instruções primeiro para que a IA gere um resumo melhor.",
+        "userOwnedPrompts": "Meus Prompts",
+        "deleteFailed": "Falha ao excluir",
+        "deleteSuccess": "Prompt excluído com sucesso",
+        "resetToDefault": "Restaurar Padrão",
+        "resetConfirm": {
+          "description": "Isso restaurará a skill ao seu conteúdo integrado original. Quaisquer personalizações serão perdidas.",
+          "title": "Restaurar Padrão"
+        },
+        "resetSuccess": "Skill restaurada ao padrão",
+        "resetFailed": "Falha ao restaurar a skill",
+        "description": "Descrição (para roteamento inteligente)",
+        "descriptionPlaceholder": "Descreva brevemente o que esta Skill faz e quando deve ser acionada",
+        "editPrompt": "Editar Prompt",
+        "enabledToggle": "Habilitar/Desabilitar esta Skill",
+        "enableConfidenceCheck": "Habilitar Verificação de Confiança",
+        "generationDescription": "Gera novo conteúdo com base no texto reconhecido como prompt (ex.: tradução, resumo).",
+        "globalConfigTitle": "Configuração Global",
+        "managementTitle": "Prompts",
+        "newPromptName": "Novo Prompt",
+        "outputMode": {
+          "chat": "Chat com IA",
+          "label": "Modo de Saída",
+          "polish": "Polimento de Texto"
+        },
+        "promptBody": "Corpo da Tarefa",
+        "promptBodyPlaceholder": "Descreva como o modelo deve processar o texto de entrada, o que pode alterar, o que não deve alterar e como deve ser a saída final.",
+        "refinementDescription": "Corrige e formata automaticamente o texto reconhecido.",
+        "reviewThreshold": "Limite de Revisão",
+        "setAsActive": "Definir como Padrão",
+        "updateFailed": "Falha na atualização",
+        "updateSuccess": "Prompt atualizado com sucesso",
+        "inlineVarsLabel": "Campos de Referência",
+        "autoInjectedNote": "O sistema injeta automaticamente a entrada principal e os campos de referência de apoio. Se precisar de controle mais preciso, você pode referenciá-los explicitamente no corpo da tarefa.",
+        "primaryFieldsLabel": "Campos principais",
+        "referenceFieldsLabel": "Campos de referência",
+        "explicitReferenceNote": "Se você referenciar explicitamente um campo acima, o sistema não anexará o mesmo campo novamente mais adiante no prompt.",
+        "inlineVarsSecondaryLabel": "Variáveis de metadados",
+        "fieldAutocompleteTitle": "Autocompletar de campos",
+        "fieldAutocompleteEmpty": "Nenhum campo correspondente",
+        "fieldInputTextDesc": "O único texto principal que deve ser processado",
+        "fieldAsrReferenceDesc": "Referência auxiliar do ASR usada para correção e desambiguação",
+        "fieldSelectedTextDesc": "Texto selecionado usado como contexto fraco",
+        "fieldPersonNamesDesc": "Nomes de pessoas conhecidos",
+        "fieldProductNamesDesc": "Nomes conhecidos de produtos, marcas ou organizações",
+        "fieldDomainTermsDesc": "Termos de domínio, abreviações ou termos técnicos",
+        "fieldHotwordsDesc": "Outras hotwords priorizadas",
+        "fieldHistoryHintsDesc": "Dicas do histórico usadas apenas para consistência de termos e desambiguação fraca",
+        "varAppCategoryDesc": "Categoria do aplicativo (CodeEditor, Email, etc.).",
+        "varContextDesc": "Contexto histórico da janela ativa.",
+        "varOutputDesc": "Texto transcrito final.",
+        "varPromptDesc": "Nome de exibição do esquema de prompt atual.",
+        "varRawInputDesc": "Transcrição original completa.",
+        "varSelectDesc": "Texto selecionado quando a gravação terminou.",
+        "varStreamingDesc": "Texto intermediário durante a transcrição em tempo real.",
+        "autoGenerate": {
+          "title": "Voz para Skill",
+          "description": "Descreva o que você quer em linguagem natural. A IA gerará uma Skill completa para você.",
+          "shortcutHint": "Dica: Pressione",
+          "placeholder": "ex.: Me ajude a polir o texto, corrigir a gramática e torná-lo mais profissional...",
+          "step1": "Otimizando as instruções do prompt",
+          "step2": "Gerando nome e ícone",
+          "step3": "Gerando descrição",
+          "emptyInput": "Descreva o que esta Skill deve fazer",
+          "start": "Gerar",
+          "menuItem": "Entrada de Voz",
+          "success": "Skill criada com sucesso"
+        },
+        "templates": {
+          "template_polish": "Polimento Padrão",
+          "template_translate": "Tradução",
+          "template_summary": "Resumo",
+          "template_chat": "Chat com IA",
+          "template_blank": "Skill em Branco"
+        },
+        "aliasDuplicate": "O alias já existe",
+        "aliasLabel": "Alias",
+        "aliasPlaceholder": "ex.: /translate",
+        "commandPrefixDescription": "Prefixo de comando para acionar este prompt",
+        "commandPrefixPlaceholder": "ex.: /",
+        "commandPrefixTitle": "Prefixo de Comando",
+        "noAliases": "Nenhum alias configurado",
+        "noPrefixes": "Nenhum prefixo configurado",
+        "prefixesSaved": "Prefixos salvos",
+        "blankSkill": "Skill em Branco",
+        "polishCategory": "Polimento",
+        "skillCategory": "Skill",
+        "references": {
+          "title": "Referências de Cena",
+          "add": "Adicionar",
+          "empty": "Nenhuma referência de cena ainda. Adicione referências para adaptar o comportamento por aplicativo.",
+          "createFirst": "Criar primeira referência",
+          "createTitle": "Criar Referência de Cena",
+          "editTitle": "Editar Referência de Cena",
+          "matchType": "Tipo de Correspondência",
+          "typeAlways": "Regras Gerais (sempre ativas)",
+          "typeApp": "Por Nome do Aplicativo",
+          "typeCategory": "Por Categoria do Aplicativo",
+          "alwaysName": "Regras Gerais",
+          "badgeAlways": "Sempre Ativo",
+          "appNamePlaceholder": "ex.: Slack, Obsidian, WeChat",
+          "contentPlaceholder": "Insira regras específicas da cena para este contexto...\n\nExemplo:\n## Regras de IM/Chat\n- Manter o tom de conversa\n- Corrigir apenas erros óbvios\n- Preservar emojis",
+          "created": "Referência criada",
+          "saved": "Referência salva",
+          "deleted": "Referência excluída",
+          "errorNoName": "Insira um nome",
+          "errorSave": "Falha ao salvar",
+          "errorDelete": "Falha ao excluir",
+          "deleteTitle": "Excluir Referência",
+          "deleteConfirm": "Tem certeza de que deseja excluir \"{{name}}\"?"
         }
+      },
+      "intentModel": {
+        "defaultOption": "Usar modelo padrão",
+        "description": "Modelo usado para detectar a intenção das skills. Deixe como padrão para seguir o modelo principal de pós-processamento.",
+        "hint": "Usado para o roteamento de Skills (detectar qual Skill usar) e para a classificação de ações do roteamento inteligente. Para polimento leve, também realiza a correção na mesma chamada.",
+        "placeholder": "Selecione um modelo de intenção",
+        "title": "Modelo de Intenção"
+      },
+      "translationModel": {
+        "hint": "Usado pelo recurso de tradução antes da inserção. Deixe vazio para usar o modelo de intenção e, em seguida, o modelo padrão de pós-processamento.",
+        "title": "Modelo de Tradução"
+      },
+      "inputInjection": {
+        "groupTitle": "Entradas Automáticas",
+        "title": "Entradas Automáticas",
+        "description": "Controle quais entradas auxiliares são anexadas automaticamente às requisições de pós-processamento ou tradução.",
+        "summaryEnabled": "A injeção de contexto do histórico está habilitada, com até {{count}} entradas anexadas.",
+        "summaryDisabled": "Nenhum contexto de histórico será anexado automaticamente.",
+        "moreOptions": "Mais opções",
+        "basicOnly": "Apenas item básico",
+        "history": {
+          "enabled": "Injetar contexto do histórico",
+          "description": "Fornecer transcrições recentes do aplicativo atual como contexto para o pós-processamento.",
+          "limit": "Profundidade do contexto do histórico",
+          "limitDesc": "Anexar até as últimas {{count}} entradas do histórico ao pós-processamento."
+        },
+        "streaming": {
+          "enabled": "Injetar transcrição em streaming",
+          "description": "Enviar streaming_output junto com o texto final para ajudar a desambiguar os resultados do ASR."
+        },
+        "hotwords": {
+          "enabled": "Injetar hotwords e vocabulário",
+          "description": "Anexar hotwords, terminologia e mapeamentos comuns de erro de reconhecimento ao pós-processamento."
+        }
+      },
+      "appRules": {
+        "activeProfiles": "{{count}} regras ativas",
+        "addApp": "Adicionar Aplicativo",
+        "addRuleHead": "Adicionar Regra Manualmente",
+        "addTitlePattern": "Adicionar filtro de título",
+        "assignedApps": "Aplicativos",
+        "assignedAppsDescription": "Os aplicativos listados abaixo usarão as configurações deste perfil.",
+        "capture": "Capturar",
+        "captureTitle": "Capturar Título",
+        "categoryDefaults": {
+          "title": "Políticas padrão por categoria",
+          "hint": "Aplicativos com perfil próprio não são afetados pelas políticas de categoria (incluindo perfis criados automaticamente ao aceitar uma sugestão).",
+          "inheritGlobal": "Herdar global",
+          "categories": {
+            "CodeEditor": "Editores de Código",
+            "Terminal": "Terminais",
+            "InstantMessaging": "Mensagens Instantâneas",
+            "Email": "E-mail",
+            "Notes": "Notas",
+            "Browser": "Navegadores",
+            "Other": "Outro"
+          }
+        },
+        "context": {
+          "description": "Permitir que os LLMs consultem o histórico recente do aplicativo atual para melhorar a precisão da transcrição e correção.",
+          "enabled": "Habilitar Referência de Contexto",
+          "limit": "Profundidade do Histórico de Contexto",
+          "limitDesc": "O modelo consultará as últimas {{count}} entradas deste aplicativo como contexto.",
+          "title": "Processamento com Reconhecimento de Contexto"
+        },
+        "createPromptHint": "Adicione uma regra de aplicativo para começar",
+        "default": "Padrão",
+        "newProfileName": "Nome do novo perfil...",
+        "noAppsAssigned": "Nenhum aplicativo mapeado para este perfil ainda.",
+        "noProfiles": "Nenhuma regra ainda",
+        "noProfilesShort": "Clique para configurar",
+        "policy": {
+          "always": "Sempre Revisar",
+          "auto": "Auto",
+          "label": "Política de Revisão",
+          "never": "Inserir Diretamente"
+        },
+        "policyDesc": {
+          "always": "Sempre mostrar a janela de revisão para aplicativos neste perfil.",
+          "auto": "Aciona a revisão se o texto mudar significativamente (com base no limite).",
+          "never": "Nunca mostrar a janela de revisão para aplicativos neste perfil."
+        },
+        "policyHeader": "Política de Acionamento da Revisão",
+        "profilesDescription": "Crie perfis para aplicar lógica de processamento ou prompts específicos a diferentes grupos de aplicativos.",
+        "profilesTitle": "Perfis de Aplicativos",
+        "promptDescription": "Selecione um prompt personalizado para usar nas transcrições deste perfil.",
+        "promptHeader": "Substituir Prompt do LLM",
+        "selectionClipboardFallback": {
+          "description": "Quando desabilitado, o texto selecionado deste aplicativo usa apenas a API de Acessibilidade e ignora o fallback de cópia simulada pela área de transferência.",
+          "label": "Fallback da Área de Transferência"
+        },
+        "translateToEnglishOnInsert": {
+          "description": "Para este aplicativo, executar uma tradução extra para inglês com o LLM imediatamente antes da inserção. Se a tradução falhar, usar o texto original.",
+          "label": "Traduzir antes de inserir"
+        },
+        "selectPrompt": "Selecione um perfil na barra lateral para editar",
+        "skipPostProcess": "Pular Pós-Processamento",
+        "shortcuts": {
+          "description": "Você pode usar atalhos de teclado para acionar perfis específicos ou gerenciar regras.",
+          "dialog": "Confirmar ou fechar diálogos",
+          "dialogKeys": "Enter / Esc",
+          "nav": "Navegar entre as abas de configurações",
+          "navKeys": "⌘ + 1-8",
+          "title": "Atalhos e Uso"
+        },
+        "matchType": {
+          "exact": "Exato"
+        },
+        "testMatch": "Testar Correspondência",
+        "title": "Regras de Aplicativos",
+        "titlePattern": "Título (Regex)",
+        "allApps": "Todos os Aplicativos",
+        "appNotInstalled": "Este aplicativo não está mais instalado",
+        "recentApps": "Recentes",
+        "refresh": "Reexaminar aplicativos instalados",
+        "searchApps": "Buscar aplicativos..."
+      },
+      "confidenceCheck": {
+        "description": "Ajuste a sensibilidade para prompts com revisão habilitada. Valores mais altos significam que a janela de revisão aparece com menos frequência.",
+        "threshold": "Limite de Sensibilidade",
+        "thresholdHint": "Pontuações acima deste valor acionarão a janela de revisão.",
+        "title": "Sensibilidade da Revisão Automática"
+      },
+      "textModelMode": {
+        "title": "Modo de Pós-processamento",
+        "single": "Modelo Único",
+        "singleHint": "Um modelo para todo o texto",
+        "length": "Inteligente",
+        "lengthHint": "Selecionar o modelo automaticamente pelo comprimento do texto",
+        "multi": "Múltiplos Modelos",
+        "multiHint": "Comparação em paralelo",
+        "defaultModelDescription": "Modelo padrão",
+        "noModelSelected": "Nenhum modelo selecionado",
+        "multiDescription": "Selecione modelos na lista abaixo para comparação em paralelo",
+        "multiStrategy": "Estratégia de Múltiplos Modelos",
+        "multiStrategyManual": "Manual",
+        "multiStrategyManualHint": "Mostrar todos os candidatos para seleção manual",
+        "multiStrategyRace": "Ultra-rápido",
+        "multiStrategyRaceShort": "Ultra-rápido",
+        "multiStrategyRaceHint": "Usar o primeiro resultado disponível",
+        "multiStrategyLazy": "Preguiçoso",
+        "multiStrategyLazyShort": "Preguiçoso",
+        "multiStrategyLazyHint": "Aguardar 3s pelo modelo preferido, selecionar automaticamente ao expirar",
+        "preferredModel": "Modelo preferido",
+        "setAsPreferred": "Definir como modelo preferido",
+        "selectModelsTitle": "Selecionar Modelos",
+        "selectModelsDescription": "Escolha modelos para processamento em paralelo. Clique na estrela para definir o modelo preferido.",
+        "selectedCount": "{{count}} selecionados",
+        "noneSelected": "Nenhum modelo selecionado",
+        "models": "Modelos",
+        "modelSelection": "Modelo"
+      },
+      "lengthRouting": {
+        "enableLabel": "Selecionar o modelo automaticamente pelo comprimento do texto",
+        "enableDescription": "Usar um modelo rápido para textos curtos e um modelo avançado para textos longos",
+        "thresholdLabel": "Limite de caracteres",
+        "thresholdDescription": "Por caracteres Unicode (1 caractere chinês = 1, 1 letra inglesa = 1)",
+        "thresholdValue": "{{count}} caracteres",
+        "shortModelLabel": "Texto curto",
+        "longModelLabel": "Texto longo",
+        "characters": " caracteres",
+        "useDefault": "Usar padrão"
+      },
+      "smartRouting": {
+        "title": "Roteamento Inteligente",
+        "hint": "Reutiliza automaticamente resultados anteriores para textos idênticos e usa um modelo leve para determinar se um texto curto precisa de polimento — reduzindo o custo de tokens e a latência.",
+        "shortText": "Texto curto",
+        "longText": "Texto longo",
+        "fastModel": "Modelo rápido",
+        "fastModelHint": "Um modelo leve ou rápido para textos curtos. Economiza tokens e reduz a latência para conteúdo simples.",
+        "modelSelection": "Modelo",
+        "description": "Detectar a intenção automaticamente, reutilizar o histórico e reduzir o custo de tokens"
+      },
+      "modelChain": {
+        "primary": "Principal",
+        "fallback": "Reserva",
+        "leftClickHint": "Clique com o botão esquerdo para selecionar o modelo principal",
+        "rightClickHint": "Clique com o botão direito para selecionar o modelo reserva",
+        "strategy": "Estratégia",
+        "serial": "Serial",
+        "staggered": "Escalonado",
+        "race": "Corrida",
+        "serialHint": "Tentar o reserva após o principal falhar",
+        "staggeredHint": "Iniciar o reserva quando o principal estiver lento",
+        "raceHint": "Chamar ambos, usar o mais rápido",
+        "noModel": "Nenhum modelo selecionado",
+        "selectModel": "Selecionar modelo"
+      },
+      "disabledNotice": "O pós-processamento está desabilitado no momento. Habilite-o para configurar.",
+      "fusion": {
+        "enabled": {
+          "description": "Fornecer uma transcrição principal e uma transcrição secundária em tempo real ao pós-processamento para comparação e desambiguação.",
+          "label": "Usar transcrição em tempo real (fusão)"
+        },
+        "secondaryModel": {
+          "auto": "Auto",
+          "autoDescription": "Usar o modelo local atual",
+          "description": "Usado apenas quando o ASR Online está habilitado. Este modelo local fornece legendas em tempo real e a transcrição secundária.",
+          "placeholder": "Selecionar modelo...",
+          "title": "Modelo de transcrição em tempo real (ASR Online)"
+        }
+      },
+      "models": {
+        "addModel": "Adicionar Modelo",
+        "deleteConfirm": {
+          "description": "Tem certeza de que deseja excluir este modelo? Esta ação não pode ser desfeita.",
+          "title": "Excluir Modelo?"
+        },
+        "description": "Adicione e gerencie os modelos usados no pós-processamento.",
+        "empty": {
+          "description": "Adicione um modelo para começar.",
+          "title": "Nenhum modelo configurado",
+          "noMatch": "Nenhum modelo corresponde à sua busca."
+        },
+        "promptMessageRole": {
+          "label": "Modo Desenvolvedor"
+        },
+        "modelTypes": {
+          "asr": {
+            "hint": "Reconhecimento de fala",
+            "label": "ASR"
+          },
+          "other": {
+            "hint": "Uso personalizado",
+            "label": "Outro"
+          },
+          "text": {
+            "hint": "Refinamento e formatação de texto",
+            "label": "Texto"
+          }
+        },
+        "selectModel": {
+          "addButton": "Adicionar Modelo",
+          "customLabelPlaceholder": "Digite o rótulo...",
+          "customLabelTitle": "Rótulo Personalizado",
+          "customModelPlaceholder": "Digite o id do modelo...",
+          "description": "Escolha um modelo para adicionar ou insira um manualmente.",
+          "placeholder": "Selecione um modelo...",
+          "placeholderEmpty": "Nenhum modelo disponível",
+          "segmented": {
+            "customModel": "Personalizado",
+            "selectModel": "Selecionar",
+            "freeModels": "Gratuitos"
+          },
+          "noFreeModels": "Nenhum modelo gratuito disponível para este provedor.",
+          "alreadyAdded": "Adicionado",
+          "title": "Selecionar Modelo",
+          "usageTypeTitle": "Tipo de Uso",
+          "advancedOptions": "Opções Avançadas",
+          "customLabel": "Rótulo Personalizado",
+          "extraParams": "Parâmetros Extras",
+          "manualLabel": "Rótulo Manual",
+          "selectLabel": "Rótulo de Seleção",
+          "sourceBuiltin": "Modelos Gratuitos Integrados",
+          "sourceOfficial": "Lista Oficial de Modelos",
+          "sourceBuiltinHint": "Modelos gratuitos selecionados, sem necessidade de chamada de API",
+          "sourceOfficialHint": "Lista completa da API do provedor"
+        },
+        "searchPlaceholder": "Buscar modelos...",
+        "filter": {
+          "all": "Todos"
+        },
+        "sort": {
+          "provider": "Provedor",
+          "name": "Nome",
+          "calls": "Chamadas",
+          "speed": "Velocidade",
+          "group": "Agrupar por provedor"
+        },
+        "stats": {
+          "asr": "ASR: {{count}}",
+          "other": "Outros: {{count}}",
+          "text": "Texto: {{count}}"
+        },
+        "tabs": {
+          "local": "Modelos Locais",
+          "remote": "Modelos Online"
+        },
+        "title": "Modelos",
+        "setAsDefault": "Definir como Padrão",
+        "invalidJson": "Formato JSON inválido",
+        "addedCount": "{{count}} modelo(s) adicionado(s)",
+        "customAdd": {
+          "title": "Adicionar Modelo Personalizado",
+          "modelId": "ID do Modelo",
+          "duplicateWarning": "Já existe um modelo com este ID para este provedor. Adicioná-lo criará uma cópia."
+        }
+      },
+      "providerModels": {
+        "totalCalls": "chamadas",
+        "avgSpeed": "tokens/sec"
+      },
+      "skills": {
+        "advancedSkills": "Skills Avançadas",
+        "createHint": "Crie arquivos .md em ~/.votype/skills/ para adicionar skills personalizadas",
+        "enabledInFile": "A skill está sempre habilitada (configure no arquivo)",
+        "helpText": "Crie arquivos .md com frontmatter YAML na pasta de skills. Eles serão carregados automaticamente e ficarão disponíveis para uso.",
+        "noExternalSkills": "Nenhuma skill externa encontrada",
+        "openFolder": "Abrir Pasta",
+        "quickCommands": "Comandos Rápidos",
+        "refresh": "Atualizar",
+        "sourceBuiltin": "Integrado",
+        "sourceFile": "Arquivo",
+        "sourceUser": "Usuário"
+      },
+      "modelCard": {
+        "errorRate": "{{count}} chamada(s) com falha — taxa de erro de {{rate}}%",
+        "lastError": "Último erro{{when}}: {{error}}"
       }
     },
     "history": {
@@ -367,13 +1014,27 @@
       "save": "Salvar transcrição",
       "unsave": "Remover dos salvos",
       "delete": "Excluir entrada",
-      "deleteError": "Falha ao excluir entrada. Por favor, tente novamente."
+      "deleteError": "Falha ao excluir entrada. Por favor, tente novamente.",
+      "content": {
+        "chained": "Processamento encadeado",
+        "improved": "Melhorado",
+        "original": "Resultado do Reconhecimento de Fala",
+        "streaming": "Resultado do Reconhecimento em Tempo Real"
+      },
+      "searchPlaceholder": "Buscar no histórico...",
+      "timeline": {
+        "earlier": "Anteriores",
+        "thisWeek": "Esta Semana",
+        "today": "Hoje",
+        "yesterday": "Ontem"
+      }
     },
     "debug": {
       "title": "Depuração",
       "logDirectory": {
         "title": "Diretório de Logs",
-        "description": "Local onde os arquivos de log são armazenados"
+        "description": "Local onde os arquivos de log são armazenados",
+        "error": "Erro ao carregar o diretório de logs: {{error}}"
       },
       "logLevel": {
         "title": "Nível de Log",
@@ -381,7 +1042,7 @@
       },
       "updateChecks": {
         "label": "Verificar Atualizações",
-        "description": "Verificar automaticamente novas versões do Handy"
+        "description": "Verificar automaticamente novas versões do Votype"
       },
       "soundTheme": {
         "label": "Tema de Som",
@@ -426,30 +1087,54 @@
         "label": "Adicionar Espaço Final",
         "description": "Adicionar um espaço após a transcrição colada"
       },
-      "keyboardImplementation": {
-        "title": "Keyboard Implementation",
-        "description": "Choose the keyboard shortcut backend.",
-        "bindingsReset": "Keyboard shortcuts were incompatible and reset to defaults"
-      },
       "paths": {
         "appData": "Dados do App:",
         "models": "Modelos:",
-        "settings": "Configurações:"
+        "settings": "Configurações:",
+        "description": "Caminhos comuns do sistema de arquivos usados pelo Votype",
+        "title": "Caminhos"
       },
-      "pasteDelay": {
-        "title": "Atraso de colagem",
-        "description": "Atraso antes de enviar a tecla de colar (em milissegundos). Aumente se o texto errado estiver sendo colado."
+      "destroySettingsWindowOnClose": {
+        "description": "Ao fechar a janela de configurações, destruí-la (liberar recursos). Reabra pelo menu da bandeja.",
+        "label": "Destruir Janela de Configurações ao Fechar"
+      },
+      "groups": {
+        "audio": "Áudio e Processamento",
+        "data": "Gerenciamento de Dados",
+        "system": "Sistema e Logs",
+        "text": "Processamento de Texto"
+      },
+      "logChannels": {
+        "title": "Canais de Log",
+        "postProcess": "Requisições de Pós-Processamento",
+        "postProcessDesc": "Registrar todos os prompts e respostas de LLM para polimento de texto (modelo único e múltiplos modelos)",
+        "skillRouting": "Roteamento de Skill/Intenção",
+        "skillRoutingDesc": "Registrar prompts e respostas do roteamento de skills",
+        "routing": "Decisões de Roteamento",
+        "routingDesc": "Registrar decisões do SmartRouting, ModeRouting e do pipeline",
+        "transcription": "Saída da Transcrição",
+        "transcriptionDesc": "Registrar resultados do ASR e parciais em tempo real"
+      },
+      "offlineVadRealtime": {
+        "intervalDescription": "Forçar uma atualização em tempo real a cada N ms (0 para desabilitar).",
+        "intervalLabel": "Intervalo em tempo real offline (ms)",
+        "windowDescription": "Quando o áudio total excede 30s, a decodificação em tempo real usa os últimos N segundos quando não há segmentos de VAD.",
+        "windowLabel": "Janela em tempo real offline (s)"
+      },
+      "reliablePaste": {
+        "title": "Colagem Confiável (Beta)",
+        "description": "Restaura a área de transferência somente depois que o aplicativo de destino realmente lê a transcrição, em vez de após um atraso fixo. Destina-se a corrigir o conteúdo antigo da área de transferência sendo colado sob carga do sistema. Requer um método de colagem pela área de transferência; apenas macOS e Windows."
       }
     },
     "about": {
       "title": "Sobre",
       "version": {
         "title": "Versão",
-        "description": "Versão atual do Handy"
+        "description": "Versão atual do Votype"
       },
       "appDataDirectory": {
         "title": "Diretório de Dados do App",
-        "description": "Local onde o Handy armazena seus dados"
+        "description": "Local onde o Votype armazena seus dados"
       },
       "sourceCode": {
         "title": "Código Fonte",
@@ -458,7 +1143,7 @@
       },
       "supportDevelopment": {
         "title": "Apoiar o Desenvolvimento",
-        "description": "Ajude-nos a continuar construindo o Handy",
+        "description": "Ajude-nos a continuar construindo o Votype",
         "button": "Doar"
       },
       "acknowledgments": {
@@ -466,8 +1151,149 @@
         "whisper": {
           "title": "Whisper.cpp",
           "description": "Inferência de alto desempenho do modelo de reconhecimento automático de fala Whisper da OpenAI",
-          "details": "O Handy usa Whisper.cpp para processamento rápido e local de fala para texto. Agradecemos ao incrível trabalho de Georgi Gerganov e colaboradores."
+          "details": "O Votype usa Whisper.cpp para processamento rápido e local de fala para texto. Agradecemos ao incrível trabalho de Georgi Gerganov e colaboradores."
         }
+      },
+      "recordingsDirectory": {
+        "description": "Local onde as gravações de áudio são salvas",
+        "title": "Diretório de Gravações"
+      },
+      "upstream": {
+        "button": "Ver Projeto Original",
+        "description": "O Votype é baseado no Handy v0.9.7",
+        "title": "Projeto de Origem"
+      }
+    },
+    "asrModels": {
+      "addFromUrl": "Adicionar e Baixar",
+      "addSection": {
+        "description": "Cole a URL de um modelo. O aplicativo deduzirá o tipo do modelo a partir do nome do arquivo.",
+        "title": "Instalar"
+      },
+      "delete": "Excluir",
+      "description": "Gerencie modelos de transcrição locais e controle quais aparecem no seletor rápido.",
+      "download": "Baixar",
+      "favorite": "Favoritar",
+      "filters": {
+        "all": "Todos",
+        "downloaded": "Baixados",
+        "favorites": "Favoritos",
+        "language": "Idioma",
+        "mode": "Modo",
+        "recommended": "Recomendados",
+        "status": "Status",
+        "type": "Tipo"
+      },
+      "groupBy": {
+        "language": "Idioma",
+        "mode": "Modo",
+        "type": "Tipo"
+      },
+      "groups": {
+        "asr": "Modelos ASR",
+        "multilingual": "Multilíngue",
+        "punctuation": "Modelos de Pontuação"
+      },
+      "idLabel": "id: {{id}}",
+      "install": {
+        "addCustomTagButton": "Adicionar",
+        "button": "Adicionar Modelo Personalizado",
+        "customTagPlaceholder": "Tag personalizada...",
+        "description": "Insira a URL do arquivo do modelo (tar.gz, tar.bz2, etc.).",
+        "editDescription": "Atualize o nome ou as tags deste modelo.",
+        "editTitle": "Editar Modelo Personalizado",
+        "nameLabel": "Nome (Opcional)",
+        "placeholder": "https://example.com/model.tar.gz",
+        "remove": "Remover modelo personalizado",
+        "removeConfirm": "Remover este modelo personalizado? Isso também excluirá os arquivos baixados.",
+        "tagsLabel": "Tags",
+        "title": "Adicionar Modelo Personalizado",
+        "tooltip": "Adicionar modelo por URL",
+        "urlLabel": "URL",
+        "edit": "Editar modelo personalizado"
+      },
+      "languages": {
+        "de": "Alemão",
+        "en": "Inglês",
+        "es": "Espanhol",
+        "fr": "Francês",
+        "ja": "Japonês",
+        "ko": "Coreano",
+        "multilingual": "Multilíngue",
+        "other": "Outro",
+        "ru": "Russo",
+        "yue": "Cantonês",
+        "zh": "Chinês"
+      },
+      "library": {
+        "count": "{{count}} modelos",
+        "description": "Escolha favoritos para exibir no seletor rápido.",
+        "searchPlaceholder": "Buscar modelos…",
+        "title": "Biblioteca"
+      },
+      "modeChips": {
+        "asr": "ASR",
+        "punctuation": "Pontuação"
+      },
+      "specialChips": {
+        "streaming": "streaming",
+        "new": "novo"
+      },
+      "pipeline": {
+        "description": "Pós-processamento global que pode ser aplicado automaticamente após a transcrição.",
+        "itn": "ITN (SenseVoice)",
+        "itnHint": "Normalização inversa de texto: formatação básica (ex.: números).",
+        "punctuation": "Pontuação automática",
+        "punctuationHint": "Usa o modelo de pontuação selecionado para adicionar quebras de frase.",
+        "punctuationModel": "Modelo de pontuação",
+        "punctuationModelHint": "Escolha qual modelo de pontuação usar.",
+        "title": "Pipeline"
+      },
+      "quickSettings": {
+        "description": "Estes se aplicam globalmente. Exclua modelos de pontuação na biblioteca abaixo.",
+        "title": "Configurações Rápidas"
+      },
+      "reset": "Redefinir",
+      "status": {
+        "downloaded": "Baixado",
+        "notDownloaded": "Não baixado"
+      },
+      "title": "Modelos Locais",
+      "typeChips": {
+        "moonshine": "Moonshine",
+        "other": "Outro",
+        "paraformer": "Paraformer",
+        "parakeet": "Parakeet",
+        "sensevoice": "SenseVoice",
+        "whisper": "Whisper",
+        "zipformer": "Zipformer"
+      },
+      "types": {
+        "moonshine": "Moonshine",
+        "paraformer": "Paraformer",
+        "parakeet": "Parakeet",
+        "punctuation": "Pontuação",
+        "sensevoice": "SenseVoice",
+        "whisper": "Whisper",
+        "zipformer": "Zipformer"
+      },
+      "autoDownloadingPunctuation": "Baixando modelo de pontuação automaticamente..."
+    },
+    "shortcuts": {
+      "title": "Atalhos"
+    },
+    "vocabulary": {
+      "hotWords": {
+        "description": "Adicione palavras que costumam ser ouvidas incorretamente. O sistema corrigirá automaticamente.",
+        "empty": "Nenhuma hotword ainda",
+        "placeholder": "Adicionar uma palavra...",
+        "title": "Hotwords",
+        "word": "Palavra"
+      },
+      "import": "Importar",
+      "deleteConfirm": {
+        "title": "Confirmar Exclusão",
+        "hotwordMessage": "Tem certeza de que deseja remover esta hotword?"
       }
     }
   },
@@ -483,7 +1309,16 @@
     "downloading": "Baixando... {{progress}}%",
     "installing": "Instalando...",
     "preparing": "Preparando...",
-    "checkForUpdates": "Verificar atualizações"
+    "checkForUpdates": "Verificar atualizações",
+    "postProcess": {
+      "title": "Pós-processamento",
+      "punctuation": "Pontuação automática",
+      "translate": "Traduzir para Inglês",
+      "realtime": "Pré-visualização em tempo real",
+      "llm": "Pós-processamento com LLM",
+      "selectModel": "Selecionar modelo...",
+      "openSettings": "Configurações"
+    }
   },
   "common": {
     "loading": "Carregando...",
@@ -505,23 +1340,607 @@
     "off": "Desligado",
     "yes": "Sim",
     "no": "Não",
-    "noOptionsFound": "Nenhuma opção encontrada"
+    "noOptionsFound": "Nenhuma opção encontrada",
+    "locale": "pt",
+    "active": "Ativo",
+    "addNewOption": "Adicionar nova opção",
+    "aiOptimizationFailed": "Falha na otimização de IA, verifique a configuração",
+    "aiOptimizationSuccess": "Otimização de IA concluída",
+    "aiOptimize": "Refinar com IA",
+    "authorize": "Autorizar",
+    "bold": "Negrito",
+    "code": "Código em linha",
+    "confirm": "Confirmar",
+    "copied": "Copiado",
+    "copy": "Copiar",
+    "done": "Concluído",
+    "exitFullscreen": "Restaurar",
+    "filterOptions": "Filtrar opções...",
+    "fullscreen": "Tela cheia",
+    "granted": "Concedido",
+    "h1": "H1",
+    "id": "ID",
+    "italic": "Itálico",
+    "link": "Link",
+    "list": "Lista",
+    "models": "Modelos",
+    "next": "Próximo",
+    "noMatchingOptions": "Nenhuma opção correspondente",
+    "notAvailable": "Indisponível",
+    "optional": "Opcional",
+    "quote": "Citação",
+    "requesting": "Solicitando...",
+    "required": "Obrigatório",
+    "searchOrPaste": "Buscar ou colar...",
+    "selectAll": "Selecionar tudo",
+    "selectOption": "Selecione uma opção",
+    "skip": "Pular",
+    "useInput": "Usar \"{{input}}\"",
+    "useThisProvider": "Usar este Provedor",
+    "variables": "Variáveis Disponíveis",
+    "refresh": "Atualizar",
+    "time": {
+      "justNow": "Agora mesmo",
+      "minutesAgo": "há {{count}} min",
+      "hoursAgo": "há {{count}} h",
+      "daysAgo": "há {{count}} dias"
+    },
+    "history": "Histórico",
+    "latest": "Mais recente",
+    "localInsertCopied": "Nenhum campo de entrada em foco — resultado copiado para a área de transferência",
+    "insertBlocked": "{{app}} está na lista de bloqueio de inserção — conteúdo copiado para a área de transferência, cole manualmente",
+    "expand": "Expandir barra lateral",
+    "collapse": "Recolher barra lateral",
+    "retry": "Tentar novamente",
+    "unknown": "Desconhecido",
+    "error": "Erro"
   },
   "accessibility": {
     "permissionsRequired": "Permissões de Acessibilidade Necessárias",
-    "permissionsDescription": "O Handy precisa de permissões de acessibilidade para digitar o texto transcrito.",
+    "permissionsDescription": "O Votype precisa de permissões de acessibilidade para digitar o texto transcrito.",
     "openSettings": "Abrir Configurações do Sistema",
-    "dismiss": "Dispensar"
+    "dismiss": "Dispensar",
+    "verify": "Verificar"
   },
   "errors": {
-    "loadDirectory": "Erro ao carregar diretório: {{error}}"
+    "loadDirectory": "Erro ao carregar diretório: {{error}}",
+    "noInputDeviceTitle": "Microfone indisponível",
+    "noInputDevice": "Nenhum dispositivo de entrada de áudio foi encontrado. Verifique Configurações do Sistema > Som > Entrada e tente novamente.",
+    "recordingFailed": "Falha na gravação: {{error}}"
   },
   "appLanguage": {
     "title": "Idioma da Aplicação",
-    "description": "Alterar o idioma da interface do Handy"
+    "description": "Alterar o idioma da interface do Votype"
   },
   "overlay": {
+    "error": {
+      "appleIntelligenceFailed": "Falha do Apple Intelligence. Verifique o sistema.",
+      "appleIntelligenceUnavailable": "Apple Intelligence indisponível.",
+      "llmInitFailed": "Falha ao inicializar o LLM. Verifique chaves/URL.",
+      "llmRequestFailed": "Falha na requisição ao LLM. Verifique rede/API.",
+      "llmNetworkError": "Erro de rede, tentando novamente...",
+      "llmRateLimited": "Limite atingido, aguarde",
+      "llmAuthFailed": "Chave de API inválida, verifique as configurações",
+      "llmBadRequest": "O modelo rejeitou os parâmetros da requisição (ex.: min_p/top_k), verifique os parâmetros do modelo",
+      "llmModelNotFound": "Modelo não encontrado ou não habilitado, verifique o ID do modelo",
+      "llmApiError": "Erro no serviço de API",
+      "llmParseError": "Falha ao analisar a resposta do modelo",
+      "transcriptionFailedSaved": "Falha na transcrição (salva)"
+    },
+    "skillConfirmation": {
+      "confirmUse": "na seleção?",
+      "detectedSelection": "Usar ",
+      "prompt": "Usar esta skill?",
+      "charCount": "{{count}} caracteres"
+    },
+    "status": {
+      "inserting": "Inserindo...",
+      "llm": "Pós-processando...",
+      "recording": "Gravando...",
+      "translation": "Traduzindo...",
+      "transcribing": "Transcrevendo...",
+      "review": "Revisar...",
+      "rewrite": "Processando…",
+      "success": "Inserido",
+      "translationSuccess": "Tradução concluída"
+    },
+    "rewriteOperation": {
+      "rewrite": "Reescrito",
+      "expand": "Expandido",
+      "format": "Formatado",
+      "translate": "Traduzido",
+      "polish": "Polido",
+      "append": "Anexado",
+      "unknown": "Concluído"
+    },
+    "timeout": {
+      "title": "A transcrição online expirou",
+      "continue": "Continuar",
+      "retry": "Tentar novamente",
+      "cancel": "Cancelar"
+    },
+    "ruleSuggestion": {
+      "message": "Você usou '{{promptName}}' {{count}} vezes em {{appName}} ({{title}}). Adicionar uma regra para esta janela?",
+      "accept": "Adicionar regra",
+      "dismiss": "Agora não",
+      "never": "Nunca perguntar"
+    }
+  },
+  "dashboard": {
+    "actions": {
+      "edit": "Editar",
+      "editDescription": "Modificar o texto transcrito desta entrada do histórico",
+      "editPlaceholder": "Digite o texto modificado...",
+      "editTitle": "Editar Resultado do Reconhecimento",
+      "openRecordings": "Gravações",
+      "quickInsert": "Inserir em {{app}}",
+      "quickInsertEmpty": "Nenhum aplicativo externo recente detectado",
+      "quickInsertErrorFocus": "Falha ao ativar a janela de destino",
+      "quickInsertErrorNoTarget": "Nenhum aplicativo de destino para inserir",
+      "quickInsertErrorPaste": "Falha ao colar",
+      "reprocessFailed": "Falha no reprocessamento com IA",
+      "retranscribe": "Retranscrever usando o áudio",
+      "rejectPolish": "Rejeitar resultado do polimento",
+      "retranscribeFailed": "Falha na retranscrição",
+      "retranscribing": "Retranscrevendo..."
+    },
+    "activity": {
+      "entries": "{{count}} entradas",
+      "subtitle": "Últimos 40 dias",
+      "title": "Uso"
+    },
+    "cards": {
+      "allTime": "Todo o período",
+      "recent": "Últimos {{days}} dias",
+      "today": "Hoje"
+    },
+    "dateLabels": {
+      "today": "Hoje",
+      "yesterday": "Ontem"
+    },
+    "errorIndicator": {
+      "errorTypeLabel": {
+        "asr_empty": "Resultado vazio do ASR",
+        "llm_api_error": "O provedor retornou um erro",
+        "llm_auth_failed": "Falha na autenticação",
+        "llm_bad_request": "Requisição inválida",
+        "llm_config_error": "Erro de configuração do modelo/provedor",
+        "llm_empty_result": "Resposta vazia",
+        "llm_init_failed": "Falha ao inicializar o cliente",
+        "llm_model_not_found": "Modelo não encontrado (404)",
+        "llm_network_error": "Erro de rede",
+        "llm_parse_error": "Falha ao analisar a resposta",
+        "llm_rate_limited": "Limite de requisições (429)",
+        "llm_timeout": "Tempo esgotado (10s)",
+        "llm_unknown": "Erro de LLM desconhecido",
+        "pipeline_timeout": "Tempo esgotado do pipeline (20s)"
+      },
+      "errorsOnlyToggle": "Somente falhas",
+      "panelDetail": "Detalhe",
+      "panelErrorType": "Tipo de erro",
+      "panelModel": "Modelo",
+      "panelProvider": "Provedor",
+      "panelTimestamp": "Data/hora",
+      "stageAsr": "ASR",
+      "stagePolish": "Polimento",
+      "tooltipAsrEmpty": "O ASR retornou um resultado vazio",
+      "tooltipPolishFailed": "Falha no polimento",
+      "tooltipPolishProviderError": "Falha no polimento ({{status}})",
+      "tooltipPolishTimeout": "Tempo esgotado do polimento"
+    },
+    "details": {
+      "audioRemoved": "Gravação removida",
+      "cancelled": "Cancelado",
+      "count": "{{count}} entradas",
+      "empty": "Sem dados",
+      "emptyHint": "Use o atalho para iniciar sua primeira transcrição",
+      "loadMore": "Carregar mais",
+      "meta": {
+        "chars": "{{value}} caracteres"
+      },
+      "recordCount": "{{count}} registros",
+      "title": "Histórico"
+    },
+    "metrics": {
+      "characters": "Caracteres",
+      "duration": "Tempo de áudio",
+      "entries": "Transcrições",
+      "postProcessed": "Pós-processado",
+      "saved": "Salvo"
+    },
+    "range": {
+      "allTime": "Todo o período",
+      "buttons": {
+        "allTime": "Todo o período",
+        "last30Days": "Últimos 30 dias",
+        "last40Days": "Últimos 40 dias",
+        "last7Days": "Últimos 7 dias"
+      },
+      "lastNDays": "Últimos {{days}} dias",
+      "today": "Hoje"
+    },
+    "summary": {
+      "apps": {
+        "empty": "Sem dados de aplicativos",
+        "title": "Top 3 aplicativos mais usados",
+        "top3": "Top 3"
+      },
+      "llm": {
+        "calls": "{{count}} chamadas de modelo",
+        "title": "Uso de LLM",
+        "unknownApp": "Desconhecido"
+      },
+      "recording": {
+        "count": "{{count}} transcrições",
+        "title": "Total de entrada de voz"
+      },
+      "transcription": {
+        "speed": "Média de {{rate}}/min",
+        "title": "Texto gerado"
+      }
+    },
+    "title": "Painel"
+  },
+  "models": {
+    "large": {
+      "description": "Boa precisão, mas lento.",
+      "name": "Whisper Large"
+    },
+    "medium": {
+      "description": "Boa precisão, velocidade média",
+      "name": "Whisper Medium"
+    },
+    "parakeet-tdt-0.6b-v2": {
+      "description": "Apenas inglês. O melhor modelo para falantes de inglês.",
+      "name": "Parakeet V2"
+    },
+    "parakeet-tdt-0.6b-v3": {
+      "description": "Rápido e preciso",
+      "name": "Parakeet V3"
+    },
+    "punct-zh-en-ct-transformer-2024-04-12": {
+      "description": "Adiciona pontuação e quebras de frase para texto misto zh+en. Modelo maior; mais preciso, porém mais lento. Atualizado em 2024-04-12.",
+      "name": "Pontuação (Chinês + Inglês) Large"
+    },
+    "punct-zh-en-ct-transformer-2024-04-12-int8": {
+      "description": "Adiciona pontuação e quebras de frase para texto misto zh+en. Int8; rápido e leve. Atualizado em 2024-04-12.",
+      "name": "Pontuação (Chinês + Inglês)"
+    },
+    "small": {
+      "description": "Rápido e razoavelmente preciso.",
+      "name": "Whisper Small"
+    },
+    "turbo": {
+      "description": "Precisão e velocidade equilibradas.",
+      "name": "Whisper Turbo"
+    }
+  },
+  "inline": {
+    "listening": "Ouvindo...",
     "transcribing": "Transcrevendo...",
-    "processing": "Processando..."
+    "polishing": "Polindo...",
+    "executing": "Executando...",
+    "complete": "Concluído",
+    "modeToggle": "Modo de Edição",
+    "closeConfirmTitle": "Alterações Não Salvas",
+    "closeConfirmMessage": "O conteúdo foi modificado. Confirmar fechamento?",
+    "closeConfirmOk": "Fechar",
+    "closeConfirmCancel": "Cancelar",
+    "sectionTitle": "Resultado da Transcrição",
+    "undo": "Desfazer",
+    "redo": "Refazer",
+    "placeholder": "Pressione o atalho para começar a ditar..."
+  },
+  "soundPicker": {
+    "custom": "Personalizado",
+    "marimba": "Marimba",
+    "pop": "Pop",
+    "chime": "Sino",
+    "switch": "Interruptor",
+    "pluck": "Dedilhado",
+    "toggle": "Alternar",
+    "twotone": "Dois Tons",
+    "pep": "Pique",
+    "power": "Potência",
+    "zap": "Zap",
+    "blip": "Blip",
+    "mouse": "Clique do Mouse",
+    "wood": "Toque na Madeira",
+    "preview": "Pré-visualizar"
+  },
+  "summary": {
+    "periodSelector": {
+      "title": "Intervalo de Tempo",
+      "day": "Hoje",
+      "week": "Semana",
+      "month": "Mês"
+    },
+    "stats": {
+      "entries": "Entradas",
+      "chars": "Caracteres",
+      "duration": "Duração",
+      "aiCalls": "Chamadas de IA",
+      "noApps": "Sem dados de aplicativos",
+      "appDistribution": "Distribuição por Aplicativo",
+      "timeDistribution": "Distribuição por Tempo"
+    },
+    "recap": {
+      "title": "Resumo Diário",
+      "empty": "Ainda não há atividade suficiente neste intervalo para gerar um resumo.",
+      "progress": "Principais Progressos",
+      "friction": "Atritos",
+      "nextFocus": "Próximo Foco",
+      "blockers": "Bloqueios",
+      "nextStep": "Próximo Passo Sugerido",
+      "records": "registros"
+    },
+    "timeline": {
+      "title": "Histórico",
+      "days": "Dias",
+      "weeks": "Semanas",
+      "months": "Meses",
+      "empty": "Nenhum resumo ainda"
+    },
+    "actions": {
+      "export": "Exportar"
+    },
+    "export": {
+      "markdown": "Exportar como Markdown",
+      "json": "Exportar como JSON"
+    },
+    "aiAnalysis": {
+      "title": "Análise com IA",
+      "generate": "Gerar",
+      "generating": "Gerando...",
+      "view": "Visualizar",
+      "selectModel": "Selecionar Modelo",
+      "provider": "Provedor",
+      "modelUsed": "Modelo usado",
+      "clickToGenerate": "Clique para gerar uma análise das suas atividades com IA",
+      "communicationStyle": "Estilo de Comunicação",
+      "reflection": "Reflexão e Sugestões",
+      "empty": "Clique em 'Gerar' para obter insights com IA sobre suas atividades.",
+      "updateProfile": "Atualizar Perfil"
+    },
+    "userProfile": {
+      "currentStyle": "Perfil de Estilo Atual"
+    }
+  },
+  "theme": {
+    "accentColor": {
+      "amber": "Âmbar",
+      "blue": "Azul",
+      "bronze": "Bronze",
+      "brown": "Marrom",
+      "crimson": "Carmesim",
+      "current": "Atual: {{color}}",
+      "cyan": "Ciano",
+      "description": "Escolha a cor de destaque usada em todo o aplicativo",
+      "gold": "Dourado",
+      "grass": "Grama",
+      "gray": "Cinza",
+      "green": "Verde",
+      "indigo": "Índigo",
+      "iris": "Íris",
+      "jade": "Jade",
+      "lime": "Lima",
+      "mint": "Menta",
+      "orange": "Laranja",
+      "pink": "Rosa",
+      "plum": "Ameixa",
+      "purple": "Roxo",
+      "red": "Vermelho",
+      "ruby": "Rubi",
+      "sky": "Céu",
+      "teal": "Turquesa",
+      "title": "Cor de Destaque",
+      "tomato": "Tomate",
+      "violet": "Violeta",
+      "yellow": "Amarelo"
+    },
+    "compactMode": {
+      "description": "Mostrar descrições como dicas",
+      "title": "Modo Compacto"
+    },
+    "cornerRadius": {
+      "capsule": "Cápsula",
+      "capsuleDesc": "Cantos totalmente arredondados",
+      "default": "Padrão",
+      "defaultDesc": "Arredondamento padrão dos cantos",
+      "description": "Ajustar o arredondamento dos cantos",
+      "rounded": "Arredondado",
+      "roundedDesc": "Cantos mais arredondados",
+      "sharp": "Reto",
+      "sharpDesc": "Sem arredondamento dos cantos",
+      "soft": "Suave",
+      "softDesc": "Cantos levemente arredondados",
+      "title": "Raio dos Cantos"
+    },
+    "panelStyle": {
+      "description": "Escolha entre painéis translúcidos ou sólidos",
+      "solid": "Sólido",
+      "solidDesc": "Painéis opacos",
+      "title": "Estilo do Painel",
+      "translucent": "Translúcido",
+      "translucentDesc": "Efeito de vidro fosco"
+    },
+    "scaling": {
+      "current": "Atual: {{scale}}",
+      "description": "Ajustar a escala da interface",
+      "title": "Escala"
+    },
+    "themeMode": {
+      "dark": "Escuro",
+      "darkDesc": "Sempre usar o tema escuro",
+      "description": "Escolha a aparência do Votype",
+      "light": "Claro",
+      "lightDesc": "Sempre usar o tema claro",
+      "system": "Sistema",
+      "systemDesc": "Acompanhar o tema do sistema",
+      "title": "Modo de Tema"
+    },
+    "title": "Tema"
+  },
+  "transcription": {
+    "review": {
+      "aiResponse": "Resposta da IA",
+      "change": "Alterar",
+      "confidence": "Confiança",
+      "confirm": "Confirmar e Inserir",
+      "description": "A transcrição pode conter erros. Revise e edite se necessário.",
+      "final": "Saída final",
+      "generationTitle": "Resposta do Assistente de IA",
+      "highlightHint": "Palavras destacadas indicam edições do LLM.",
+      "hint": "⌘/Ctrl + Enter para confirmar, Esc para cancelar",
+      "insert": "Inserir",
+      "insertCode": "Inserir Código",
+      "insertOriginal": "Inserir Original (Tab)",
+      "insertStabilityHint": "Atalho: {{shortcut}}\nSe a inserção estiver instável, você pode desabilitar temporariamente este recurso.",
+      "instruction": "Instrução",
+      "placeholder": "Editar transcrição...",
+      "source": "Transcrição ao vivo",
+      "title": "Revisar Transcrição",
+      "skipPostProcess": "Pular Pós-processamento",
+      "hideDiff": "Ocultar Diferenças",
+      "showDiff": "Mostrar Diferenças",
+      "translateText": "Traduzir",
+      "translationResult": "Resultado da Tradução",
+      "translationPreview": "Pré-visualização em Inglês",
+      "translationPreviewLangLabel": "INGLÊS",
+      "translationModeAuto": "AUTO",
+      "translationModeManual": "MANUAL",
+      "translationUpdating": "Traduzindo...",
+      "translationWaiting": "Atualiza automaticamente 1s após as edições",
+      "translationFailedFallback": "Falha na tradução, o texto original será inserido",
+      "translationReady": "Atualizado",
+      "analysisTitle": "Análise:",
+      "deviationNone": "Correspondência Perfeita",
+      "deviationMinor": "Alterações Menores",
+      "deviationMajor": "Alterações Significativas",
+      "insertTranslation": "Inserir tradução",
+      "insertPolished": "Inserir Polido",
+      "insertEnglish": "Inserir Inglês",
+      "resizeGrip": "Arraste para redimensionar, clique duas vezes para ajustar automaticamente",
+      "multiModel": "Resultados de Múltiplos Modelos",
+      "processing": "Processando...",
+      "restoreOrder": "Restaurar Ordem Original",
+      "sortBySpeed": "Ordenar por Velocidade de Resposta",
+      "speedSorted": "Velocidade Primeiro",
+      "sortBySpeedShort": "Por Velocidade",
+      "rankCount": "#{{rank}} ({{count}} vezes)",
+      "sortByChange": "Ordenar pela magnitude da mudança",
+      "changeSorted": "Mudança primeiro",
+      "sortLabel": "Ordenar",
+      "pressEscAgain": "Conteúdo modificado, pressione ESC novamente para fechar",
+      "speedHistoryAvg": "Média histórica: {{speed}} ({{count}} chamadas)",
+      "speedThisRun": "Esta execução: {{speed}} ({{diff}})"
+    }
+  },
+  "secureInput": {
+    "blockedWithCulprit_one": "{{name}} pode estar bloqueando 1 atalho",
+    "blockedWithCulprit_other": "{{name}} pode estar bloqueando {{count}} atalhos",
+    "blockedNoCulprit_one": "O macOS está bloqueando temporariamente 1 atalho",
+    "blockedNoCulprit_other": "O macOS está bloqueando temporariamente {{count}} atalhos",
+    "recorderBlockedWithCulprit": "{{name}} pode estar bloqueando alterações de atalho",
+    "recorderBlockedNoCulprit": "O macOS está bloqueando temporariamente alterações de atalho",
+    "learnMore": "Como corrigir",
+    "recorderBlocked": "Não é possível gravar atalhos agora — o Entrada Segura do macOS está bloqueando eventos de teclado. Resolva primeiro o aviso de Entrada Segura.",
+    "dismiss": "Dispensar"
+  },
+  "ruleSuggestion": {
+    "title": "Adicionar uma regra para esta janela?",
+    "app": "Aplicativo",
+    "window": "Janela",
+    "prompt": "Prompt",
+    "used": "Usado",
+    "times": "{{count}} vezes",
+    "description": "Depois de adicionada, este prompt é aplicado automaticamente na próxima vez que você gravar nesta janela.",
+    "dismiss": "Agora não",
+    "neverAgain": "Não perguntar novamente",
+    "addRule": "Adicionar regra"
+  },
+  "hotword": {
+    "addBar": {
+      "placeholder": "Insira hotwords (separadas por vírgula para adicionar em massa)...",
+      "words": "{{count}} palavras",
+      "add": "Adicionar",
+      "addCount": "Adicionar ({{count}})"
+    },
+    "source": {
+      "manual": "Manual",
+      "autoLearned": "Aprendida automaticamente",
+      "aiExtracted": "Extraída por IA"
+    },
+    "scenario": {
+      "work": "Trabalho",
+      "casual": "Casual"
+    },
+    "tagCloud": {
+      "add": "Adicionar",
+      "import": "Importar",
+      "export": "Exportar",
+      "sortByWeight": "Ordenar por peso",
+      "sortByAlpha": "Ordenar alfabeticamente",
+      "searchPlaceholder": "Buscar hotwords...",
+      "aiSuggestions": "Sugestões da IA ({{count}})",
+      "acceptAll": "Aceitar todas",
+      "dismissAll": "Dispensar todas",
+      "contextFrequent": "Frequente no contexto",
+      "acceptSuggestion": "Aceitar sugestão",
+      "dismissSuggestion": "Dispensar sugestão",
+      "empty": "Nenhuma hotword ainda. Clique em \"Adicionar\" para criar a primeira.",
+      "noMatch": "Nenhuma hotword corresponde a \"{{query}}\"",
+      "dropHere": "Solte aqui"
+    },
+    "editPanel": {
+      "addAlias": "Adicionar palavra {{label}}",
+      "duplicate": "\"{{target}}\" já existe",
+      "saveFailed": "Falha ao salvar",
+      "targetPlaceholder": "Palavra de destino",
+      "decreaseWeight": "Diminuir peso",
+      "increaseWeight": "Aumentar peso",
+      "falsePositive": "{{count}} falsos positivos",
+      "deleteHotword": "Excluir hotword",
+      "category": "Categoria",
+      "scenario": "Cenário",
+      "correction": "Corrigir",
+      "correctionDesc": "Usada como referência de correção e injetada no prompt do LLM. Arraste um alias para \"Forçar\" para transformá-lo em uma substituição local direta.",
+      "correctionPlaceholder": "Adicionar palavra de correção",
+      "force": "Forçar",
+      "forceDesc": "Somente substituição local exata, nunca enviada ao LLM. Arraste um alias de volta para \"Corrigir\" para restaurar a referência da IA.",
+      "forcePlaceholder": "Adicionar palavra forçada",
+      "none": "Nenhuma",
+      "confirmDeleteTitle": "Confirmar exclusão",
+      "confirmDeleteDesc": "Excluir a hotword \"{{target}}\"?"
+    },
+    "categoryDialog": {
+      "colors": {
+        "gray": "Cinza",
+        "green": "Verde",
+        "orange": "Laranja",
+        "blue": "Azul",
+        "purple": "Roxo",
+        "red": "Vermelho",
+        "cyan": "Ciano",
+        "amber": "Âmbar",
+        "teal": "Turquesa",
+        "pink": "Rosa"
+      },
+      "idInvalid": "Os IDs podem conter apenas letras, números e hífens",
+      "idDuplicate": "O ID de categoria \"{{id}}\" já existe",
+      "addFailed": "Falha ao adicionar",
+      "saveFailed": "Falha ao salvar",
+      "deleteFailed": "Falha ao excluir",
+      "manageTooltip": "Gerenciar categorias",
+      "title": "Gerenciar categorias de hotwords",
+      "description": "Personalize o nome, a cor e o ícone de cada categoria. Categorias integradas não podem ser excluídas.",
+      "namePlaceholder": "Nome da categoria",
+      "builtin": "Integrada",
+      "deleteTooltip": "Excluir (as hotwords vão para Termos)",
+      "idPlaceholder": "ID (ex.: medical)",
+      "labelPlaceholder": "Nome (ex.: Medical)",
+      "idInvalidDetail": "Os IDs podem conter apenas letras, números e hífens (-)",
+      "addCategory": "Adicionar categoria"
+    }
   }
 }

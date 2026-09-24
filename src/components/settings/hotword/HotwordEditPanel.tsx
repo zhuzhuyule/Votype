@@ -28,13 +28,14 @@ import {
 } from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
 import React, { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   type Hotword,
   type HotwordCategory,
   type HotwordCategoryMeta,
   type HotwordScenario,
-  SCENARIO_LABELS,
-  SOURCE_LABELS,
+  SCENARIO_LABEL_KEYS,
+  SOURCE_LABEL_KEYS,
 } from "../../../types/hotword";
 import { resolveIcon } from "../../../lib/hotwordIcons";
 
@@ -119,6 +120,7 @@ const AliasDropLane: React.FC<{
   onInputCancel,
   children,
 }) => {
+  const { t } = useTranslation();
   const { setNodeRef, isOver } = useDroppable({ id: DROP_ID[bucket] });
 
   return (
@@ -185,7 +187,7 @@ const AliasDropLane: React.FC<{
               />
             </Flex>
           ) : (
-            <Tooltip content={`添加${label}词`}>
+            <Tooltip content={t("hotword.editPanel.addAlias", { label })}>
               <IconButton
                 size="1"
                 variant="ghost"
@@ -218,6 +220,7 @@ export function HotwordEditPanel({
   categoryMap,
   sortedIds,
 }: HotwordEditPanelProps) {
+  const { t } = useTranslation();
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 6 },
@@ -359,9 +362,9 @@ export function HotwordEditPanel({
     } catch (e) {
       const msg = String(e);
       if (msg.includes("UNIQUE constraint")) {
-        setError(`「${target.trim()}」已存在`);
+        setError(t("hotword.editPanel.duplicate", { target: target.trim() }));
       } else {
-        setError("保存失败");
+        setError(t("hotword.editPanel.saveFailed"));
       }
       console.error("[HotwordEditPanel] Save failed:", e);
     } finally {
@@ -409,14 +412,14 @@ export function HotwordEditPanel({
             value={target}
             onChange={(e) => setTarget(e.target.value)}
             className="font-medium flex-1 max-w-[200px]"
-            placeholder="目标词"
+            placeholder={t("hotword.editPanel.targetPlaceholder")}
           />
           <Flex gap="2" align="center" className="flex-1">
             <Badge size="1" variant="soft" color={sourceColor}>
-              {SOURCE_LABELS[hotword.source]}
+              {t(SOURCE_LABEL_KEYS[hotword.source])}
             </Badge>
             <Flex align="center" gap="1">
-              <Tooltip content="减少权重">
+              <Tooltip content={t("hotword.editPanel.decreaseWeight")}>
                 <IconButton
                   size="1"
                   variant="ghost"
@@ -430,7 +433,7 @@ export function HotwordEditPanel({
               <Text size="1" color="gray" className="min-w-[3ch] text-center">
                 {useCount}
               </Text>
-              <Tooltip content="增加权重">
+              <Tooltip content={t("hotword.editPanel.increaseWeight")}>
                 <IconButton
                   size="1"
                   variant="ghost"
@@ -443,7 +446,9 @@ export function HotwordEditPanel({
             </Flex>
             {hotword.false_positive_count > 0 && (
               <Text size="1" color="red">
-                误报 {hotword.false_positive_count}
+                {t("hotword.editPanel.falsePositive", {
+                  count: hotword.false_positive_count,
+                })}
               </Text>
             )}
           </Flex>
@@ -456,10 +461,10 @@ export function HotwordEditPanel({
                 disabled={!target.trim() || saving}
               >
                 <IconCheck size={12} />
-                保存
+                {t("common.save")}
               </Button>
             )}
-            <Tooltip content="删除热词">
+            <Tooltip content={t("hotword.editPanel.deleteHotword")}>
               <IconButton
                 size="1"
                 variant="ghost"
@@ -487,7 +492,7 @@ export function HotwordEditPanel({
               weight="medium"
               className={LABEL_CLASS_NAME}
             >
-              类别
+              {t("hotword.editPanel.category")}
             </Text>
             <Flex
               gap="1"
@@ -534,7 +539,7 @@ export function HotwordEditPanel({
               weight="medium"
               className={LABEL_CLASS_NAME}
             >
-              场景
+              {t("hotword.editPanel.scenario")}
             </Text>
             <Flex
               gap="1"
@@ -543,8 +548,11 @@ export function HotwordEditPanel({
               className={ROW_MIN_HEIGHT_CLASS_NAME}
             >
               {(
-                Object.entries(SCENARIO_LABELS) as [HotwordScenario, string][]
-              ).map(([key, label]) => {
+                Object.entries(SCENARIO_LABEL_KEYS) as [
+                  HotwordScenario,
+                  string,
+                ][]
+              ).map(([key, labelKey]) => {
                 const isActive = scenarios.includes(key);
                 return (
                   <Badge
@@ -557,7 +565,7 @@ export function HotwordEditPanel({
                     }`}
                     onClick={() => handleScenarioToggle(key)}
                   >
-                    {label}
+                    {t(labelKey)}
                   </Badge>
                 );
               })}
@@ -573,13 +581,13 @@ export function HotwordEditPanel({
             <Flex direction="column" gap="3">
               <AliasDropLane
                 bucket="correction"
-                label="纠错"
-                description="参与纠错参考与 LLM 注入。可把某个别名拖到“强替”中，转成本地直接替换。"
+                label={t("hotword.editPanel.correction")}
+                description={t("hotword.editPanel.correctionDesc")}
                 isDragging={isDraggingAlias}
                 isAdding={addingBucket === "correction"}
                 onBeginAdd={() => beginAdd("correction")}
                 inputValue={newOriginal}
-                inputPlaceholder="添加纠错词"
+                inputPlaceholder={t("hotword.editPanel.correctionPlaceholder")}
                 onInputChange={setNewOriginal}
                 onInputSubmit={() => {
                   addAlias(
@@ -610,20 +618,20 @@ export function HotwordEditPanel({
                 ))}
                 {correctionEmpty && addingBucket !== "correction" && (
                   <Text size="1" color="gray">
-                    暂无
+                    {t("hotword.editPanel.none")}
                   </Text>
                 )}
               </AliasDropLane>
 
               <AliasDropLane
                 bucket="force"
-                label="强替"
-                description="仅做本地精确替换，不进入 LLM。可把某个别名拖回“纠错”中恢复 AI 参考。"
+                label={t("hotword.editPanel.force")}
+                description={t("hotword.editPanel.forceDesc")}
                 isDragging={isDraggingAlias}
                 isAdding={addingBucket === "force"}
                 onBeginAdd={() => beginAdd("force")}
                 inputValue={newForceReplaceOriginal}
-                inputPlaceholder="添加强替词"
+                inputPlaceholder={t("hotword.editPanel.forcePlaceholder")}
                 onInputChange={setNewForceReplaceOriginal}
                 onInputSubmit={() => {
                   addAlias(
@@ -654,7 +662,7 @@ export function HotwordEditPanel({
                 ))}
                 {forceEmpty && addingBucket !== "force" && (
                   <Text size="1" color="gray">
-                    暂无
+                    {t("hotword.editPanel.none")}
                   </Text>
                 )}
               </AliasDropLane>
@@ -665,14 +673,18 @@ export function HotwordEditPanel({
 
       <AlertDialog.Root open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialog.Content maxWidth="400px">
-          <AlertDialog.Title>确认删除</AlertDialog.Title>
+          <AlertDialog.Title>
+            {t("hotword.editPanel.confirmDeleteTitle")}
+          </AlertDialog.Title>
           <AlertDialog.Description size="2">
-            确定要删除热词「{hotword.target}」吗？
+            {t("hotword.editPanel.confirmDeleteDesc", {
+              target: hotword.target,
+            })}
           </AlertDialog.Description>
           <Flex gap="3" mt="4" justify="end">
             <AlertDialog.Cancel>
               <Button variant="soft" color="gray">
-                取消
+                {t("common.cancel")}
               </Button>
             </AlertDialog.Cancel>
             <AlertDialog.Action>
@@ -681,7 +693,7 @@ export function HotwordEditPanel({
                 color="red"
                 onClick={() => onDelete(hotword.id)}
               >
-                删除
+                {t("common.delete")}
               </Button>
             </AlertDialog.Action>
           </Flex>
