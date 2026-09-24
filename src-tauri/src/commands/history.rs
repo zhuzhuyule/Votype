@@ -674,6 +674,18 @@ pub async fn get_model_speed_stats(
         .map_err(|e| e.to_string())
 }
 
+/// Aggregate ASR model usage (call count + last-used) from transcription history.
+#[tauri::command]
+pub async fn get_asr_model_usage(
+    _app: AppHandle,
+    history_manager: State<'_, Arc<HistoryManager>>,
+) -> Result<Vec<crate::managers::history::AsrModelUsage>, String> {
+    history_manager
+        .get_asr_model_usage()
+        .await
+        .map_err(|e| e.to_string())
+}
+
 /// Get aggregated LLM usage stats (call count + token total).
 /// Optional `since_timestamp` filters to entries after that unix timestamp.
 #[tauri::command]

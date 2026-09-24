@@ -5,7 +5,6 @@ import {
   Checkbox,
   Dialog,
   Flex,
-  Grid,
   ScrollArea,
   SegmentedControl,
   Text,
@@ -357,7 +356,7 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
                 </Text>
               </Flex>
             ) : (
-              <Grid columns="3" gap="2">
+              <Flex direction="column" gap="1">
                 {filteredOptions.map((model) => {
                   const isSelected = selectedIds.has(model.id);
                   const alreadyAdded = configuredIds.has(model.id);
@@ -366,6 +365,11 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
                     providerState.selectedProviderId,
                     speedStats,
                   );
+                  const modelType = inferModelType({
+                    modelId: model.id,
+                    name: model.name,
+                    capabilities: model.capabilities,
+                  });
 
                   return (
                     <Box
@@ -380,80 +384,97 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
                             : "border-(--gray-a4) hover:border-(--gray-a6) hover:bg-(--gray-a2)",
                       ].join(" ")}
                     >
-                      <Flex direction="column" gap="1">
-                        {/* Row 1: checkbox + name */}
-                        <Flex align="center" gap="2" className="min-w-0">
-                          <Checkbox
-                            size="1"
-                            checked={isSelected}
-                            tabIndex={-1}
-                            className="shrink-0 pointer-events-none"
-                          />
-                          <Text size="2" weight="medium" className="truncate">
+                      <Flex align="center" gap="3">
+                        <Checkbox
+                          size="1"
+                          checked={isSelected}
+                          tabIndex={-1}
+                          className="shrink-0 pointer-events-none"
+                        />
+
+                        {/* Name + capability meta */}
+                        <Box className="min-w-0 flex-1">
+                          <Text
+                            size="2"
+                            weight="medium"
+                            className="break-words leading-snug"
+                          >
                             {model.name}
                           </Text>
-                        </Flex>
-
-                        {/* Row 2: meta info */}
-                        <Flex
-                          align="center"
-                          gap="2"
-                          className="min-h-[16px] pl-5"
-                        >
-                          {model.capabilities && (
-                            <Text size="1" className="text-(--gray-8)">
-                              {model.capabilities}
-                            </Text>
-                          )}
-                          {alreadyAdded && (
-                            <Badge variant="soft" color="blue" size="1">
-                              {t(
-                                "settings.postProcessing.models.selectModel.alreadyAdded",
-                                "Added",
-                              )}
-                            </Badge>
-                          )}
-                        </Flex>
-
-                        {/* Row 3: usage stats (if available) */}
-                        {stats && stats.totalCalls > 0 && (
-                          <Flex align="center" gap="2.5" className="pl-5">
-                            <Flex align="center" gap="0.5">
-                              <IconActivity
-                                size={10}
-                                strokeWidth={2.5}
-                                className="text-(--gray-8)"
-                              />
-                              <Text
-                                size="1"
-                                className="text-(--gray-9) tabular-nums"
-                              >
-                                {formatCalls(stats.totalCalls)}
+                          <Flex
+                            align="center"
+                            gap="2"
+                            className="min-h-[14px] mt-0.5"
+                          >
+                            {model.capabilities && (
+                              <Text size="1" className="text-(--gray-8)">
+                                {model.capabilities}
                               </Text>
-                            </Flex>
-                            {stats.avgSpeed > 0 && (
+                            )}
+                            {alreadyAdded && (
+                              <Badge variant="soft" color="blue" size="1">
+                                {t(
+                                  "settings.postProcessing.models.selectModel.alreadyAdded",
+                                  "Added",
+                                )}
+                              </Badge>
+                            )}
+                          </Flex>
+                        </Box>
+
+                        {/* Right rail: type badge + usage history */}
+                        <Flex align="center" gap="3" className="shrink-0">
+                          {stats && stats.totalCalls > 0 && (
+                            <Flex align="center" gap="2.5">
                               <Flex align="center" gap="0.5">
-                                <IconFlame
-                                  size={10}
+                                <IconActivity
+                                  size={11}
                                   strokeWidth={2.5}
-                                  className="text-amber-500/50"
+                                  className="text-(--gray-8)"
                                 />
                                 <Text
                                   size="1"
                                   className="text-(--gray-9) tabular-nums"
                                 >
-                                  {formatSpeed(stats.avgSpeed)}
-                                  <span className="ml-0.5 opacity-40">t/s</span>
+                                  {formatCalls(stats.totalCalls)}
                                 </Text>
                               </Flex>
+                              {stats.avgSpeed > 0 && (
+                                <Flex align="center" gap="0.5">
+                                  <IconFlame
+                                    size={11}
+                                    strokeWidth={2.5}
+                                    className="text-amber-500/60"
+                                  />
+                                  <Text
+                                    size="1"
+                                    className="text-(--gray-9) tabular-nums"
+                                  >
+                                    {formatSpeed(stats.avgSpeed)}
+                                    <span className="ml-0.5 opacity-40">
+                                      t/s
+                                    </span>
+                                  </Text>
+                                </Flex>
+                              )}
+                            </Flex>
+                          )}
+                          <Badge
+                            variant="surface"
+                            color={modelType === "asr" ? "teal" : "gray"}
+                            size="1"
+                            className="w-12 justify-center"
+                          >
+                            {t(
+                              `settings.postProcessing.models.modelTypes.${modelType}.label`,
                             )}
-                          </Flex>
-                        )}
+                          </Badge>
+                        </Flex>
                       </Flex>
                     </Box>
                   );
                 })}
-              </Grid>
+              </Flex>
             )}
           </ScrollArea>
 

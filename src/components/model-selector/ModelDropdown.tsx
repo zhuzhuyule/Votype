@@ -9,6 +9,7 @@ import {
 } from "@tabler/icons-react";
 import React from "react";
 import { useTranslation } from "react-i18next";
+import { AsrModelUsage } from "../../hooks/useAsrModelUsage";
 import { ModelInfo } from "../../lib/types";
 import { getTranslatedModelName } from "../../lib/utils/modelTranslation";
 import { RECOMMENDED_MODEL_IDS } from "../settings/asr-models/constants";
@@ -43,6 +44,7 @@ interface ModelDropdownProps {
   selectedRealtimeModelId: string | null;
   realtimeEnabled: boolean;
   onRealtimeModelSelect: (modelId: string | null) => void;
+  getUsage?: (modelId: string) => AsrModelUsage | null;
 }
 
 const ModelDropdown: React.FC<ModelDropdownProps> = ({
@@ -59,6 +61,7 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
   selectedRealtimeModelId,
   realtimeEnabled,
   onRealtimeModelSelect,
+  getUsage,
 }) => {
   const { t } = useTranslation();
   const containerRef = React.useRef<HTMLDivElement | null>(null);
@@ -150,6 +153,28 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
       return; // Don't allow interaction while downloading
     }
     onModelDownload(modelId);
+  };
+
+  const usageLabel = (modelId: string): React.ReactNode => {
+    const usage = getUsage?.(modelId);
+    if (!usage || usage.use_count <= 0) return null;
+    const lastUsed =
+      usage.last_used != null
+        ? new Date(usage.last_used * 1000).toLocaleDateString()
+        : null;
+    return (
+      <Text
+        size="1"
+        className="text-text/40 whitespace-nowrap"
+        title={
+          lastUsed
+            ? t("modelSelector.usage.lastUsed", { date: lastUsed })
+            : undefined
+        }
+      >
+        {t("modelSelector.usage.times", { count: usage.use_count })}
+      </Text>
+    );
   };
 
   const renderGroupedModels = (
@@ -253,7 +278,7 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
                           model={model}
                           t={t}
                           showSize
-                          showMode={false}
+                          showMode
                           showLanguages
                           showType={false}
                         />
@@ -269,9 +294,12 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
                       }
                     }}
                     rightElement={
-                      isActive ? (
-                        <IconCheck className="text-logo-primary w-5 h-5 flex-shrink-0" />
-                      ) : null
+                      <Flex align="center" gap="2">
+                        {usageLabel(model.id)}
+                        {isActive && (
+                          <IconCheck className="text-logo-primary w-5 h-5 flex-shrink-0" />
+                        )}
+                      </Flex>
                     }
                   />
                 );
@@ -322,6 +350,7 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
                         }
                         rightElement={
                           <Flex align="center" gap="2">
+                            {usageLabel(model.id)}
                             <Box className="w-5 h-5 flex items-center justify-center">
                               {isActive && (
                                 <IconCheck className="text-logo-primary w-5 h-5" />
@@ -563,9 +592,12 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
                           setRealtimePicker(null);
                         }}
                         rightElement={
-                          isActive ? (
-                            <IconCheck className="text-logo-primary w-5 h-5 flex-shrink-0" />
-                          ) : null
+                          <Flex align="center" gap="2">
+                            {usageLabel(m.id)}
+                            {isActive && (
+                              <IconCheck className="text-logo-primary w-5 h-5 flex-shrink-0" />
+                            )}
+                          </Flex>
                         }
                       />
                     );

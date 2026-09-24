@@ -526,6 +526,14 @@ pub struct HistoryTotals {
     pub corrected_char_count: i64,
 }
 
+/// Per-ASR-model usage aggregated from transcription history.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct AsrModelUsage {
+    pub asr_model: String,
+    pub use_count: i64,
+    pub last_used: Option<i64>,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct HistoryDayBucket {
     /// Local calendar day in `YYYY-MM-DD` format.
@@ -1034,6 +1042,39 @@ impl HistoryManager {
             all_time,
             recent_days,
         })
+    }
+
+    /// Aggregate ASR model usage counts and last-used timestamp from history.
+    /// Counts both primary (`asr_model`) and streaming (`streaming_asr_model`)
+    /// transcriptions so a model used only for live output still shows up.
+    pub async fn get_asr_model_usage(&self) -> Result<Vec<AsrModelUsage>> {
+        let conn = self.get_connection()?;
+        let mut stmt = conn.prepare(
+            "SELECT model AS asr_model, COUNT(*) AS use_count, MAX(timestamp) AS last_used
+             FROM (
+                 SELECT asr_model AS model, timestamp
+                 FROM transcription_history
+                 WHERE deleted = 0 AND asr_model IS NOT NULL AND asr_model != ''
+                 UNION ALL
+                 SELECT streaming_asr_model AS model, timestamp
+                 FROM transcription_history
+                 WHERE deleted = 0 AND streaming_asr_model IS NOT NULL AND streaming_asr_model != ''
+             )
+             GROUP BY model",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            Ok(AsrModelUsage {
+                asr_model: row.get::<_, String>(0)?,
+                use_count: row.get::<_, i64>(1)?,
+                last_used: row.get::<_, Option<i64>>(2)?,
+            })
+        })?;
+        let mut out = Vec::new();
+        for r in rows {
+            out.push(r?);
+        }
+        out.sort_by(|a, b| b.use_count.cmp(&a.use_count));
+        Ok(out)
     }
 
     /// Save a transcription to history (both database and WAV file)

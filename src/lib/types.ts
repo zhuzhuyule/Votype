@@ -224,7 +224,22 @@ export const SettingsSchema = z.object({
   audio_feedback: z.boolean(),
   audio_feedback_volume: z.number().optional().default(1.0),
   sound_theme: z
-    .enum(["marimba", "pop", "custom"])
+    .enum([
+      "marimba",
+      "pop",
+      "chime",
+      "switch",
+      "pluck",
+      "toggle",
+      "twotone",
+      "pep",
+      "power",
+      "zap",
+      "blip",
+      "mouse",
+      "wood",
+      "custom",
+    ])
     .optional()
     .default("marimba"),
   start_hidden: z.boolean().optional().default(false),

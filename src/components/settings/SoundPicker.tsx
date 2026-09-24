@@ -8,6 +8,22 @@ import { ActionWrapper } from "../ui/ActionWrapper";
 import { Dropdown, DropdownOption } from "../ui/Dropdown";
 import { SettingContainer } from "../ui/SettingContainer";
 
+type SoundThemeValue =
+  | "marimba"
+  | "pop"
+  | "chime"
+  | "switch"
+  | "pluck"
+  | "toggle"
+  | "twotone"
+  | "pep"
+  | "power"
+  | "zap"
+  | "blip"
+  | "mouse"
+  | "wood"
+  | "custom";
+
 interface SoundPickerProps {
   label: string;
   description: string;
@@ -29,6 +45,17 @@ export const SoundPicker: React.FC<SoundPickerProps> = ({
   const options: DropdownOption[] = [
     { value: "marimba", label: t("soundPicker.marimba") },
     { value: "pop", label: t("soundPicker.pop") },
+    { value: "chime", label: t("soundPicker.chime") },
+    { value: "switch", label: t("soundPicker.switch") },
+    { value: "pluck", label: t("soundPicker.pluck") },
+    { value: "toggle", label: t("soundPicker.toggle") },
+    { value: "twotone", label: t("soundPicker.twotone") },
+    { value: "pep", label: t("soundPicker.pep") },
+    { value: "power", label: t("soundPicker.power") },
+    { value: "zap", label: t("soundPicker.zap") },
+    { value: "blip", label: t("soundPicker.blip") },
+    { value: "mouse", label: t("soundPicker.mouse") },
+    { value: "wood", label: t("soundPicker.wood") },
   ];
 
   // Only add Custom option if both custom sound files exist
@@ -53,7 +80,7 @@ export const SoundPicker: React.FC<SoundPickerProps> = ({
         <Dropdown
           selectedValue={selectedTheme}
           onSelect={(value) =>
-            updateSetting("sound_theme", value as "marimba" | "pop" | "custom")
+            updateSetting("sound_theme", value as SoundThemeValue)
           }
           options={options}
         />

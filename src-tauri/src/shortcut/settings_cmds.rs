@@ -1142,6 +1142,17 @@ pub fn change_sound_theme_setting(app: AppHandle, theme: String) -> Result<(), S
     let parsed = match theme.as_str() {
         "marimba" => settings::SoundTheme::Marimba,
         "pop" => settings::SoundTheme::Pop,
+        "chime" => settings::SoundTheme::Chime,
+        "switch" => settings::SoundTheme::Switch,
+        "pluck" => settings::SoundTheme::Pluck,
+        "toggle" => settings::SoundTheme::Toggle,
+        "twotone" => settings::SoundTheme::Twotone,
+        "pep" => settings::SoundTheme::Pep,
+        "power" => settings::SoundTheme::Power,
+        "zap" => settings::SoundTheme::Zap,
+        "blip" => settings::SoundTheme::Blip,
+        "mouse" => settings::SoundTheme::Mouse,
+        "wood" => settings::SoundTheme::Wood,
         "custom" => settings::SoundTheme::Custom,
         _ => settings::SoundTheme::Marimba,
     };

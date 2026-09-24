@@ -78,6 +78,21 @@ export const GeneralSettings: React.FC = () => {
         <AppendTrailingSpace descriptionMode="inline" grouped={true} />
       </SettingsGroup>
 
+      {/* Sound Settings */}
+      <SettingsGroup title={t("settings.sound.title")}>
+        <AudioFeedback descriptionMode="inline" grouped={true} />
+        <SoundPicker
+          label={t("settings.debug.soundTheme.label")}
+          description={t("settings.debug.soundTheme.description")}
+        />
+        <OutputDeviceSelector
+          descriptionMode="inline"
+          grouped={true}
+          disabled={!audioFeedbackEnabled}
+        />
+        <VolumeSlider disabled={!audioFeedbackEnabled} />
+      </SettingsGroup>
+
       {/* Font Settings */}
       <SettingsGroup title="字体">
         <SettingContainer

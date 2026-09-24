@@ -324,6 +324,10 @@
   },
   "modelSelector": {
     "active": "活跃",
+    "usage": {
+      "times": "已用 {{count}} 次",
+      "lastUsed": "最近使用 {{date}}"
+    },
     "addModelFromUrl": "从链接添加",
     "addModelFromUrlPrompt": "粘贴模型下载链接（例如 .tar.bz2）：",
     "availableModels": "可用模型",
@@ -1609,6 +1613,17 @@
     "custom": "自定义",
     "marimba": "马林巴琴",
     "pop": "流行",
+    "chime": "风铃",
+    "switch": "开关",
+    "pluck": "拨弦",
+    "toggle": "切换",
+    "twotone": "双音",
+    "pep": "轻快铃",
+    "power": "能量",
+    "zap": "电击",
+    "blip": "电钮",
+    "mouse": "鼠标点击",
+    "wood": "木击",
     "preview": "预览"
   },
   "summary": {

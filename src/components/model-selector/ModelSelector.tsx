@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useAsrModelUsage } from "../../hooks/useAsrModelUsage";
 import { useSettings } from "../../hooks/useSettings";
 import { ModelInfo } from "../../lib/types";
 import { AsrFallbackSelector } from "./AsrFallbackSelector";
@@ -67,6 +68,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
     updateSetting,
     updateModelChain,
   } = useSettings();
+  const { getUsage } = useAsrModelUsage();
 
   const cachedModels = settings?.cached_models || [];
   const providerNameMap = useMemo(() => {
@@ -547,6 +549,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
             realtimeEnabled={
               settings?.post_process_use_secondary_output || false
             }
+            getUsage={getUsage}
             onRealtimeModelSelect={async (modelId) => {
               await updateSetting("post_process_secondary_model_id", modelId);
               await updateSetting(

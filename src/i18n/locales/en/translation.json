@@ -275,6 +275,10 @@
   },
   "modelSelector": {
     "active": "Active",
+    "usage": {
+      "times": "{{count}} used",
+      "lastUsed": "Last used {{date}}"
+    },
     "addModelFromUrl": "Add from URL",
     "addModelFromUrlPrompt": "Paste a model download URL (e.g. .tar.bz2):",
     "availableModels": "Available Models",
@@ -1560,6 +1564,17 @@
     "custom": "Custom",
     "marimba": "Marimba",
     "pop": "Pop",
+    "chime": "Chime",
+    "switch": "Switch",
+    "pluck": "Pluck",
+    "toggle": "Toggle",
+    "twotone": "Two-tone",
+    "pep": "Pep",
+    "power": "Power",
+    "zap": "Zap",
+    "blip": "Blip",
+    "mouse": "Mouse Click",
+    "wood": "Wood Tap",
     "preview": "Preview"
   },
   "summary": {

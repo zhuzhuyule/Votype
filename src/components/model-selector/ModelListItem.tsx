@@ -48,7 +48,8 @@ export const ModelListItem: React.FC<ModelListItemProps> = ({
             <Text
               size="2"
               weight="medium"
-              className={`truncate ${
+              title={name}
+              className={`break-words leading-snug ${
                 isActive ? "text-logo-primary" : "text-text"
               }`}
             >
