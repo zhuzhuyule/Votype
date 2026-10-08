@@ -98,6 +98,11 @@ transcribe-rs = { git = "https://github.com/zhuzhuyule/transcribe-rs", branch = 
 # ISO 639-1 codes in model metadata to whatlang's 639-3 codes.
 whatlang = "0.16"
 isolang = "2"
+# transcribe.cpp engine migration (plan B) — GGUF/ggml engine with Metal
+# backend on macOS (the `metal` feature is a no-op on non-Apple targets).
+# 0.2.3 matches Handy 0.9.7 (streaming-capable Session API).
+# Must be a common dependency: src/managers/transcription.rs uses it unconditionally.
+transcribe-cpp = { version = "0.2.3", default-features = false, features = ["metal"] }
 
 [target.'cfg(unix)'.dependencies]
 signal-hook = "0.3"
@@ -130,9 +135,8 @@ objc2-foundation = "0.3"
 objc2-app-kit = { version = "0.3", default-features = false, features = ["NSEvent", "block2", "NSPasteboard"] }
 core-foundation = "0.10"
 core-graphics = "0.24"
-# transcribe.cpp engine migration (plan B) — GGUF/ggml engine with Metal
-# backend on macOS. 0.2.3 matches Handy 0.9.7 (streaming-capable Session API).
-transcribe-cpp = { version = "0.2.3", default-features = false, features = ["metal"] }
+# transcribe-cpp (the ASR engine) lives in the common [dependencies] section
+# above; it is used unconditionally by src/managers/transcription.rs.
 
 [dev-dependencies]
 tempfile = "3.27.0"
